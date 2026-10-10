@@ -103,7 +103,7 @@ def validate_profile(p):
     return {'errors':list(dict.fromkeys(errors)),'warnings':list(dict.fromkeys(warnings)),'note':'Structural checks only. Clinical correctness requires faculty review.'}
 
 def brief(p):
-    return {k:p.get(k) for k in ['id','name','age','gender','summary','image','version','status','provenance']}
+    return {k:p.get(k) for k in ['id','name','age','gender','summary','image','version','status','provenance','generated_at']}
 
 def event(e,kind,**fields):
     v={'id':uid(),'sequence':len(e['events'])+1,'type':kind,'timestamp':now(),**fields}
@@ -271,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(self.save_generated(profile,reports,f'AI-generated draft from a faculty description ({model}). Faculty review required.',req.get('files') or [],portrait),201)
 
     def save_generated(self,profile,reports,provenance,uploads=(),portrait=None):
-        p=dict(profile);p.update(id=uid(),version=0,status='draft',image='',provenance=provenance,source_refs=[])
+        p=dict(profile);p.update(id=uid(),version=0,status='draft',image='',provenance=provenance,source_refs=[],generated_at=now())
         def attach(name,raw,mime,kind,keywords):
             a={'id':uid(),'name':name,'size':len(raw),'mime':mime,'kind':kind,'release':'question','keywords':keywords,'uploaded_at':now(),'sha256':hashlib.sha256(raw).hexdigest()}
             self.store.db.execute('INSERT INTO attachments VALUES(?,?,?,?)',(a['id'],p['id'],json.dumps(a),raw));return a
@@ -537,7 +537,7 @@ class Handler(BaseHTTPRequestHandler):
                 p=b.get('profile',{});v=validate_profile(p)
                 if v['errors']:raise APIError(422,' '.join(v['errors']))
                 if p.get('version')!=c['draft']['version']:raise APIError(409,'This case changed. Reload it before saving.')
-                p.update(id=parts[1],status='draft',version=c['draft']['version']+1,image=c['draft'].get('image',''))
+                p.update(id=parts[1],status='draft',version=c['draft']['version']+1,image=c['draft'].get('image',''),generated_at=c['draft'].get('generated_at'))
                 c['draft']=p;self.store.put('cases',parts[1],c)
                 return self.send({'profile':p,'attachments':self.attachments(parts[1]),'validation':v})
             if parts[2:]==['validate'] and method=='POST':return self.send(validate_profile(b.get('profile',c['draft'])))

@@ -342,6 +342,19 @@ class GeneratorApi(unittest.TestCase):
         self.assertEqual(sorted(a['kind'] for a in r['attachments']), ['artifact', 'portrait', 'source'])
         self.assertTrue(r['profile']['image'].startswith('/api/portraits/'))
         self.assertEqual(Client(self.base).call(r['profile']['image'])[1], b'JPEGDATA')
+        timestamp = r['profile']['generated_at']
+        self.assertTrue(timestamp.endswith('+00:00'))
+        pid = r['profile']['id']
+        patients = self.c.call('/api/patients')[1]['patients']
+        self.assertEqual(next(p['generated_at'] for p in patients if p['id'] == pid), timestamp)
+        # Generation time belongs to the original draft, even if an editor changes it.
+        edited = {**r['profile'], 'generated_at': '2000-01-01T00:00:00Z'}
+        status, saved = self.c.call(f'/api/patients/{pid}', 'PUT', {'profile': edited})
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved['profile']['generated_at'], timestamp)
+        status, published = self.c.call(f'/api/patients/{pid}/publish', 'POST', {'approved': True})
+        self.assertEqual(status, 200, published)
+        self.assertEqual(published['profile']['generated_at'], timestamp)
 
     def test_portrait_failure_is_a_note_not_an_error(self):
         with mock.patch.object(generator, 'generate_case', return_value=(example()[1], 'fake-model')), \

@@ -23,7 +23,7 @@ r['released_feedback']=student_feedback(r['feedback'])
 print(json.dumps({'profiles':seed_profiles(),'patients':[{**brief(p),'has_published_version':True,'published_card':brief(p)} for p in seed_profiles()],'rubric':RUBRIC,'encounter':public_encounter(e,'faculty'),'student_pending':public_encounter(e,'student'),'student_released':public_encounter(r,'student')}))
 `],{cwd:root,encoding:'utf8'}));
 const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
-const avatarMocks={Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}}};
+const avatarMocks={Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}},voiceInput:{isAvailable:()=>false}};
 const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
 const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
@@ -33,7 +33,19 @@ let count=0;
 function check(name,fn){fn();count++;console.log('PASS',name);}
 check('Eight patient cards render',()=>assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,8));
 check('Library contains patient actions',()=>assert.ok(run('casesView()').includes('data-action="start"')));
-check('Studio table renders with AI generation before Create patient',()=>{const html=run('studioView()');assert.ok(html.includes('Omar Sinclair'));assert.ok(html.includes('data-action="navigate" data-id="generate"'));assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));});
+check('Studio table renders with generation timestamps and AI generation before Create patient',()=>{
+ run("S.patients=[{...fixture.patients[0],generated_at:'2026-10-10T18:45:26Z'},...fixture.patients.slice(1)];");
+ const html=run('studioView()');
+ assert.ok(html.includes('Omar Sinclair'));
+ assert.ok(html.includes('data-action="navigate" data-id="generate"'));
+ assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));
+ assert.ok(html.includes('<th>GENERATED AT</th>'));
+ assert.ok(html.includes('datetime="2026-10-10T18:45:26.000Z"'));
+ assert.ok(html.includes('2026'));
+ assert.ok(!html.includes('Invalid Date'));
+ assert.ok(html.includes('<span class="muted">—</span>'));
+ run('S.patients=fixture.patients;');
+});
 check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
 check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
 check('Approval storage status distinguishes local, configured, incomplete, and saved',()=>{run("S.storageStatus={enabled:false};");assert.ok(run('editorView()').includes('AWS storage is off'));run("S.storageStatus={enabled:true,configured:false};");assert.ok(run('editorView()').includes('Approval is blocked'));run("S.storageStatus={enabled:true,configured:true};S.editor={...fixture.profiles[4],status:'draft'};");assert.ok(run('editorView()').includes('Approval will save'));assert.ok(!run('editorView()').includes('No uploads are sent to an external service'));run("S.editor={...fixture.profiles[4],status:'published',cloud_storage:{version:fixture.profiles[4].version,file_count:2}};");assert.ok(run('editorView()').includes('Saved to AWS'));run('S.storageStatus=null;S.editor=fixture.profiles[4];');});

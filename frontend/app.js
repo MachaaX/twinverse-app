@@ -645,7 +645,7 @@ document.addEventListener('click',async event=>{
   if(action==='confirm-finish'){el.disabled=true;S.encounter=await api('/encounters/'+id+'/finish','POST',{});$('#confirm-dialog').close();location.hash='report/'+id;return;}
   if(action==='evidence'){evidence(id);return;}
   if(action==='open-artifact'){const eId=S.encounter.id;const response=await fetch('/api/encounters/'+eId+'/artifacts/'+id);if(!response.ok)throw new Error((await response.json()).error);const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=S.encounter.artifacts.find(x=>x.id===id).name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);S.encounter=await api('/encounters/'+eId);$('#chart-body').innerHTML=chartView();return;}
-  if(action==='gen-test'){el.disabled=true;const box=$('#gen-check');box.innerHTML='<div class="loading-state"><span class="spinner"></span>Testing Claude models on Bedrock…</div>';
+  if(action==='gen-test'){el.disabled=true;const box=$('#gen-check');box.innerHTML='<div class="loading-state"><span class="spinner"></span>Testing the patient model on Bedrock…</div>';
    try{const r=await api('/generator/test','POST',{});box.innerHTML=`<ul class="validation-list">${r.results.map(x=>`<li class="${x.ok?'':'gen-error'}">${x.ok?'Working':'Not available'}: ${esc(x.model)}${x.error?' · '+esc(x.error):''}</li>`).join('')}</ul>`;toast(`Bedrock connected. Using ${r.model}.`);S.genStatus=await api('/generator/status');}
    catch(err){box.innerHTML=`<ul class="validation-list"><li class="gen-error">${esc(err.message)}</li></ul>`;throw err;}
    return;}

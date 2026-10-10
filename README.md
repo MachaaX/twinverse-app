@@ -49,7 +49,7 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 6. Ask: `How do you feel about taking medication?`
 7. Ask: `Do you have a penicillin allergy?` The adapter reports that the detail is not provided, rather than inventing a negative history.
 8. Finish the encounter. Inspect the checkpoint evidence and original transcript.
-9. Switch the top-right role to **Faculty**. The feedback page stays open. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
+9. Switch the top-right role to **Faculty** and enter the faculty password (`twinverse-faculty` by default). The feedback page stays open. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
 10. Give domain 6 or 7 a rating of 1 with an explanation to demonstrate the official review-trigger behavior.
 
 ## Create a patient through the UI
@@ -68,6 +68,85 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 9. Go to Practice library and start the new patient.
 
 Draft changes do not modify the last published version. Publish to make edits available to new encounters. Existing encounters always retain the profile, attachments, and rubric snapshots they started with.
+
+## Automatic scoring and faculty release
+
+1. When a student finishes, the app drafts a score from `data/clinical_scoring_criteria.json` (communication, vital-sign/NEWS2 and per-patient clinical criteria).
+2. The student sees **Submitted for faculty review**, with no scores.
+3. Faculty open the encounter from **Encounter history**. Each domain shows the suggested score, the criteria met and missed with transcript evidence, and a pre-filled rating and note. A **Feedback to the student** section pre-fills strengths, areas to improve and next steps.
+4. Faculty change anything, then **Save review** (draft) or **Save & release to student**.
+5. The student then sees the final score and the faculty feedback. Later edits stay hidden until released again.
+
+The clinical criteria are a draft and need faculty validation before real grading.
+
+## Generate patients from a description (faculty)
+
+Sign in as Faculty and open **Generate patients** in the sidebar.
+
+1. **Describe the patient** in one text box, the way you would brief a standardized patient: age, sex, situation, findings (vitals, labs, imaging), personality, and learning objectives.
+2. **Attach files** if you have them (labs, X-ray reports, prior notes, guidelines; PDF, image, TXT, MD; up to 4 files, 5 MB each). They are read by the AI and kept with the case as faculty-only sources.
+3. **Set two sliders:** *Temperament* (friendly to hostile) and *Openness* (open to closed off). They shape the patient's behavior and the grading (below).
+4. **Generate patient.** The result is a draft in Patient Studio with:
+   - **Patient profile:** facts with disclosure rules, patient wording, sensitive topics marked, behavior description.
+   - **Case rubric:** criteria mapped to the seven official domains, each citing its source from an allowed list (organizer rubric, SEGUE, Kalamazoo, Calgary-Cambridge, AHA/ACC, ADA, ASHA, and others). Invented references are not accepted.
+   - **Clinical reports:** one per result type the description mentions (labs, imaging, prior notes), released when the student asks.
+   - **Portrait:** generated with Stability Stable Image Core on Bedrock. If it fails, the case is still created and the reason is listed.
+
+Generation is blocked until the description is long enough and free of real identifiers (SSN, email, phone, MRN). If the AI finds that age, sex, the main concern, or learning objectives are missing, it asks you to add them instead of guessing. Details the AI added and values from the description that are missing from the case are listed as review flags.
+
+**Load static example** creates the pre-generated pediatric hearing case (guarded, polite 10-year-old) without any network call.
+
+### How the sliders change grading
+
+| Setting | Effect on the automatic draft score |
+|---|---|
+| Any patient with sliders | Thoroughness (minor criterion): about 5 + (openness − 1) + (temperament − 1) ÷ 2 questions, **or** most of the case information gathered, **or** a correct assessment |
+| Harder level 3+ (either slider) | Adds a criterion for staying patient and non-confrontational |
+| Level 4+ | Empathy and responding to cues become critical criteria |
+| Level 4 / 5 | Score cut-offs lowered by 5 / 10 percentage points |
+
+Each adjustment is listed in the faculty feedback view. The original eight seed patients have no sliders.
+
+### Conversation quality, synthesis, and critical-first gathering
+
+- **The student opens the conversation.** The patient waits, and the timer starts with the student's first message.
+- **Conversation quality** (shown to faculty, and to students after release): each student message is rated warm, neutral, or cold from validating language (for example "that sounds…", "makes sense", naming the patient's feeling) and dismissive or directive phrases. The panel also counts empathy statements, open versus closed questions, and unexplained jargon, and tracks whether the patient opened up or closed down. These feed four criteria: warm tone (domain 2), open questions (domain 3), plain language (domain 5), and patient trust (domain 4). Every judgement links to the message that caused it.
+- **Synthesis:** stating a fitting assessment (for example "stage 2 hypertension") tied to at least two key findings meets a clinical-reasoning criterion. Accepted terms and findings come from `data/clinical_scoring_criteria.json`, or from the generator for new patients.
+- **Critical-first gathering:** if every critical history item was gathered, missed minor items are not counted and other missed items count half. With a correct synthesis as well, missed non-critical items are not counted at all, so a student who pieces the picture together is not penalized for skipping routine questions.
+
+### AI conversation guardrails
+
+Generated patients use **AI with guardrails** by default (switch to *Scripted* in Patient Studio):
+
+- The model only sees facts the patient may share now. Faculty-only notes are never sent. A guarded patient (openness 4–5) holds back facts marked *sensitive* until the student makes an empathic statement.
+- Each reply must name the facts it used. Replies citing facts that are not allowed, mentioning numbers that are not in those facts, or breaking character are blocked, retried once, then replaced with the approved wording.
+- The same question in the same conversation state returns the same answer across runs (cached per patient version), so repeated attempts are consistent.
+- Every replacement is logged and shown to faculty in the feedback view.
+
+### Turning on live generation
+
+Live generation is optional. The rest of the app needs no installs.
+
+```bash
+python3 -m pip install anthropic
+```
+
+```bash
+AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
+```
+
+- The key is a Bedrock API key (bearer token). Short-term keys last 12 hours; when one expires, generate a new key and restart with it.
+- Defaults: region `us-west-2`. Claude models are tried in order (`anthropic.claude-opus-5-5`, then `anthropic.claude-opus-4-8`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-4-7`) and the app uses the first one your key can reach; **Test connection** lists which work. Bedrock opens some Claude models to all accounts and gates others under Model access. Portraits use `stability.stable-image-core-v1:1` (enable it under Model access). Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated), `TWINVERSE_IMAGE_MODEL`.
+- Use **Test connection** on the Generate patients page before a demo.
+- Never put the key in code, a committed file, or chat. This repository is public.
+
+## Ratings and problem reports
+
+- **Report a problem** (top bar, every screen, students and faculty): choose a category (wrong or made-up patient answer, scoring, something broke, clinical content, other) and describe it. The page, encounter, latest message, and role are attached automatically. Limited to 20 reports per browser per hour.
+- **Rate the conversation:** after finishing, students give the conversation 1–5 stars with an optional comment.
+- **Rate the automatic score:** on the review page, faculty rate how accurate the auto-suggested score was, 1–5 stars with an optional comment. Students never see this rating.
+- **Developer** (sidebar, both roles): password-protected view of all raw ratings and problem reports, star counts, report counts by type, status, and role, plus CSV and JSON exports. The default password is `twinverse-dev` (printed at startup); change it with `TWINVERSE_DEVELOPER_PASSWORD`. Access ends when you click Lock or the server restarts. Like the faculty password, the default is visible in this repository.
+- **Feedback & reports** (faculty sidebar): average ratings overall and per patient, recent comments, and every problem report with a link to the encounter and message. Mark reports resolved or reopen them.
 
 ## Attachment behavior
 
@@ -160,7 +239,8 @@ If the frontend test's Python executable differs, set `PYTHON` to it. These test
 ## Local-only boundaries
 
 - The server binds to `127.0.0.1`, validates Host/Origin, serves only the frontend directory, and uses HttpOnly SameSite cookies.
-- Faculty/student role switching is explicitly a **demo convenience**, not authentication. Anyone with local browser access can choose Faculty.
+- **Faculty sign-in:** switching to Faculty requires the shared demo password, `twinverse-faculty` by default (also printed in the terminal at startup). Change `DEFAULT_FACULTY_PASSWORD` in `backend/server.py`, or start with `TWINVERSE_FACULTY_PASSWORD="..." python3 run.py`. Five wrong attempts lock that browser out for 60 seconds, and restarting the server signs every browser out of the faculty view. Switching back to Student signs out.
+- The default password is visible in this repository, so it only keeps casual users out of the faculty view during a demo. It is not per-user accounts. Add real authentication before any shared deployment.
 - Browser sessions have separate encounter ownership; Faculty can inspect local encounters for review.
 - Do not expose this server publicly or use real patient information. Add real authentication, authorization, TLS, secure deployment, upload scanning, retention policy, and proper operational controls before any real deployment.
 - Browser narration reads the same approved reply text; it does not evaluate speech, accents, facial expressions, or emotion.

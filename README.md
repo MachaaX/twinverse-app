@@ -79,6 +79,60 @@ Draft changes do not modify the last published version. Publish to make edits av
 
 The clinical criteria are a draft and need faculty validation before real grading.
 
+## Generate patients from a description (faculty)
+
+Sign in as Faculty and open **Generate patients** in the sidebar.
+
+1. **Describe the patient** in one text box, the way you would brief a standardized patient: age, sex, situation, findings (vitals, labs, imaging), personality, and learning objectives.
+2. **Attach files** if you have them (labs, X-ray reports, prior notes, guidelines; PDF, image, TXT, MD; up to 4 files, 5 MB each). They are read by the AI and kept with the case as faculty-only sources.
+3. **Set two sliders:** *Temperament* (friendly to hostile) and *Openness* (open to closed off). They shape the patient's behavior and the grading (below).
+4. **Generate patient.** The result is a draft in Patient Studio with:
+   - **Patient profile:** facts with disclosure rules, patient wording, sensitive topics marked, behavior description.
+   - **Case rubric:** criteria mapped to the seven official domains, each citing its source from an allowed list (organizer rubric, SEGUE, Kalamazoo, Calgary-Cambridge, AHA/ACC, ADA, ASHA, and others). Invented references are not accepted.
+   - **Clinical reports:** one per result type the description mentions (labs, imaging, prior notes), released when the student asks.
+   - **Portrait:** generated with Stability Stable Image Core on Bedrock. If it fails, the case is still created and the reason is listed.
+
+Generation is blocked until the description is long enough and free of real identifiers (SSN, email, phone, MRN). If the AI finds that age, sex, the main concern, or learning objectives are missing, it asks you to add them instead of guessing. Details the AI added and values from the description that are missing from the case are listed as review flags.
+
+**Load static example** creates the pre-generated pediatric hearing case (guarded, polite 10-year-old) without any network call.
+
+### How the sliders change grading
+
+| Setting | Effect on the automatic draft score |
+|---|---|
+| Any patient with sliders | Expects at least 6 + 2 × (openness − 1) + (temperament − 1) student questions |
+| Harder level 3+ (either slider) | Adds a criterion for staying patient and non-confrontational |
+| Level 4+ | Empathy and responding to cues become critical criteria |
+| Level 4 / 5 | Score cut-offs lowered by 5 / 10 percentage points |
+
+Each adjustment is listed in the faculty feedback view. The original eight seed patients are graded exactly as before.
+
+### AI conversation guardrails
+
+Generated patients use **AI with guardrails** by default (switch to *Scripted* in Patient Studio):
+
+- The model only sees facts the patient may share now. Faculty-only notes are never sent. A guarded patient (openness 4–5) holds back facts marked *sensitive* until the student makes an empathic statement.
+- Each reply must name the facts it used. Replies citing facts that are not allowed, mentioning numbers that are not in those facts, or breaking character are blocked, retried once, then replaced with the approved wording.
+- The same question in the same conversation state returns the same answer across runs (cached per patient version), so repeated attempts are consistent.
+- Every replacement is logged and shown to faculty in the feedback view.
+
+### Turning on live generation
+
+Live generation is optional. The rest of the app needs no installs.
+
+```bash
+python3 -m pip install anthropic
+```
+
+```bash
+AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
+```
+
+- The key is a Bedrock API key (bearer token). Short-term keys last 12 hours; when one expires, generate a new key and restart with it.
+- Defaults: region `us-west-2`. Claude models are tried in order (`anthropic.claude-opus-5-5`, then `anthropic.claude-opus-4-8`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-4-7`) and the app uses the first one your key can reach; **Test connection** lists which work. Bedrock opens some Claude models to all accounts and gates others under Model access. Portraits use `stability.stable-image-core-v1:1` (enable it under Model access). Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated), `TWINVERSE_IMAGE_MODEL`.
+- Use **Test connection** on the Generate patients page before a demo.
+- Never put the key in code, a committed file, or chat. This repository is public.
+
 ## Attachment behavior
 
 - Supported uploads: PDF, PNG, JPG/JPEG, TXT, MD, and JSON; up to 5 MB per file.

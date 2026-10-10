@@ -15,6 +15,7 @@ class Store:
         CREATE TABLE IF NOT EXISTS encounters(id TEXT PRIMARY KEY, owner TEXT NOT NULL, document TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, role TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS attachments(id TEXT PRIMARY KEY, case_id TEXT NOT NULL, metadata TEXT NOT NULL, content BLOB NOT NULL);
+        CREATE TABLE IF NOT EXISTS reply_cache(key TEXT PRIMARY KEY, value TEXT NOT NULL);
         ''')
         if not self.db.execute('SELECT 1 FROM cases LIMIT 1').fetchone():
             for p in seed_profiles():self.put('cases',p['id'],{'draft':p,'published':p,'history':[]})
@@ -45,6 +46,7 @@ class Store:
             if not p or not p.get('id'):continue
             p={**p,'case_file':f.name,'case_file_version':case.get('case_file_version',1)}
             current=self.get('cases',p['id'])
+            if current and current.get('deleted_at'):continue  # faculty deleted it; don't bring it back
             if current and (current.get('published') or {}).get('case_file_version')==p['case_file_version']:continue
             history=(current or {}).get('history',[])+([current['published']] if current and current.get('published') else [])
             self.put('cases',p['id'],{'draft':p,'published':p,'history':history})

@@ -121,11 +121,53 @@ def vital_criteria(crit, keys):
     return out
 
 
+TEMPERAMENT_LABEL = {1: 'friendly', 2: 'reserved', 3: 'skeptical', 4: 'irritable', 5: 'hostile'}
+OPENNESS_LABEL = {1: 'open', 2: 'answers when asked', 3: 'brief', 4: 'guarded', 5: 'closed-off'}
+EMPATHY_IDS = ('U-RAPP-1', 'U-CUE-1', 'U-CUE-2')
+
+
+def difficulty_adjustments(profile):
+    """How the temperament and openness sliders change grading. None for cases without sliders."""
+    d = profile.get('difficulty')
+    if not isinstance(d, dict):
+        return None
+    t = d.get('temperament') if d.get('temperament') in range(1, 6) else 2
+    o = d.get('openness') if d.get('openness') in range(1, 6) else 2
+    level = max(t, o)
+    expected_turns = 6 + 2 * (o - 1) + (t - 1)
+    shift = min(0.10, 0.05 * max(0, level - 3))
+    changes = [f'Expect at least {expected_turns} student questions: a {OPENNESS_LABEL[o]}, {TEMPERAMENT_LABEL[t]} patient needs a longer interview.']
+    if level >= 3:
+        changes.append('Added a criterion for staying patient and non-confrontational.')
+    if level >= 4:
+        changes.append('Empathy and responding to cues are weighted as critical.')
+    if shift:
+        changes.append(f'Score cut-offs lowered by {round(shift * 100)} percentage points because this patient is harder to interview.')
+    return {'temperament': t, 'openness': o, 'level': level, 'expected_turns': expected_turns, 'threshold_shift': shift,
+            'empathy_critical': level >= 4, 'changes': changes}
+
+
+def difficulty_criteria(adj):
+    out = [{'id': 'D-LENGTH', 'domain': 3, 'tier': 'important', 'rule': 'min_turns', 'min': adj['expected_turns'],
+            'criterion': f"Sustains the interview: at least {adj['expected_turns']} questions for this patient",
+            'feedback_if_missed': 'This patient shares slowly. Keep going with open questions and follow-ups instead of ending early.'}]
+    if adj['level'] >= 3:
+        out.append({'id': 'D-PERSIST', 'domain': 2, 'tier': 'critical' if adj['level'] == 5 else 'important',
+                    'criterion': 'Stays patient and non-confrontational with a guarded or difficult patient',
+                    'cues': ['take your time', 'no rush', "you don't have to", "whenever you're ready", 'i hear you', "that's fair",
+                             "it's okay", 'i understand', 'only if you are comfortable', "i'm here to help"],
+                    'negative_cues': ['calm down', 'just answer', "that's not true", 'stop being', 'you need to cooperate'],
+                    'feedback_if_missed': 'With a guarded or irritated patient, slow down, acknowledge the frustration, and give them control before pressing on.'})
+    return out
+
+
 def evaluate(c, student, disclosed_by_turn, results_so_far):
     ev = []
     for fid in c.get('seed_fact_ids', []):
         ev += [{'turn_id': t, 'quote': f'(disclosed fact {fid})'} for t in disclosed_by_turn.get(fid, [])]
     rule = c.get('rule')
+    if rule == 'min_turns':
+        return len(student) >= c['min'], [{'turn_id': student[-1]['id'], 'quote': f'{len(student)} student questions'}] if student else []
     if rule == 'co_occur':
         ev += [{'turn_id': m['id'], 'quote': m['text']} for m in student
                if any(has(m['text'], a) for a in c['cues']) and any(has(m['text'], b) for b in c['cues2'])]
@@ -175,6 +217,10 @@ def score(crit, enc):
                           'criterion': o.get('label') or o['id'], 'seed_fact_ids': o.get('fact_ids', []),
                           'feedback_if_missed': o.get('suggestion', '')}
                          for o in profile.get('objectives', []) if o.get('fact_ids')]
+        # Case-specific criteria written by faculty or the generator (validated on save).
+        case_criteria += [c for c in profile.get('scoring_criteria', [])
+                          if isinstance(c, dict) and c.get('domain') in DOMAIN_KEYS and c.get('tier') in TIER_WEIGHT
+                          and c.get('criterion') and (c.get('cues') or c.get('negative_cues'))]
     msgs = enc['messages']
     student = [m for m in msgs if m['role'] == 'student']
     disclosed = {}
@@ -185,8 +231,12 @@ def score(crit, enc):
 
     vitals = enc.get('vitals') or profile.get('vitals') or case.get('vitals') or {}
     vkeys = abnormalities_from_vitals(vitals) if vitals else []
+    adj = difficulty_adjustments(profile)
     skip = set(case.get('exclude_universal', []))  # e.g. medication/allergy items for a non-prescribing case
-    criteria = [c for c in crit['universal_criteria'] if c['id'] not in skip] + case_criteria + vital_criteria(crit, vkeys)
+    universal = [c for c in crit['universal_criteria'] if c['id'] not in skip]
+    if adj and adj['empathy_critical']:
+        universal = [{**c, 'tier': 'critical'} if c['id'] in EMPATHY_IDS else c for c in universal]
+    criteria = universal + case_criteria + vital_criteria(crit, vkeys) + (difficulty_criteria(adj) if adj else [])
     criteria = [c for c in criteria if not (c.get('rule') == 'before_treatment' and set(c.get('requires', [])) & skip)]
     order = sorted(criteria, key=lambda c: c.get('rule') in ('order_check', 'before_treatment'))
 
@@ -214,6 +264,8 @@ def score(crit, enc):
                 unsafe.append({'id': 'X-6', 'turn_id': '-', 'quote': f'NEWS2 {total_news} without escalation'})
 
     rubric_scores = crit['scoring_model']['coverage_to_rubric_score']
+    if adj and adj['threshold_shift']:
+        rubric_scores = [{**x, 'min_coverage': max(0.0, x['min_coverage'] - adj['threshold_shift'])} for x in rubric_scores]
     domains = []
     for did, key in DOMAIN_KEYS.items():
         rows = [r for r in results.values() if r['met'] is not None and r['domain'] == did]
@@ -242,7 +294,7 @@ def score(crit, enc):
         'encounter_id': enc.get('id'), 'patient_id': pid, 'patient_name': case.get('name') or profile.get('name'),
         'criteria_version': crit['version'], 'status': 'auto_scored_pending_faculty_review',
         'domains': domains, 'criteria_results': list(results.values()),
-        'vitals': {'abnormalities': vkeys, 'news2': news}, 'unsafe_actions': unsafe,
+        'vitals': {'abnormalities': vkeys, 'news2': news}, 'unsafe_actions': unsafe, 'difficulty': adj,
         'total': sum(d['score'] for d in scored), 'available_points': 4 * len(scored),
         'na_domains': sum(d['score'] == 'N/A' for d in domains),
         'review_required': bool(unsafe) or any(d['id'] in (6, 7) and d['score'] == 1 for d in scored),

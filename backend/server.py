@@ -5,6 +5,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import secrets
 import time
 import uuid
@@ -17,6 +18,7 @@ from urllib.parse import urlparse, unquote
 from .store import Store
 from .seed import ROOT
 from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
+from . import generator, dialogue
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
@@ -71,6 +73,10 @@ def validate_profile(p):
             if any(x not in ids for x in refs):errors.append('A checkpoint references a missing fact.')
             if any(f.get('id') in refs and f.get('release')=='faculty_only' for f in facts if isinstance(f,dict)):errors.append('A checkpoint cannot require a faculty-only fact.')
         if len(set(str(x) for x in objective_ids))!=len(objective_ids):errors.append('Checkpoint IDs must be unique.')
+    d=p.get('difficulty')
+    if d is not None and (not isinstance(d,dict) or any(type(d.get(k))!=int or not 1<=d.get(k)<=5 for k in ['temperament','openness'])):errors.append('Temperament and openness must be whole numbers from 1 to 5.')
+    if p.get('dialogue_mode',None) not in (None,'scripted','generative'):errors.append('Choose scripted or AI conversation.')
+    if any(isinstance(f,dict) and f.get('sensitivity') not in (None,'routine','sensitive') for f in facts):errors.append('Fact sensitivity must be routine or sensitive.')
     warnings.extend(p.get('validation_notes',[]) if isinstance(p.get('validation_notes',[]),list) else [])
     return {'errors':list(dict.fromkeys(errors)),'warnings':list(dict.fromkeys(warnings)),'note':'Structural checks only. Clinical correctness requires faculty review.'}
 
@@ -126,6 +132,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):self.handle_request('GET')
     def do_POST(self):self.handle_request('POST')
     def do_PUT(self):self.handle_request('PUT')
+    def do_DELETE(self):self.handle_request('DELETE')
 
     def handle_request(self,method):
         try:
@@ -148,6 +155,10 @@ class Handler(BaseHTTPRequestHandler):
                 try:body=json.loads(self.rfile.read(length) or b'{}')
                 except (ValueError,UnicodeDecodeError):raise APIError(400,'Invalid JSON.')
                 if not isinstance(body,dict):raise APIError(400,'JSON body must be an object.')
+            if method=='POST' and self.path_only in ('/api/generator/generate','/api/generator/test'):
+                return self.slow_generator_call(body)
+            turn=re.fullmatch(r'/api/encounters/([^/]+)/turns',self.path_only)
+            if method=='POST' and turn:return self.generative_turn(turn.group(1),body)
             with self.server.store.lock:
                 self.session()
                 self.route(method,body)
@@ -181,12 +192,86 @@ class Handler(BaseHTTPRequestHandler):
             raise APIError(403,'Incorrect faculty password.')
         failures.pop(self.token,None)
 
+    def slow_generator_call(self,b):
+        """Bedrock calls can take a minute, so they run without holding the store lock."""
+        with self.server.store.lock:
+            self.session();self.faculty()
+        try:
+            if self.path_only.endswith('/test'):return self.send(generator.test_connection())
+            req=b.get('request')
+            check=generator.check_request(req)
+            if check['errors']:raise APIError(422,' '.join(check['errors']))
+            raw,model=generator.generate_case(req)
+            profile,reports=generator.normalize(raw,req,f'AI-generated from faculty description ({model})')
+        except generator.GeneratorError as e:raise APIError(502,str(e))
+        portrait,portrait_note=generator.generate_portrait(profile['image_prompt'],profile['age'],profile['gender'])
+        if portrait_note:profile['validation_notes'].append(portrait_note)
+        with self.server.store.lock:
+            return self.send(self.save_generated(profile,reports,f'AI-generated draft from a faculty description ({model}). Faculty review required.',req.get('files') or [],portrait),201)
+
+    def save_generated(self,profile,reports,provenance,uploads=(),portrait=None):
+        p=dict(profile);p.update(id=uid(),version=0,status='draft',image='',provenance=provenance,source_refs=[])
+        def attach(name,raw,mime,kind,keywords):
+            a={'id':uid(),'name':name,'size':len(raw),'mime':mime,'kind':kind,'release':'question','keywords':keywords,'uploaded_at':now(),'sha256':hashlib.sha256(raw).hexdigest()}
+            self.store.db.execute('INSERT INTO attachments VALUES(?,?,?,?)',(a['id'],p['id'],json.dumps(a),raw));return a
+        for r in reports:
+            name=re.sub(r'[^a-z0-9]+','-',r['title'].lower()).strip('-')[:60] or 'clinical-report'
+            attach(name+'.txt',(r['body']+'\n').encode(),'text/plain','artifact',r['keywords'])
+        for f in uploads:  # the faculty's own files stay as faculty-only knowledge sources
+            name=Path(f['name']).name
+            attach(name,base64.b64decode(f['content']),generator.FILE_TYPES[Path(name).suffix.lower()],'source',[])
+        if portrait:
+            a=attach('portrait.jpg',portrait,'image/jpeg','portrait',[]);p['image']=f"/api/portraits/{a['id']}"
+        self.store.db.commit()
+        self.store.put('cases',p['id'],{'draft':p,'published':None,'history':[]})
+        return {'profile':p,'attachments':self.attachments(p['id']),'validation':validate_profile(p)}
+
+    def generative_turn(self,eid,b):
+        """AI replies run outside the store lock; the turn is recorded before and after."""
+        with self.server.store.lock:
+            self.session();e=self.encounter(eid)
+            if e['profile'].get('dialogue_mode')!='generative':return self.route('POST',b)
+            if e['status']!='active':raise APIError(409,'This encounter is finished. Start a new attempt.')
+            text=b.get('text','');rid=b.get('request_id','')
+            if not isinstance(text,str) or not text.strip() or len(text)>4000:raise APIError(422,'Enter a question of 1–4000 characters.')
+            if not isinstance(rid,str) or not rid or len(rid)>100:raise APIError(422,'A unique request ID is required.')
+            if rid in e['requests']:return self.send(public_encounter(e,self.role))
+            if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
+            if e.get('pending_turn'):raise APIError(409,'The patient is still answering the previous question.')
+            text=text.strip();tid='t'+str(len(e['messages']))
+            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['pending_turn']=tid
+            event(e,'student_turn',turn_id=tid);self.save_encounter(e)
+            profile=e['profile'];history=copy.deepcopy(e['messages'][:-1])
+            key=dialogue.cache_key(profile,text,e['disclosed'],dialogue.rapport_established(e['messages']))
+            row=self.store.db.execute('SELECT value FROM reply_cache WHERE key=?',(key,)).fetchone()
+        try:r=json.loads(row['value']) if row else dialogue.generate_reply(profile,history,text)
+        except Exception:
+            import traceback;traceback.print_exc()
+            r=dialogue.fallback(profile,history,text,'AI reply failed unexpectedly; scripted wording used.')
+        with self.server.store.lock:
+            if not row and r['kind']=='generative':
+                self.store.db.execute('INSERT OR REPLACE INTO reply_cache VALUES(?,?)',(key,json.dumps(r)));self.store.db.commit()
+            e=self.encounter(eid);e.pop('pending_turn',None)
+            e['messages'].append({'id':'t'+str(len(e['messages'])),'role':'patient','text':r['text'],'timestamp':now(),'fact_ids':r['fact_ids'],'kind':r['kind'],'reply_to':tid,'cached':bool(row)})
+            if r.get('guardrail'):event(e,'guardrail_blocked',turn_id=tid,reason=r['guardrail'])
+            self.record_disclosure(e,r,text,tid);e['requests'].append(rid)
+            self.save_encounter(e);return self.send(public_encounter(e,self.role))
+
+    def record_disclosure(self,e,r,text,tid):
+        for fid in r['fact_ids']:
+            if fid not in e['disclosed']:
+                e['disclosed'].append(fid);event(e,'fact_disclosed',fact_id=fid,turn_id=tid)
+        if is_inquiry(text) and r['kind']!='boundary':
+            for a in e['attachments']:
+                if a['id'] not in e['released_artifacts'] and any(includes(text,k) for k in a['keywords']):
+                    e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
+
     def faculty(self):
         if self.role!='faculty':raise APIError(403,'Switch to the Faculty demo workspace for this action.')
 
     def case(self,id):
         c=self.store.get('cases',id)
-        if not c:raise APIError(404,'Patient not found.')
+        if not c or c.get('deleted_at'):raise APIError(404,'Patient not found.')
         return c
 
     def encounter(self,id):
@@ -210,11 +295,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.role=b['role'];self.store.db.execute('UPDATE sessions SET role=? WHERE token=?',(self.role,self.token));self.store.db.commit()
             return self.send({'role':self.role,'mode':'local-demo','faculty_login':'password','authentication':'Faculty view requires the shared demo password.'})
         if parts==['rubric'] and method=='GET':return self.send(RUBRIC)
+        if parts and parts[0]=='generator':
+            self.faculty()
+            if parts==['generator','status'] and method=='GET':return self.send(generator.live_status())
+            if parts==['generator','check'] and method=='POST':return self.send(generator.check_request(b.get('request')))
+            if parts==['generator','example'] and method=='POST':
+                try:
+                    example_request,raw=generator.load_example()
+                    profile,reports=generator.normalize(raw,example_request,'Static generator example')
+                except generator.GeneratorError as e:raise APIError(500,str(e))
+                profile['validation_notes'].append('Static example: no portrait is generated offline.')
+                return self.send({**self.save_generated(profile,reports,'Static example of the plain-language generator (no AI call). Faculty review required.'),'request':example_request},201)
         if parts==['validate'] and method=='POST':
             self.faculty();return self.send(validate_profile(b.get('profile',{})))
         if parts==['patients'] and method=='GET':
             patients=[]
             for c in self.store.all('cases'):
+                if c.get('deleted_at'):continue
                 p=c['draft'] if self.role=='faculty' else c.get('published')
                 if p:patients.append({**brief(p),'has_published_version':bool(c.get('published')),'published_card':brief(c['published']) if c.get('published') else None})
             return self.send({'patients':patients})
@@ -227,6 +324,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({'profile':p,'attachments':[],'validation':v},201)
         if len(parts)>=2 and parts[0]=='patients':
             self.faculty();c=self.case(parts[1])
+            if len(parts)==2 and method=='DELETE':
+                # Keep a tombstone so an empty collection is not reseeded on restart.
+                # Encounter snapshots and their attachment downloads remain available.
+                self.store.put('cases',parts[1],{'deleted_at':now()})
+                return self.send({'deleted':True,'id':parts[1]})
             if len(parts)==2 and method=='GET':return self.send({'profile':c['draft'],'attachments':self.attachments(parts[1]),'validation':validate_profile(c['draft'])})
             if len(parts)==2 and method=='PUT':
                 p=b.get('profile',{});v=validate_profile(p)
@@ -259,6 +361,10 @@ class Handler(BaseHTTPRequestHandler):
                 a={'id':uid(),'name':name,'size':len(raw),'mime':types[ext],'kind':b['kind'],'release':b['release'],'keywords':keys,'uploaded_at':now(),'sha256':hashlib.sha256(raw).hexdigest()}
                 self.store.db.execute('INSERT INTO attachments VALUES(?,?,?,?)',(a['id'],parts[1],json.dumps(a),raw));self.store.db.commit()
                 return self.send(a,201)
+        if len(parts)==2 and parts[0]=='portraits' and method=='GET':
+            r=self.store.db.execute('SELECT metadata,content FROM attachments WHERE id=?',(parts[1],)).fetchone()
+            if not r or json.loads(r['metadata'])['kind']!='portrait':raise APIError(404,'Portrait not found.')
+            return self.send(bytes(r['content']),content_type='image/jpeg')
         if len(parts)==2 and parts[0]=='attachments' and method=='GET':
             self.faculty();return self.download_attachment(parts[1])
         if parts==['encounters'] and method=='GET':
@@ -293,13 +399,7 @@ class Handler(BaseHTTPRequestHandler):
                 event(e,'student_turn',turn_id=tid)
                 r=reply(e['profile'],text)
                 e['messages'].append({'id':'t'+str(len(e['messages'])),'role':'patient','text':r['text'],'timestamp':now(),'fact_ids':r['fact_ids'],'kind':r['kind'],'reply_to':tid})
-                for fid in r['fact_ids']:
-                    if fid not in e['disclosed']:
-                        e['disclosed'].append(fid);event(e,'fact_disclosed',fact_id=fid,turn_id=tid)
-                if is_inquiry(text) and r['kind']!='boundary':
-                    for a in e['attachments']:
-                        if a['id'] not in e['released_artifacts'] and any(includes(text,k) for k in a['keywords']):
-                            e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
+                self.record_disclosure(e,r,text,tid)
                 e['requests'].append(rid);self.save_encounter(e);return self.send(public_encounter(e,self.role))
             if parts[2:]==['finish'] and method=='POST':
                 if e['status']=='active':

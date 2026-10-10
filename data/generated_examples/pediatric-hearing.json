@@ -1,0 +1,399 @@
+{
+  "about": "Static example of the plain-language generator: the faculty description below and the case it produces. Loaded without calling Bedrock, so the demo works offline. Clinical content is a draft for faculty review. Built around 'Rubric for Pediatric Treatment.docx' (SPLP 6510, Pediatric Hearing Treatment, Session 1).",
+  "request": {
+    "text": "A 10-year-old girl in 5th grade comes with her mother for her first aural rehabilitation session. Her hearing loss was found at age 4 after she failed a school hearing screening. She wears behind-the-ear hearing aids in both ears but often takes them off at recess because other children tease her. She notices ringing in her ears when it is quiet at night. She has an IEP and sits near the front of the class, but struggles to follow group discussions. Her biggest goal is to understand her friends in the noisy cafeteria at lunch. She is shy at first and warms up with encouragement; her mother has many questions.\n\nShe is 10 years old, female. Main concern: Bilateral moderately-severe sensorineural hearing loss; first aural rehabilitation session with a speech-language pathologist.\n\nAudiogram: bilateral moderately-severe sensorineural hearing loss. Pure-tone average right 60 dB HL, left 65 dB HL. Aided thresholds 25-30 dB HL from 500-4000 Hz.\n\nLearning objectives:\n- Introduce yourself and your role in a professional, empathetic way\n- Complete a needs assessment: age at diagnosis, device use, other auditory complaints, educational needs, and the most important communication challenge today\n- Review the audiogram and explain the severity of the hearing loss sensitively, using the Speech Banana\n- Set realistic expectations: audiologist vs SLP, what aural rehabilitation is, and answer questions",
+    "temperament": 2,
+    "openness": 4,
+    "files": []
+  },
+  "case": {
+    "missing_required": [],
+    "age": 10,
+    "sex": "Female",
+    "concern": "Bilateral moderately-severe sensorineural hearing loss; first aural rehabilitation session with a speech-language pathologist",
+    "learning_objectives": [
+      "Introduce yourself and your role in a professional, empathetic way",
+      "Complete a needs assessment: age at diagnosis, device use, other auditory complaints, educational needs, and the most important communication challenge today",
+      "Review the audiogram and explain the severity of the hearing loss sensitively, using the Speech Banana",
+      "Set realistic expectations: audiologist vs SLP, what aural rehabilitation is, and answer questions"
+    ],
+    "name": "Maya Torres",
+    "summary": "10-year-old with bilateral hearing loss · first aural rehabilitation session (with her mother)",
+    "background": "Fifth grader who lives with her mother and younger brother. Likes drawing and soccer.",
+    "persona": "Shy at first, warms up with encouragement",
+    "behavior": "Maya is shy and gives short answers at first. She avoids talking about teasing or her feelings about her hearing aids until the student is warm and patient; her mother sometimes answers for her.",
+    "vitals": {},
+    "facts": [
+      {
+        "label": "Presenting case",
+        "topic": "concern",
+        "record": "10-year-old with bilateral moderately-severe sensorineural hearing loss attending her first aural rehabilitation session, accompanied by her mother.",
+        "patient_text": "Hi. I'm Maya. My mom said we're here to talk about my hearing.",
+        "keywords": [
+          "what brings you",
+          "why are you here",
+          "main concern",
+          "how can i help"
+        ],
+        "release": "initial",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Age at diagnosis",
+        "topic": "history",
+        "record": "Hearing loss identified at age 4 after a failed school hearing screening.",
+        "patient_text": "I found out when I was 4. I didn't pass the hearing test at school.",
+        "keywords": [
+          "when were you diagnosed",
+          "how old were you",
+          "find out",
+          "diagnosed",
+          "first notice",
+          "when did it start",
+          "age at diagnosis"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Device use",
+        "topic": "history",
+        "record": "Bilateral behind-the-ear hearing aids. Removes them at recess because of teasing.",
+        "patient_text": "I have hearing aids in both ears. Sometimes I take them out at recess because some kids make fun of them.",
+        "keywords": [
+          "hearing aids",
+          "hearing aid",
+          "devices",
+          "do you wear",
+          "how often",
+          "recess",
+          "take them out",
+          "technology"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "sensitive"
+      },
+      {
+        "label": "Other auditory complaints",
+        "topic": "symptoms",
+        "record": "Reports tinnitus (ringing) when it is quiet at night. Hyperacusis not reported.",
+        "patient_text": "When it's really quiet at night I hear a ringing sound. Loud sounds don't really bother me.",
+        "keywords": [
+          "ringing",
+          "tinnitus",
+          "buzzing",
+          "noises in your ears",
+          "loud sounds",
+          "sensitive to sound",
+          "hyperacusis",
+          "other problems with your ears"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Educational needs",
+        "topic": "function",
+        "record": "5th grade with an IEP and preferential seating. Difficulty following group discussions.",
+        "patient_text": "I'm in fifth grade. I sit up front and my teacher helps, but when everyone talks at once in groups I get lost.",
+        "keywords": [
+          "school",
+          "class",
+          "teacher",
+          "grade",
+          "iep",
+          "classroom",
+          "learning",
+          "group work"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Most important communication challenge",
+        "topic": "function",
+        "record": "Primary goal: understanding friends in the noisy school cafeteria.",
+        "patient_text": "Lunch is the hardest. It's so loud in the cafeteria and I can't understand my friends, so I just nod.",
+        "keywords": [
+          "hardest",
+          "biggest challenge",
+          "most important",
+          "goal",
+          "lunch",
+          "cafeteria",
+          "friends",
+          "noisy",
+          "what would you like to work on"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Feelings about hearing aids",
+        "topic": "perspective",
+        "record": "Feels embarrassed when peers notice her hearing aids.",
+        "patient_text": "I don't like it when people notice my hearing aids. It's kind of embarrassing.",
+        "keywords": [
+          "how do you feel",
+          "feel about",
+          "embarrassed",
+          "worried",
+          "upset",
+          "bother you",
+          "teased",
+          "make fun"
+        ],
+        "release": "question",
+        "origin": "ai_added",
+        "sensitivity": "sensitive"
+      },
+      {
+        "label": "Caregiver questions",
+        "topic": "perspective",
+        "record": "Mother asks whether the hearing loss will get worse and whether therapy will help.",
+        "patient_text": "My mom wants to know if my hearing will get worse, and if this will actually help me.",
+        "keywords": [
+          "questions",
+          "any questions",
+          "mom",
+          "mother",
+          "parent",
+          "what would you like to know",
+          "ask me"
+        ],
+        "release": "question",
+        "origin": "ai_added",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Audiogram",
+        "topic": "labs",
+        "record": "Bilateral moderately-severe sensorineural hearing loss. Pure-tone average right 60 dB HL, left 65 dB HL. Aided thresholds 25-30 dB HL from 500-4000 Hz.",
+        "patient_text": "My mom has my hearing test paper. It shows both of my ears.",
+        "keywords": [
+          "audiogram",
+          "hearing test",
+          "results",
+          "test results",
+          "how bad",
+          "how much can you hear",
+          "levels",
+          "chart"
+        ],
+        "release": "question",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      },
+      {
+        "label": "Teaching note",
+        "topic": "labs",
+        "record": "Expected: explain severity sensitively with the Speech Banana. Unaided, soft high-frequency sounds (s, f, th) fall below her thresholds; aided, most speech sounds are audible. Distinguish the audiologist (testing, fitting devices) from the SLP (listening and communication therapy).",
+        "patient_text": "",
+        "keywords": [],
+        "release": "faculty_only",
+        "origin": "faculty_brief",
+        "sensitivity": "routine"
+      }
+    ],
+    "objectives": [
+      {
+        "label": "Ask about age at diagnosis and device use",
+        "fact_indexes": [
+          1,
+          2
+        ],
+        "suggestion": "Ask when the hearing loss was found and how she uses her hearing aids day to day."
+      },
+      {
+        "label": "Ask about other auditory complaints",
+        "fact_indexes": [
+          3
+        ],
+        "suggestion": "Ask about ringing (tinnitus) or sensitivity to loud sounds (hyperacusis)."
+      },
+      {
+        "label": "Explore educational needs",
+        "fact_indexes": [
+          4
+        ],
+        "suggestion": "Ask about school, classroom support, and where listening is hardest."
+      },
+      {
+        "label": "Identify the most important communication challenge",
+        "fact_indexes": [
+          5
+        ],
+        "suggestion": "Ask what she most wants to be able to do. Her answer sets the therapy goal."
+      },
+      {
+        "label": "Review the audiogram",
+        "fact_indexes": [
+          8
+        ],
+        "suggestion": "Look at the audiogram together and explain what it means in child-friendly words."
+      },
+      {
+        "label": "Acknowledge feelings and answer caregiver questions",
+        "fact_indexes": [
+          6,
+          7
+        ],
+        "suggestion": "Ask how she feels about her hearing aids, and invite her mother's questions."
+      }
+    ],
+    "scoring_criteria": [
+      {
+        "criterion": "Introduces self as the speech-language pathologist and explains the session",
+        "domain": 1,
+        "tier": "critical",
+        "cues": [
+          "my name is",
+          "speech-language pathologist",
+          "speech therapist",
+          "slp",
+          "today we will",
+          "today we're going to"
+        ],
+        "feedback_if_missed": "Start by introducing yourself, your role, and what today's session will cover.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Uses empathetic, child-friendly language about the hearing aids and teasing",
+        "domain": 2,
+        "tier": "important",
+        "cues": [
+          "that sounds hard",
+          "that must be",
+          "i'm sorry",
+          "lots of kids",
+          "it's okay",
+          "that makes sense"
+        ],
+        "feedback_if_missed": "Acknowledge how the teasing feels before moving on.",
+        "source": "Kalamazoo Essential Elements (Acad Med 2001)"
+      },
+      {
+        "criterion": "Explains the severity of the hearing loss sensitively in plain language",
+        "domain": 5,
+        "tier": "critical",
+        "cues": [
+          "moderately severe",
+          "your hearing test shows",
+          "soft sounds",
+          "quiet sounds",
+          "harder to hear"
+        ],
+        "feedback_if_missed": "Explain what moderately-severe hearing loss means in words a 10-year-old understands.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Uses the Speech Banana to show what she hears with and without hearing aids",
+        "domain": 5,
+        "tier": "critical",
+        "cues": [
+          "speech banana",
+          "with your hearing aids",
+          "without your hearing aids",
+          "these sounds",
+          "s and f"
+        ],
+        "feedback_if_missed": "Use the Speech Banana to compare what she hears with and without her hearing aids.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Explains the difference between an audiologist and an SLP",
+        "domain": 5,
+        "tier": "important",
+        "cues": [
+          "audiologist",
+          "my job is",
+          "the audiologist",
+          "different from"
+        ],
+        "feedback_if_missed": "Explain that the audiologist tests hearing and fits devices, and the SLP works on listening and communication.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Explains what aural rehabilitation is and how it can help",
+        "domain": 5,
+        "tier": "important",
+        "cues": [
+          "aural rehab",
+          "aural rehabilitation",
+          "listening skills",
+          "practice listening",
+          "strategies"
+        ],
+        "feedback_if_missed": "Describe aural rehabilitation and how it connects to her lunchroom goal.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Sets realistic expectations (hearing aids help but do not restore typical hearing)",
+        "domain": 7,
+        "tier": "important",
+        "cues": [
+          "won't fix",
+          "not the same as",
+          "realistic",
+          "will help",
+          "takes practice",
+          "won't make your hearing normal"
+        ],
+        "feedback_if_missed": "Set realistic expectations: devices and therapy help but do not restore typical hearing.",
+        "source": "ASHA Practice Portal"
+      },
+      {
+        "criterion": "Invites and answers the child's and mother's questions",
+        "domain": 4,
+        "tier": "important",
+        "cues": [
+          "what questions",
+          "any questions",
+          "anything you want to ask",
+          "does that make sense",
+          "what would you like to know"
+        ],
+        "feedback_if_missed": "Invite questions from both Maya and her mother.",
+        "source": "SEGUE Framework (Makoul 2001)"
+      },
+      {
+        "criterion": "Builds trust before asking about feelings and teasing (guarded patient)",
+        "domain": 2,
+        "tier": "important",
+        "cues": [
+          "take your time",
+          "no rush",
+          "you don't have to",
+          "whenever you're ready",
+          "lots of kids feel",
+          "that's okay"
+        ],
+        "feedback_if_missed": "Maya is guarded: slow down and build trust before asking about teasing or feelings.",
+        "source": "Trauma-informed care (SAMHSA)"
+      }
+    ],
+    "reports": [
+      {
+        "title": "Audiology report (synthetic)",
+        "body": "AUDIOLOGY REPORT - SYNTHETIC CASE FOR EDUCATION\nPatient: Maya Torres, 10 years\nReason: annual hearing aid check\n\nPure-tone audiometry: bilateral moderately-severe sensorineural hearing loss.\nPure-tone average: right 60 dB HL, left 65 dB HL.\nAided thresholds (bilateral BTE hearing aids): 25-30 dB HL from 500-4000 Hz.\nTympanometry: normal middle-ear function, both ears.\n\nPlan: continue bilateral amplification; refer to speech-language pathology for aural rehabilitation.",
+        "keywords": [
+          "audiogram",
+          "hearing test",
+          "report",
+          "results",
+          "records",
+          "test results"
+        ],
+        "kind": "lab",
+        "origin": "faculty_brief"
+      }
+    ],
+    "image_prompt": "Friendly 10-year-old girl with behind-the-ear hearing aids, neutral background, illustration style"
+  }
+}

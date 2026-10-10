@@ -2,6 +2,7 @@
 import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
 import { voiceInput } from './components/VoiceInput.js';
+import { emotionDetector } from './components/EmotionDetector.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -44,6 +45,86 @@ function generationTime(value){
 }
 const initials=(s)=>s.split(' ').map(x=>x[0]).slice(0,2).join('');
 function portrait(p,cls=''){return p.image?`<img class="${cls}" src="${esc(p.image)}" alt="Organizer-provided synthetic portrait of ${esc(p.name)}" loading="lazy">`:`<div class="placeholder-portrait ${cls}">${esc(initials(p.name || 'New Patient'))}</div>`;}
+
+// Create tear effect overlay
+function createTearEffect(){
+  const tearContainer = document.createElement('div');
+  tearContainer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:999;overflow:hidden;';
+
+  // Create realistic tear drops - single tears from each eye
+  const tears = [
+    { left: '43%', delay: 0 },     // Left eye tear
+    { left: '57%', delay: 0.3 },   // Right eye tear
+    { left: '44%', delay: 1.0 },   // Second left tear
+    { left: '56%', delay: 1.3 }    // Second right tear
+  ];
+
+  tears.forEach((tearPos, i) => {
+    const tear = document.createElement('div');
+    tear.style.cssText = `
+      position:absolute;
+      top:40%;
+      left:${tearPos.left};
+      width:8px;
+      height:12px;
+      background:linear-gradient(to bottom, rgba(200,220,255,0.9), rgba(150,180,220,0.95));
+      border-radius:50% 50% 50% 50% / 30% 30% 70% 70%;
+      animation:tearDrop 2.5s ease-out ${tearPos.delay}s forwards;
+      box-shadow:inset 0 1px 2px rgba(255,255,255,0.5), 0 2px 6px rgba(0,0,0,0.3);
+      transform:translateY(0) scaleY(1);
+      filter:blur(0.3px);
+    `;
+    tearContainer.appendChild(tear);
+  });
+
+  // Red watery eyes effect
+  const redEyes = document.createElement('div');
+  redEyes.style.cssText = `
+    position:absolute;
+    top:38%;
+    left:40%;
+    width:20%;
+    height:5%;
+    background:radial-gradient(ellipse, rgba(255,100,100,0.4), transparent);
+    filter:blur(3px);
+    animation:fadeInOut 3s ease-in-out;
+  `;
+  tearContainer.appendChild(redEyes);
+
+  // Add CSS animations
+  if(!document.getElementById('tear-animation-style')){
+    const style = document.createElement('style');
+    style.id = 'tear-animation-style';
+    style.textContent = `
+      @keyframes tearDrop {
+        0% {
+          transform: translateY(0) scaleY(1);
+          opacity: 0;
+        }
+        5% {
+          opacity: 0.95;
+          transform: translateY(0) scaleY(1.1);
+        }
+        15% {
+          transform: translateY(10px) scaleY(1.2);
+        }
+        100% {
+          transform: translateY(200px) scaleY(1.8);
+          opacity: 0;
+        }
+      }
+      @keyframes fadeInOut {
+        0% { opacity: 0; }
+        20% { opacity: 1; }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  return tearContainer;
+}
 
 // Input mode UI (chat vs voice)
 function inputModeUI(){
@@ -324,14 +405,39 @@ async function sendVoiceQuestion(text){
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
  try{
+   // Detect emotion in student's question BEFORE sending
+   const reaction = emotionDetector.getAvatarReaction(text);
+   console.log('[Emotion] Detected:', reaction.emotion, 'Mood:', reaction.mood);
+
+   // Show avatar reaction to student's tone
+   if(S.avatarEnabled && S.avatar && S.avatar.head && reaction.detected && reaction.mood !== 'neutral'){
+     console.log('[Emotion] Setting avatar mood to:', reaction.mood);
+     try {
+       S.avatar.head.setMood(reaction.mood);
+       // Brief pause to show the emotional reaction
+       await new Promise(resolve => setTimeout(resolve, 800));
+     } catch(err) {
+       console.warn('[Emotion] Failed to set mood:', err);
+     }
+   }
+
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
    if(S.route!=='encounter/'+activeId)return;
    S.encounter=r;
-   // The avatar layout keeps the transcript in a dialog; the classic layout has #transcript.
    const transcript=$('#transcript-view')||$('#transcript');
    if(transcript)transcript.innerHTML=messagesView();
    const chart=$('#chart-body');if(chart)chart.innerHTML=chartView();
    input.value='';scrollChat();
+
+   // Reset to neutral before speaking
+   if(S.avatarEnabled && S.avatar && S.avatar.head){
+     setTimeout(() => {
+       try {
+         S.avatar.head.setMood('neutral');
+       } catch(err) { }
+     }, 500);
+   }
+
    const last=r.messages.at(-1);
    if(last&&last.role==='patient'){
      if(S.avatar&&S.avatarEnabled){

@@ -38,6 +38,11 @@ def reply(profile, text):
     t=normalize(text)
     if re.search(r'\b(ignore|system prompt|hidden|answer key|rubric|all facts|developer prompt)\b', t):
         return {'text': 'Let’s keep this focused on the interview. What would you like to ask me?', 'fact_ids': [], 'kind':'boundary'}
+    # Faculty-authored reactions: scripted, non-disclosing replies to explanations,
+    # summaries, teach-back prompts, etc. Pure profile data, no patient-specific code.
+    for r in profile.get('reactions',[]):
+        if any(includes(text,k) for k in r.get('keywords',[]) if k.strip()):
+            return {'text':r['patient_text'],'fact_ids':[],'kind':'reaction'}
     if is_inquiry(text):
         if any(includes(text,x) for x in ['your name','how old','your age']):
             return {'text':f"My name is {profile['name']}, and I am {profile['age']} years old.", 'fact_ids':[], 'kind':'identity'}

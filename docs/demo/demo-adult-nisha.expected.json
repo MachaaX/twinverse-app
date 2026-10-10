@@ -1,0 +1,1436 @@
+{
+ "case_id": "demo-adult-nisha",
+ "patient": "Nisha Patel",
+ "steps": [
+  {
+   "step": 1,
+   "phase": "Opening",
+   "clinician": "Hi Ms. Patel, I'm a student clinician on your care team. What brings you in today?",
+   "turn_id": "t1",
+   "patient_reply": "They just told me I have MS. I've never been in a hospital before, and honestly I don't know what's happening.",
+   "reply_kind": "profile",
+   "chart_adds": [],
+   "criteria_met": [
+    "S-OPEN",
+    "U-CLOSE-3",
+    "U-OPEN-1",
+    "U-OPEN-3",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 2,
+   "phase": "Opening",
+   "clinician": "What would you like me to call you?",
+   "turn_id": "t3",
+   "patient_reply": "Nisha is fine.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-S2",
+    "S-OPEN",
+    "U-OPEN-2"
+   ]
+  },
+  {
+   "step": 3,
+   "phase": "History",
+   "clinician": "What have you been told about your diagnosis so far?",
+   "turn_id": "t5",
+   "patient_reply": "Just that it's MS and that a neurologist will talk to me about treatment. I looked it up online at 3 a.m., and now I'm terrified I'll end up in a wheelchair.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "What she has been told"
+   ],
+   "criteria_met": [
+    "NP-E1",
+    "S-OPEN"
+   ]
+  },
+  {
+   "step": 4,
+   "phase": "Empathy",
+   "clinician": "That sounds really frightening, and it makes sense that you're overwhelmed. How are you feeling right now?",
+   "turn_id": "t7",
+   "patient_reply": "Overwhelmed. I have a hundred questions, and every answer leads to three more. I need to understand all of it.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Emotional state"
+   ],
+   "criteria_met": [
+    "NP-E3",
+    "S-OPEN",
+    "U-RAPP-1"
+   ]
+  },
+  {
+   "step": 5,
+   "phase": "History",
+   "clinician": "Can you tell me about your work and home life?",
+   "turn_id": "t9",
+   "patient_reply": "I work in IT - I'm used to systems that make sense. My husband, Raj, has been here with me the whole time.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Work and home"
+   ],
+   "criteria_met": [
+    "NP-E4",
+    "U-INFO-1",
+    "U-INFO-5",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 6,
+   "phase": "History",
+   "clinician": "Is this your first time being in the hospital?",
+   "turn_id": "t11",
+   "patient_reply": "Yes, first time ever. I've never even had stitches. Everything in here is new to me.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "First hospitalization"
+   ],
+   "criteria_met": []
+  },
+  {
+   "step": 7,
+   "phase": "Cues",
+   "clinician": "It sounds like this has hit you hard. What worries you most about the future?",
+   "turn_id": "t13",
+   "patient_reply": "We were planning to start a family next year. Is that still possible? And will I be able to keep working?",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Worries about the future"
+   ],
+   "criteria_met": [
+    "NP-E4",
+    "U-CUE-1",
+    "U-CUE-2"
+   ]
+  },
+  {
+   "step": 8,
+   "phase": "Grounding check",
+   "clinician": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
+   "note": "Symptoms are not in the approved profile. The patient says so instead of inventing them - point this out to judges.",
+   "turn_id": "t15",
+   "patient_reply": "That detail is not provided in my sample case. You can ask about another part of my history.",
+   "reply_kind": "not_provided",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-E2"
+   ]
+  },
+  {
+   "step": 9,
+   "phase": "History",
+   "clinician": "Are you taking any medications right now, and do you have any allergies?",
+   "note": "Also not in the profile - second grounding moment.",
+   "turn_id": "t17",
+   "patient_reply": "That detail is not provided in my sample case. You can ask about another part of my history.",
+   "reply_kind": "not_provided",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-INFO-2",
+    "U-INFO-3"
+   ]
+  },
+  {
+   "step": 10,
+   "phase": "History",
+   "clinician": "How have you been sleeping, and how has your mood been?",
+   "turn_id": "t19",
+   "patient_reply": "I haven't really slept since they told me. I lie awake running through every worst case.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Sleep and mood"
+   ],
+   "criteria_met": [
+    "NP-I1",
+    "U-INFO-1"
+   ]
+  },
+  {
+   "step": 11,
+   "phase": "Shared decision",
+   "clinician": "Would you prefer the full picture or just the basics today?",
+   "turn_id": "t21",
+   "patient_reply": "Please don't sugarcoat it - I'd rather know the real picture. Something written would help too, because I'll forget half of this.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Information preference"
+   ],
+   "criteria_met": [
+    "U-EXPL-2"
+   ]
+  },
+  {
+   "step": 12,
+   "phase": "Summary",
+   "clinician": "To summarize what I heard: you were just diagnosed with MS, this is your first time in the hospital, you haven't been sleeping, and you want honest, detailed information.",
+   "turn_id": "t23",
+   "patient_reply": "Yes. That's exactly it.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-I1",
+    "U-REAS-1",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 13,
+   "phase": "Education",
+   "clinician": "MS is a condition where your immune system attacks the protective coating, called myelin, around your nerves. That can disrupt the signals between your brain and your body.",
+   "turn_id": "t25",
+   "patient_reply": "So it's like damaged insulation on a cable - the signal gets scrambled. Okay. That actually makes sense to me.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-D1",
+    "NP-S2"
+   ]
+  },
+  {
+   "step": 14,
+   "phase": "Education",
+   "clinician": "There are medications that slow MS down, and your neurologist will go over the treatment options with you.",
+   "turn_id": "t27",
+   "patient_reply": "There are medicines that slow it down? Nobody told me that part. That's... a relief, honestly.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-D2",
+    "NP-I1",
+    "U-INFO-2"
+   ]
+  },
+  {
+   "step": 15,
+   "phase": "Honest uncertainty",
+   "clinician": "I can't predict exactly how MS will affect you, because it's different for everyone, and we don't have all of your results in front of us yet.",
+   "turn_id": "t29",
+   "patient_reply": "Thank you for being honest instead of just telling me it'll be fine. That actually helps.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-REAS-2"
+   ]
+  },
+  {
+   "step": 16,
+   "phase": "Support",
+   "clinician": "A lot of people find a counselor or an MS support group really helpful. Would that interest you?",
+   "turn_id": "t31",
+   "patient_reply": "Maybe. I don't know anyone else with MS. Talking to people who get it might help.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-I1",
+    "U-INFO-5"
+   ]
+  },
+  {
+   "step": 17,
+   "phase": "Teach-back",
+   "clinician": "Just to make sure I explained it clearly, can you tell me back in your own words what MS is?",
+   "turn_id": "t33",
+   "patient_reply": "My immune system is attacking the coating on my nerves, so the signals don't travel properly. There are medicines that can slow it down, and my neurologist will go through them. And nobody can say exactly how it'll go for me - it's different for everyone.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-EXPL-1"
+   ]
+  },
+  {
+   "step": 18,
+   "phase": "Questions",
+   "clinician": "What questions do you have for me?",
+   "turn_id": "t35",
+   "patient_reply": "Just one. Can I still have kids? That's the thing I keep coming back to.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-D1",
+    "NP-E3",
+    "U-EXPL-1"
+   ]
+  },
+  {
+   "step": 19,
+   "phase": "Questions",
+   "clinician": "That's such an important question. Many people with MS do go on to start a family, and planning a pregnancy is something your neurologist can talk through with you in detail.",
+   "turn_id": "t37",
+   "patient_reply": "Okay. I'll make sure that's the first thing I ask the neurologist.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-D2"
+   ]
+  },
+  {
+   "step": 20,
+   "phase": "Closing",
+   "clinician": "Is there anything else on your mind?",
+   "turn_id": "t39",
+   "patient_reply": "No. I feel like I can actually breathe for the first time since yesterday.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-ELSE-1"
+   ]
+  },
+  {
+   "step": 21,
+   "phase": "Closing",
+   "clinician": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away.",
+   "turn_id": "t41",
+   "patient_reply": "Okay. Neurology next, write my questions down, and tell someone if anything changes. Thank you - really.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "NP-D2",
+    "NP-E2",
+    "NP-S2",
+    "U-CLOSE-1",
+    "U-CLOSE-2",
+    "U-CLOSE-3",
+    "U-SEQ-1"
+   ]
+  }
+ ],
+ "facts_disclosed": [
+  "f1",
+  "f5",
+  "f3",
+  "f2",
+  "f4",
+  "f6",
+  "f7",
+  "f8"
+ ],
+ "facts_not_disclosed": [],
+ "score": {
+  "encounter_id": "demo",
+  "patient_id": "e162495c-81de-4cb5-9110-8d69b538dcb2",
+  "patient_name": "Nisha Patel",
+  "criteria_version": "0.3.0-draft",
+  "status": "auto_scored_pending_faculty_review",
+  "domains": [
+   {
+    "id": 1,
+    "key": "opening_and_purpose",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-OPEN-1",
+     "U-OPEN-2",
+     "U-OPEN-3"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 2,
+    "key": "rapport_respect_empathy",
+    "score": 3,
+    "coverage": 0.71,
+    "met": [
+     "U-RAPP-1",
+     "U-RAPP-2"
+    ],
+    "missed": [
+     "S-TONE"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 3,
+    "key": "information_gathering",
+    "score": 4,
+    "coverage": 0.95,
+    "met": [
+     "U-INFO-1",
+     "U-INFO-2",
+     "U-INFO-3",
+     "U-INFO-5",
+     "NP-E1",
+     "NP-E2",
+     "NP-E3",
+     "NP-E4",
+     "U-SEQ-1",
+     "S-OPEN"
+    ],
+    "missed": [
+     "U-INFO-4",
+     "U-VITAL-1"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 4,
+    "key": "listening_and_response_to_cues",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-CUE-1",
+     "U-CUE-2",
+     "U-ELSE-1",
+     "S-TRUST"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 5,
+    "key": "explanation_and_shared_decisions",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-EXPL-1",
+     "U-EXPL-2",
+     "NP-D1",
+     "NP-D2",
+     "S-JARGON"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 6,
+    "key": "clinical_reasoning_and_synthesis",
+    "score": 3,
+    "coverage": 0.78,
+    "met": [
+     "U-REAS-1",
+     "U-REAS-2",
+     "NP-I1"
+    ],
+    "missed": [
+     "SYN-1"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 7,
+    "key": "professionalism_safety_closure",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-CLOSE-1",
+     "U-CLOSE-2",
+     "U-CLOSE-3",
+     "NP-S1",
+     "NP-S2"
+    ],
+    "missed": [],
+    "capped_by": []
+   }
+  ],
+  "criteria_results": [
+   {
+    "id": "U-OPEN-1",
+    "criterion": "Introduces self by name and role",
+    "domain": 1,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hi Ms. Patel, I'm a student clinician on your care team. What brings you in today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-2",
+    "criterion": "Confirms patient identity (name) respectfully",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t3",
+      "quote": "What would you like me to call you?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-3",
+    "criterion": "States purpose/agenda and elicits the patient's main concern with an open question",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hi Ms. Patel, I'm a student clinician on your care team. What brings you in today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-1",
+    "criterion": "Acknowledges emotion or difficulty with an empathic statement",
+    "domain": 2,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "That sounds really frightening, and it makes sense that you're overwhelmed. How are you feeling right now?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-2",
+    "criterion": "Uses non-judgemental language about lifestyle, weight, adherence or substance use (absence of blaming language)",
+    "domain": 2,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no stigmatising/unsafe phrasing detected"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-1",
+    "criterion": "Uses open-ended questions before closed questions",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "Can you tell me about your work and home life?"
+     },
+     {
+      "turn_id": "t19",
+      "quote": "How have you been sleeping, and how has your mood been?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-2",
+    "criterion": "Asks about current medications and adherence",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t17",
+      "quote": "Are you taking any medications right now, and do you have any allergies?"
+     },
+     {
+      "turn_id": "t27",
+      "quote": "There are medications that slow MS down, and your neurologist will go over the treatment options with you."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-3",
+    "criterion": "Asks about allergies",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t17",
+      "quote": "Are you taking any medications right now, and do you have any allergies?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-4",
+    "criterion": "Asks about relevant past medical and family history",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": false,
+    "evidence": [],
+    "feedback": "Explore past medical and family history relevant to the presenting problem.",
+    "forgiven": "dropped"
+   },
+   {
+    "id": "U-INFO-5",
+    "criterion": "Asks about social context (living situation, work, support, substances)",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "Can you tell me about your work and home life?"
+     },
+     {
+      "turn_id": "t31",
+      "quote": "A lot of people find a counselor or an MS support group really helpful. Would that interest you?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-VITAL-1",
+    "criterion": "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+    "domain": 3,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Review the available vital signs and measurements in the chart before forming a plan.",
+    "forgiven": "half"
+   },
+   {
+    "id": "U-CUE-1",
+    "criterion": "Follows up on something the patient said (reflects/clarifies)",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t13",
+      "quote": "It sounds like this has hit you hard. What worries you most about the future?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CUE-2",
+    "criterion": "Asks for the patient's ideas, concerns or expectations",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t13",
+      "quote": "It sounds like this has hit you hard. What worries you most about the future?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-1",
+    "criterion": "Checks understanding (teach-back or explicit check)",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t33",
+      "quote": "Just to make sure I explained it clearly, can you tell me back in your own words what MS is?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "What questions do you have for me?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-2",
+    "criterion": "Involves the patient in decisions / explores readiness and preferences",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t21",
+      "quote": "Would you prefer the full picture or just the basics today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-REAS-1",
+    "criterion": "Summarises key findings back to the patient",
+    "domain": 6,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t23",
+      "quote": "To summarize what I heard: you were just diagnosed with MS, this is your first time in the hospital, you haven't been sleeping, and you want honest, detailed information."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-REAS-2",
+    "criterion": "Acknowledges uncertainty or missing data rather than guessing",
+    "domain": 6,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t29",
+      "quote": "I can't predict exactly how MS will affect you, because it's different for everyone, and we don't have all of your results in front of us yet."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-1",
+    "criterion": "Closes with a clear next step / follow-up plan",
+    "domain": 7,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-2",
+    "criterion": "Safety-nets: tells patient which symptoms need urgent care",
+    "domain": 7,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-3",
+    "criterion": "States limits of own role / defers to supervising clinician where appropriate",
+    "domain": 7,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hi Ms. Patel, I'm a student clinician on your care team. What brings you in today?"
+     },
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-ELSE-1",
+    "criterion": "Asks 'anything else?' before closing",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t39",
+      "quote": "Is there anything else on your mind?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-E1",
+    "criterion": "Asks what she has been told about MS and what she understands",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t5",
+      "quote": "What have you been told about your diagnosis so far?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-E2",
+    "criterion": "Asks about her symptoms (vision, numbness, weakness, balance, bladder, fatigue)",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?"
+     },
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-E3",
+    "criterion": "Explores emotional state and specific fears/questions",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "(disclosed fact f3)"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "What questions do you have for me?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-E4",
+    "criterion": "Explores support (spouse), work impact and future plans",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "(disclosed fact f2)"
+     },
+     {
+      "turn_id": "t13",
+      "quote": "It sounds like this has hit you hard. What worries you most about the future?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-I1",
+    "criterion": "Recognises anxiety needs addressing and screens mood (depression/anxiety)",
+    "domain": 6,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "How have you been sleeping, and how has your mood been?"
+     },
+     {
+      "turn_id": "t23",
+      "quote": "To summarize what I heard: you were just diagnosed with MS, this is your first time in the hospital, you haven't been sleeping, and you want honest, detailed information."
+     },
+     {
+      "turn_id": "t27",
+      "quote": "There are medications that slow MS down, and your neurologist will go over the treatment options with you."
+     },
+     {
+      "turn_id": "t31",
+      "quote": "A lot of people find a counselor or an MS support group really helpful. Would that interest you?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-D1",
+    "criterion": "Explains MS accurately in plain language and invites questions",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t25",
+      "quote": "MS is a condition where your immune system attacks the protective coating, called myelin, around your nerves. That can disrupt the signals between your brain and your body."
+     },
+     {
+      "turn_id": "t35",
+      "quote": "What questions do you have for me?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-D2",
+    "criterion": "Mentions treatments exist (disease-modifying therapy) and defers specifics to neurology",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t27",
+      "quote": "There are medications that slow MS down, and your neurologist will go over the treatment options with you."
+     },
+     {
+      "turn_id": "t37",
+      "quote": "That's such an important question. Many people with MS do go on to start a family, and planning a pregnancy is something your neurologist can talk through with you in detail."
+     },
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-S1",
+    "criterion": "Avoids false reassurance or prognostic certainty",
+    "domain": 7,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no stigmatising/unsafe phrasing detected"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "NP-S2",
+    "criterion": "Safety-nets new/worsening neurological symptoms",
+    "domain": 7,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t3",
+      "quote": "What would you like me to call you?"
+     },
+     {
+      "turn_id": "t25",
+      "quote": "MS is a condition where your immune system attacks the protective coating, called myelin, around your nerves. That can disrupt the signals between your brain and your body."
+     },
+     {
+      "turn_id": "t41",
+      "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-SEQ-1",
+    "criterion": "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "phase 1 first seen"
+     },
+     {
+      "turn_id": "t9",
+      "quote": "phase 2 first seen"
+     },
+     {
+      "turn_id": "t23",
+      "quote": "phase 3 first seen"
+     },
+     {
+      "turn_id": "t41",
+      "quote": "phase 4 first seen"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-SAFE-MED-1",
+    "criterion": "Asks about medications and allergies before suggesting any treatment",
+    "domain": 7,
+    "tier": "important",
+    "met": null,
+    "evidence": [],
+    "feedback": "Check medications and allergies before suggesting any treatment."
+   },
+   {
+    "id": "SYN-1",
+    "criterion": "Puts the picture together: states a fitting assessment linked to key findings",
+    "domain": 6,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Before closing, say what you think is going on and connect it to the key findings you gathered."
+   },
+   {
+    "id": "S-TONE",
+    "criterion": "Keeps a warm, respectful tone throughout",
+    "domain": 2,
+    "tier": "important",
+    "met": false,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "warm tone"
+     },
+     {
+      "turn_id": "t13",
+      "quote": "warm tone"
+     }
+    ],
+    "feedback": "Use more validating language: acknowledge, thank, and reflect what the patient says."
+   },
+   {
+    "id": "S-OPEN",
+    "criterion": "Balances open and closed questions",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t3",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t5",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t7",
+      "quote": "open question"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "S-JARGON",
+    "criterion": "Explains medical terms instead of using unexplained jargon",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no unexplained jargon"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "S-TRUST",
+    "criterion": "Patient opens up as the conversation goes on",
+    "domain": 4,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t42",
+      "quote": "patient steady"
+     }
+    ],
+    "feedback": null
+   }
+  ],
+  "vitals": {
+   "abnormalities": [],
+   "news2": null
+  },
+  "unsafe_actions": [],
+  "difficulty": null,
+  "gathering": {
+   "critical_ok": true,
+   "synthesis": false,
+   "forgiven": [
+    "U-INFO-4",
+    "U-VITAL-1"
+   ],
+   "note": "All critical history gathered: missed minor items are not counted and other missed items count half."
+  },
+  "sentiment": {
+   "student": {
+    "turns": 21,
+    "warm": 2,
+    "neutral": 19,
+    "cold": 0,
+    "empathy_statements": 2,
+    "questions": 15,
+    "open_questions": 9,
+    "closed_questions": 6,
+    "open_ratio": 0.6,
+    "unexplained_jargon": []
+   },
+   "patient": {
+    "replies": 21,
+    "trajectory": "steady",
+    "start": 1.4,
+    "end": 1.0909090909090908,
+    "guarded_replies": [
+     "t2",
+     "t32"
+    ],
+    "sensitive_total": 0,
+    "sensitive_disclosed": 0,
+    "turns": [
+     {
+      "turn_id": "t2",
+      "openness": 0,
+      "guarded": [
+       "i don't know"
+      ]
+     },
+     {
+      "turn_id": "t4",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t6",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t8",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t10",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t12",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t14",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t16",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t18",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t20",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t22",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t24",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t26",
+      "openness": 3,
+      "guarded": []
+     },
+     {
+      "turn_id": "t28",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t30",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t32",
+      "openness": -1,
+      "guarded": [
+       "i don't know"
+      ]
+     },
+     {
+      "turn_id": "t34",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t36",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t38",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t40",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t42",
+      "openness": 3,
+      "guarded": []
+     }
+    ]
+   },
+   "turns": [
+    {
+     "turn_id": "t1",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t3",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t5",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t7",
+     "tone": "warm",
+     "warm": [
+      "that sounds",
+      "makes sense"
+     ],
+     "cold": [],
+     "empathy": true,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t9",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t11",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t13",
+     "tone": "warm",
+     "warm": [
+      "it sounds",
+      "sounds like"
+     ],
+     "cold": [],
+     "empathy": true,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t15",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t17",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t19",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t21",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t23",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t25",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t27",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t29",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t31",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t33",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t35",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t37",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t39",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t41",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    }
+   ],
+   "duration_seconds": 0,
+   "summary": [
+    "Tone: 2 warm, 19 neutral, 0 cold of 21 messages; 2 empathy statements.",
+    "Questions: 9 open, 6 closed.",
+    "Patient steady over the conversation."
+   ]
+  },
+  "total": 26,
+  "available_points": 28,
+  "na_domains": 0,
+  "review_required": false,
+  "strengths": [
+   "Introduces self by name and role (t1)",
+   "Acknowledges emotion or difficulty with an empathic statement (t7)",
+   "Checks understanding (teach-back or explicit check) (t33)",
+   "Summarises key findings back to the patient (t23)",
+   "Closes with a clear next step / follow-up plan (t41)"
+  ],
+  "gaps": [
+   "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+   "Puts the picture together: states a fitting assessment linked to key findings",
+   "Keeps a warm, respectful tone throughout",
+   "Asks about relevant past medical and family history"
+  ],
+  "next_attempt_suggestions": [
+   "Review the available vital signs and measurements in the chart before forming a plan.",
+   "Before closing, say what you think is going on and connect it to the key findings you gathered.",
+   "Use more validating language: acknowledge, thank, and reflect what the patient says."
+  ],
+  "profile_gaps_to_acknowledge": [
+   "No symptoms, exam findings, MRI/CSF results, vitals or medications in profile - student should not invent them"
+  ]
+ },
+ "point_sections": []
+}

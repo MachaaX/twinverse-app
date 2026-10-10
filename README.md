@@ -253,3 +253,27 @@ Stop the application first. Back up any encounters you want to retain. To intent
 ## Source rights
 
 Original challenge materials and images are included as provided for the user's challenge work. Their original authors retain their rights; this package does not grant an additional redistribution license for them. See `docs/SOURCE_NOTES.md` for the exact sources and adaptations.
+
+## Demo cases (static, deterministic)
+
+Curated cases live in `data/cases/` and are installed automatically when the server starts (re-installed whenever `case_file_version` changes):
+
+| Case | File | Role | Scripted run |
+|---|---|---|---|
+| Nisha Patel, 29 (newly diagnosed MS) | `data/cases/adult-nisha-patel.json` | Main demo (adult) | `docs/demo/demo-adult-nisha.md` |
+| Yvette Armstrong, 64 (hypertension) | `data/cases/adult-yvette-armstrong.json` | Alternate adult case | `docs/demo/demo-adult-yvette.md` |
+| Sofia Reyes, 9, with her mom (pediatric hearing loss) | `data/cases/child-sofia-reyes.json` | Backup demo (child) | `docs/demo/demo-child-sofia.md` |
+
+Each case file holds the patient **profile** (facts, release rules, objectives, plus `reactions` — scripted, non-disclosing replies to explanations, summaries and teach-back), a **case rubric** (case-specific categories on top of the universal 7 domains; the child case adds the organizer's 100-point pediatric rubric), and a **demo script** of clinician lines.
+
+`python3 tools/run_demo_script.py --all` runs every script through the real engine and scorer and regenerates the stage scripts in `docs/demo/` with exact replies, chart updates, and expected scores.
+
+## Hugging Face clinician-behaviour reference
+
+```bash
+pip install datasets
+python3 tools/hf_conversations.py          # -> data/hf/conversations.json
+python3 tools/build_rubric_reference.py    # -> data/hf/rubric_reference.json
+```
+
+The reference scores every [Postzeun/Patient-Doctor](https://huggingface.co/datasets/Postzeun/Patient-Doctor) conversation with our universal criteria and records how often clinicians show each rubric behaviour, example clinician lines, and a benchmark score distribution. The dataset has no license or card on Hugging Face; treat it as reference material.

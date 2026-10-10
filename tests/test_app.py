@@ -308,7 +308,9 @@ class AppTests(unittest.TestCase):
             restarted=make_server(0,db,verbose=False,faculty_password=TOKEN)
             try:
                 self.assertTrue(all(c.get('deleted_at') for c in restarted.store.all('cases')))
-                self.assertEqual(len(restarted.store.all('cases')),8)
+                from backend.seed import seed_profiles,ROOT
+                extra={json.loads(f.read_text())['profile']['id'] for f in (ROOT/'data/cases').glob('*.json')}-{p['id'] for p in seed_profiles()}
+                self.assertEqual(len(restarted.store.all('cases')),8+len(extra))
             finally:restarted.server_close();restarted.store.db.close()
     def test_24_seed_import_has_all_eight_images(self):
         from backend.seed import ROOT

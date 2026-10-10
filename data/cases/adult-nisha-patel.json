@@ -1,0 +1,497 @@
+{
+  "case_file_version": 2,
+  "case_id": "demo-adult-nisha",
+  "mode": "static_demo",
+  "role_in_demo": "Main live demo (adult). Deterministic: the scripted clinician lines always produce the same replies, chart updates and scores. Showcases empathy, plain-language explanation, honest uncertainty, and grounding.",
+  "status": "DRAFT - demo content assembled by the TwinVerse team from organizer data; faculty must review before use for grading",
+  "provenance": {
+    "organizer_source": "faculty-provided-sample-patient-details.csv / data/raw_patients.json (Nisha Patel, uuid e162495c-81de-4cb5-9110-8d69b538dcb2)",
+    "team_authored": "Natural patient wording, reactions, the husband's name, and facts f5-f8 (what she was told, future worries, sleep, information preference) are demo-authored and flagged with source 'Demo-authored'.",
+    "behaviour_reference": "https://huggingface.co/datasets/Postzeun/Patient-Doctor (clinician behaviour benchmark, see data/hf/rubric_reference.json)"
+  },
+  "profile": {
+    "id": "e162495c-81de-4cb5-9110-8d69b538dcb2",
+    "name": "Nisha Patel",
+    "age": 29,
+    "gender": "female",
+    "summary": "Young adult with newly diagnosed MS - first hospitalization",
+    "background": "IT professional, married. First hospitalization.",
+    "persona": "Intelligent, anxious, wants to understand every detail. Asks pointed follow-up questions. Calms down with honest, clear explanations; gets more anxious with vague reassurance.",
+    "source_notes": "Young adult with newly diagnosed MS. IT professional, married, first hospitalization. Challenges providers with questions; emotionally overwhelmed. Personality: intelligent, anxious, wants to understand every detail.",
+    "image": "/assets/patients/e162495c-81de-4cb5-9110-8d69b538dcb2.jpg",
+    "version": 2,
+    "status": "published",
+    "provenance": "Organizer CSV; demo case file data/cases/adult-nisha-patel.json",
+    "source_refs": [
+      "faculty-provided-sample-patient-details.csv"
+    ],
+    "facts": [
+      {
+        "id": "f1",
+        "topic": "concern",
+        "label": "Presenting concern",
+        "record": "Newly diagnosed multiple sclerosis (MS). First hospitalization.",
+        "patient_text": "They just told me I have MS. I've never been in a hospital before, and honestly I don't know what's happening.",
+        "keywords": [
+          "what brings",
+          "brought you",
+          "main concern",
+          "how can i help",
+          "here today",
+          "going on"
+        ],
+        "release": "initial",
+        "source": "Organizer CSV: summary"
+      },
+      {
+        "id": "f2",
+        "topic": "background",
+        "label": "Work and home",
+        "record": "IT professional. Married; husband present and supportive.",
+        "patient_text": "I work in IT - I'm used to systems that make sense. My husband, Raj, has been here with me the whole time.",
+        "keywords": [
+          "work",
+          "job",
+          "home life",
+          "husband",
+          "married",
+          "support at home",
+          "who is with you",
+          "what do you do",
+          "for a living",
+          "your family",
+          "who is at home",
+          "who supports you"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: background (husband's name demo-authored)"
+      },
+      {
+        "id": "f3",
+        "topic": "perspective",
+        "label": "Emotional state",
+        "record": "Emotionally overwhelmed. Wants to understand every detail; challenges providers with questions.",
+        "patient_text": "Overwhelmed. I have a hundred questions, and every answer leads to three more. I need to understand all of it.",
+        "keywords": [
+          "how are you feeling",
+          "feel about",
+          "overwhelmed",
+          "scared",
+          "coping",
+          "how are you doing",
+          "how are you holding up",
+          "holding up",
+          "how are things",
+          "doing today",
+          "how is this for you"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: notes/personality"
+      },
+      {
+        "id": "f4",
+        "topic": "history",
+        "label": "First hospitalization",
+        "record": "First hospitalization.",
+        "patient_text": "Yes, first time ever. I've never even had stitches. Everything in here is new to me.",
+        "keywords": [
+          "first time",
+          "been in the hospital",
+          "hospitalized",
+          "hospital stay",
+          "in the hospital before",
+          "ever been admitted"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: background"
+      },
+      {
+        "id": "f5",
+        "topic": "perspective",
+        "label": "What she has been told",
+        "record": "Told the diagnosis is MS and that neurology will discuss treatment. Has been reading about MS online overnight.",
+        "patient_text": "Just that it's MS and that a neurologist will talk to me about treatment. I looked it up online at 3 a.m., and now I'm terrified I'll end up in a wheelchair.",
+        "keywords": [
+          "what have you been told",
+          "what do you understand",
+          "what do you know about",
+          "explained to you",
+          "what do you know about ms",
+          "what has the doctor said",
+          "what did the doctor say",
+          "do you know what ms is"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      },
+      {
+        "id": "f6",
+        "topic": "perspective",
+        "label": "Worries about the future",
+        "record": "Worried about keeping her job and about plans to start a family next year.",
+        "patient_text": "We were planning to start a family next year. Is that still possible? And will I be able to keep working?",
+        "keywords": [
+          "what worries you",
+          "worries you most",
+          "the future",
+          "your plans",
+          "what concerns you",
+          "biggest worry",
+          "what scares you",
+          "worried about"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      },
+      {
+        "id": "f7",
+        "topic": "mood",
+        "label": "Sleep and mood",
+        "record": "Poor sleep since diagnosis; anxious, ruminating about worst-case outcomes.",
+        "patient_text": "I haven't really slept since they told me. I lie awake running through every worst case.",
+        "keywords": [
+          "sleep",
+          "sleeping",
+          "mood",
+          "anxious",
+          "down",
+          "depressed",
+          "energy",
+          "resting",
+          "feeling down",
+          "stressed"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      },
+      {
+        "id": "f8",
+        "topic": "preferences",
+        "label": "Information preference",
+        "record": "Prefers honest, detailed information; would like written resources.",
+        "patient_text": "Please don't sugarcoat it - I'd rather know the real picture. Something written would help too, because I'll forget half of this.",
+        "keywords": [
+          "would you prefer",
+          "how much detail",
+          "what would help",
+          "what would work for you",
+          "how much information",
+          "how do you like to learn",
+          "written information"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      }
+    ],
+    "reactions": [
+      {
+        "id": "r-name",
+        "keywords": [
+          "like me to call",
+          "prefer to be called",
+          "confirm your name"
+        ],
+        "patient_text": "Nisha is fine."
+      },
+      {
+        "id": "r-summary",
+        "keywords": [
+          "to summarize",
+          "to summarise",
+          "what i heard",
+          "let me make sure i have"
+        ],
+        "patient_text": "Yes. That's exactly it."
+      },
+      {
+        "id": "r-teachback",
+        "keywords": [
+          "in your own words",
+          "tell me back",
+          "explain back"
+        ],
+        "patient_text": "My immune system is attacking the coating on my nerves, so the signals don't travel properly. There are medicines that can slow it down, and my neurologist will go through them. And nobody can say exactly how it'll go for me - it's different for everyone."
+      },
+      {
+        "id": "r-explain",
+        "keywords": [
+          "immune system",
+          "myelin",
+          "coating",
+          "nerves"
+        ],
+        "patient_text": "So it's like damaged insulation on a cable - the signal gets scrambled. Okay. That actually makes sense to me."
+      },
+      {
+        "id": "r-treatment",
+        "keywords": [
+          "medications that slow",
+          "treatment options",
+          "therapies"
+        ],
+        "patient_text": "There are medicines that slow it down? Nobody told me that part. That's... a relief, honestly."
+      },
+      {
+        "id": "r-honest",
+        "keywords": [
+          "can't predict",
+          "different for everyone",
+          "we don't have"
+        ],
+        "patient_text": "Thank you for being honest instead of just telling me it'll be fine. That actually helps."
+      },
+      {
+        "id": "r-support",
+        "keywords": [
+          "counselor",
+          "support group"
+        ],
+        "patient_text": "Maybe. I don't know anyone else with MS. Talking to people who get it might help."
+      },
+      {
+        "id": "r-pregnancy",
+        "keywords": [
+          "pregnan",
+          "start a family"
+        ],
+        "patient_text": "Okay. I'll make sure that's the first thing I ask the neurologist."
+      },
+      {
+        "id": "r-questions",
+        "keywords": [
+          "what questions do you have",
+          "any questions"
+        ],
+        "patient_text": "Just one. Can I still have kids? That's the thing I keep coming back to."
+      },
+      {
+        "id": "r-anything",
+        "keywords": [
+          "anything else",
+          "any other concerns"
+        ],
+        "patient_text": "No. I feel like I can actually breathe for the first time since yesterday."
+      },
+      {
+        "id": "r-close",
+        "keywords": [
+          "next step",
+          "new symptoms",
+          "getting worse",
+          "let us know"
+        ],
+        "patient_text": "Okay. Neurology next, write my questions down, and tell someone if anything changes. Thank you - really."
+      }
+    ],
+    "objectives": [
+      {
+        "id": "o1",
+        "label": "Explore what she has been told",
+        "fact_ids": [
+          "f5"
+        ],
+        "suggestion": "Ask what she has been told and understands before explaining."
+      },
+      {
+        "id": "o2",
+        "label": "Explore emotional state",
+        "fact_ids": [
+          "f3"
+        ],
+        "suggestion": "Ask how she is feeling and acknowledge it."
+      },
+      {
+        "id": "o3",
+        "label": "Explore worries about the future",
+        "fact_ids": [
+          "f6"
+        ],
+        "suggestion": "Ask what worries her most - here it's work and starting a family."
+      },
+      {
+        "id": "o4",
+        "label": "Screen sleep and mood",
+        "fact_ids": [
+          "f7"
+        ],
+        "suggestion": "Ask about sleep and mood; anxiety after a new diagnosis needs attention."
+      },
+      {
+        "id": "o5",
+        "label": "Explore work and support",
+        "fact_ids": [
+          "f2"
+        ],
+        "suggestion": "Ask about her work and who supports her."
+      },
+      {
+        "id": "o6",
+        "label": "Ask how she wants information",
+        "fact_ids": [
+          "f8"
+        ],
+        "suggestion": "Ask how much detail she wants and in what form."
+      }
+    ],
+    "validation_notes": [
+      "Facts f5-f8 and the husband's name are demo-authored, not in the organizer source. Faculty review required.",
+      "No symptoms, exam findings, MRI/CSF results, vitals, or medications are in the source. The patient answers 'not provided' to those questions by design (grounding)."
+    ]
+  },
+  "case_rubric": {
+    "universal_domains": "All 7 organizer domains and the U-* universal criteria in data/clinical_scoring_criteria.json apply unchanged.",
+    "case_specific_categories": [
+      {
+        "category": "Understand her starting point",
+        "domain": 3,
+        "criteria": [
+          "NP-E1",
+          "NP-E2",
+          "NP-E3",
+          "NP-E4"
+        ],
+        "standard": "Asks what she has been told, screens symptoms without inventing them, explores feelings, support and future plans."
+      },
+      {
+        "category": "Recognize the emotional need",
+        "domain": 6,
+        "criteria": [
+          "NP-I1"
+        ],
+        "standard": "Recognizes anxiety, screens sleep/mood, and offers support resources."
+      },
+      {
+        "category": "Plain-language education",
+        "domain": 5,
+        "criteria": [
+          "NP-D1",
+          "NP-D2"
+        ],
+        "standard": "Explains MS accurately without jargon, mentions that treatments exist and defers specifics to neurology."
+      },
+      {
+        "category": "Safety and honesty",
+        "domain": 7,
+        "criteria": [
+          "NP-S1",
+          "NP-S2"
+        ],
+        "standard": "No false reassurance or prognostic certainty; safety-nets new or worsening neurological symptoms."
+      }
+    ],
+    "scoring_source": "Case criteria NP-* live in data/clinical_scoring_criteria.json under this patient id."
+  },
+  "demo_script": [
+    {
+      "step": 1,
+      "phase": "Opening",
+      "clinician": "Hi Ms. Patel, I'm a student clinician on your care team. What brings you in today?"
+    },
+    {
+      "step": 2,
+      "phase": "Opening",
+      "clinician": "What would you like me to call you?"
+    },
+    {
+      "step": 3,
+      "phase": "History",
+      "clinician": "What have you been told about your diagnosis so far?"
+    },
+    {
+      "step": 4,
+      "phase": "Empathy",
+      "clinician": "That sounds really frightening, and it makes sense that you're overwhelmed. How are you feeling right now?"
+    },
+    {
+      "step": 5,
+      "phase": "History",
+      "clinician": "Can you tell me about your work and home life?"
+    },
+    {
+      "step": 6,
+      "phase": "History",
+      "clinician": "Is this your first time being in the hospital?"
+    },
+    {
+      "step": 7,
+      "phase": "Cues",
+      "clinician": "It sounds like this has hit you hard. What worries you most about the future?"
+    },
+    {
+      "step": 8,
+      "phase": "Grounding check",
+      "clinician": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
+      "note": "Symptoms are not in the approved profile. The patient says so instead of inventing them - point this out to judges."
+    },
+    {
+      "step": 9,
+      "phase": "History",
+      "clinician": "Are you taking any medications right now, and do you have any allergies?",
+      "note": "Also not in the profile - second grounding moment."
+    },
+    {
+      "step": 10,
+      "phase": "History",
+      "clinician": "How have you been sleeping, and how has your mood been?"
+    },
+    {
+      "step": 11,
+      "phase": "Shared decision",
+      "clinician": "Would you prefer the full picture or just the basics today?"
+    },
+    {
+      "step": 12,
+      "phase": "Summary",
+      "clinician": "To summarize what I heard: you were just diagnosed with MS, this is your first time in the hospital, you haven't been sleeping, and you want honest, detailed information."
+    },
+    {
+      "step": 13,
+      "phase": "Education",
+      "clinician": "MS is a condition where your immune system attacks the protective coating, called myelin, around your nerves. That can disrupt the signals between your brain and your body."
+    },
+    {
+      "step": 14,
+      "phase": "Education",
+      "clinician": "There are medications that slow MS down, and your neurologist will go over the treatment options with you."
+    },
+    {
+      "step": 15,
+      "phase": "Honest uncertainty",
+      "clinician": "I can't predict exactly how MS will affect you, because it's different for everyone, and we don't have all of your results in front of us yet."
+    },
+    {
+      "step": 16,
+      "phase": "Support",
+      "clinician": "A lot of people find a counselor or an MS support group really helpful. Would that interest you?"
+    },
+    {
+      "step": 17,
+      "phase": "Teach-back",
+      "clinician": "Just to make sure I explained it clearly, can you tell me back in your own words what MS is?"
+    },
+    {
+      "step": 18,
+      "phase": "Questions",
+      "clinician": "What questions do you have for me?"
+    },
+    {
+      "step": 19,
+      "phase": "Questions",
+      "clinician": "That's such an important question. Many people with MS do go on to start a family, and planning a pregnancy is something your neurologist can talk through with you in detail."
+    },
+    {
+      "step": 20,
+      "phase": "Closing",
+      "clinician": "Is there anything else on your mind?"
+    },
+    {
+      "step": 21,
+      "phase": "Closing",
+      "clinician": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
+    }
+  ],
+  "intentional_gaps": [
+    "Does not ask about past medical or family history (U-INFO-4) - shows up as a gap in feedback.",
+    "Does not confirm she has written resources to take home - a natural improvement a judge might suggest."
+  ]
+}

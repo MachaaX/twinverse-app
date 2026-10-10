@@ -20,6 +20,7 @@ class Store:
         ''')
         if not self.db.execute('SELECT 1 FROM cases LIMIT 1').fetchone():
             for p in seed_profiles():self.put('cases',p['id'],{'draft':p,'published':p,'history':[]})
+        self.load_case_files()
         self.db.commit()
 
     def put(self,table,id,value,owner=None):
@@ -35,3 +36,19 @@ class Store:
 
     def all(self,table):
         return [json.loads(r['document']) for r in self.db.execute(f'SELECT document FROM {table}')]
+
+    def load_case_files(self):
+        """Install curated demo cases from data/cases/*.json.
+        A case is (re)installed when it is new or its case_file_version changed,
+        so editing the JSON and restarting is enough; faculty edits in the app
+        are kept until the file version is bumped."""
+        folder=Path(__file__).resolve().parent.parent/'data/cases'
+        for f in sorted(folder.glob('*.json')):
+            case=json.loads(f.read_text(encoding='utf-8'));p=case.get('profile')
+            if not p or not p.get('id'):continue
+            p={**p,'case_file':f.name,'case_file_version':case.get('case_file_version',1)}
+            current=self.get('cases',p['id'])
+            if current and current.get('deleted_at'):continue  # faculty deleted it; don't bring it back
+            if current and (current.get('published') or {}).get('case_file_version')==p['case_file_version']:continue
+            history=(current or {}).get('history',[])+([current['published']] if current and current.get('published') else [])
+            self.put('cases',p['id'],{'draft':p,'published':p,'history':history})

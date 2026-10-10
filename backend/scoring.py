@@ -23,10 +23,18 @@ CRITERIA_PATH = Path(__file__).resolve().parent.parent / 'data/clinical_scoring_
 _CRITERIA = None
 
 
+CASES_DIR = Path(__file__).resolve().parent.parent / 'data/cases'
+
+
 def load_criteria():
     global _CRITERIA
     if _CRITERIA is None:
         _CRITERIA = json.loads(CRITERIA_PATH.read_text())
+        # Case files (data/cases/*.json) may carry their own scoring block.
+        for f in sorted(CASES_DIR.glob('*.json')):
+            case = json.loads(f.read_text(encoding='utf-8'))
+            if case.get('scoring') and case.get('profile', {}).get('id'):
+                _CRITERIA['patients'][case['profile']['id']] = case['scoring']
     return _CRITERIA
 
 TIER_WEIGHT = {'critical': 3, 'important': 2, 'supplementary': 1}
@@ -280,11 +288,13 @@ def score(crit, enc):
     vitals = enc.get('vitals') or profile.get('vitals') or case.get('vitals') or {}
     vkeys = abnormalities_from_vitals(vitals) if vitals else []
     adj = difficulty_adjustments(profile)
-    universal = crit['universal_criteria']
+    skip = set(case.get('exclude_universal', []))  # e.g. medication/allergy items for a non-prescribing case
+    universal = [c for c in crit['universal_criteria'] if c['id'] not in skip]
     if adj and adj['empathy_critical']:
         universal = [{**c, 'tier': 'critical'} if c['id'] in EMPATHY_IDS else c for c in universal]
     synthesis = synthesis_criterion(case, profile)
     criteria = universal + case_criteria + vital_criteria(crit, vkeys) + ([synthesis] if synthesis else []) + (difficulty_criteria(adj) if adj else [])
+    criteria = [c for c in criteria if not (c.get('rule') == 'before_treatment' and set(c.get('requires', [])) & skip)]
     phase = {'order_check': 1, 'before_treatment': 1, 'synthesis': 2, 'depth': 3}
     order = sorted(criteria, key=lambda c: phase.get(c.get('rule'), 0))
     analysis = sentiment.analyze(msgs, profile)

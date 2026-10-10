@@ -1,0 +1,54 @@
+This is a conversation between a patient and a doctor. The doctor asks questions about the symptoms the patient has.
+
+This patient has the following symptoms:
+Chest pain (left side, sharp)
+Shortness of breath
+Lightheadedness
+
+Additionally, this information about the patient may be useful:
+Male, 39 years old
+Smoking (one pack per day for 10-15 years)
+
+---
+
+D: What brought you in today?
+
+P: Sure, I'm I'm just having a lot of chest pain and and so I thought I should get it checked out.
+
+D: OK, and so when did this chest pain start?
+
+P: It started last night, but it's becoming sharper.
+
+D: OK, and how would you describe the pain? People will use words sometimes like sharp, burning, achy.
+
+P: I'd say it's pretty sharp, yeah.
+
+D: OK, and with the pain, do you have any other associated symptoms?
+
+P: I feel a little lightheaded and I'm having some trouble breathing.
+
+D: Are you taking any medications right now?
+
+P: No.
+
+D: Any allergies?
+
+P: Penicillin.
+
+D: That sounds difficult. So to summarize, you've had sharp chest pain since last night. Does that make sense?
+
+P: Yes.
+This is a conversation between a patient and a doctor. The doctor asks questions about the symptoms the patient has.
+
+This patient has the following symptoms:
+Cough
+
+---
+
+D: Tell me about your cough.
+
+P: It's dry.
+
+D: Anything else?
+
+P: No.

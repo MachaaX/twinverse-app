@@ -1,0 +1,455 @@
+{
+  "case_file_version": 1,
+  "case_id": "demo-adult-yvette",
+  "mode": "static_demo",
+  "role_in_demo": "Alternate adult case (hypertension). Deterministic: the scripted clinician lines always produce the same replies, chart updates and scores.",
+  "status": "DRAFT - demo content assembled by the TwinVerse team from organizer data; faculty must review before use for grading",
+  "provenance": {
+    "organizer_source": "faculty-provided-sample-patient-details.csv / data/raw_patients.json (Yvette Armstrong, uuid 6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8)",
+    "team_authored": "Natural patient wording, reactions, and facts f7-f8 (diet sources, readiness) are demo-authored and flagged with source 'Demo-authored'.",
+    "behaviour_reference": "https://huggingface.co/datasets/Postzeun/Patient-Doctor (clinician behaviour benchmark, see data/hf/rubric_reference.json)"
+  },
+  "profile": {
+    "id": "6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8",
+    "name": "Yvette Armstrong",
+    "age": 64,
+    "gender": "female",
+    "summary": "Hypertension - newly diagnosed, confused about sodium and salt",
+    "background": "Full-time state employee with an associate's degree in political science.",
+    "persona": "Curious, earnest, overwhelmed. Wants to understand but medical jargon loses her. Warms up when explanations use everyday words.",
+    "source_notes": "Recently diagnosed with Stage II hypertension (BP 155/110 mmHg), Yvette struggles to understand medical explanations and is confused about sodium and salt. BMI is 34. \"My doctor told me, but I just didn't understand what she said.\" She needs clear education on what hypertension is, the role of sodium in blood pressure control, sodium limits, and the benefits of modest weight loss.",
+    "image": "/assets/patients/6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8.jpg",
+    "version": 2,
+    "status": "published",
+    "provenance": "Organizer CSV; demo case file data/cases/adult-yvette-armstrong.json",
+    "source_refs": [
+      "faculty-provided-sample-patient-details.csv"
+    ],
+    "facts": [
+      {
+        "id": "f1",
+        "topic": "concern",
+        "label": "Presenting concern",
+        "record": "Newly diagnosed Stage 2 hypertension at recent primary care visit. Referred for education on hypertension, sodium, and weight.",
+        "patient_text": "My doctor told me I have high blood pressure, hypertension she called it. Honestly, I left more confused than when I walked in.",
+        "keywords": [
+          "what brings",
+          "brought you",
+          "main concern",
+          "how can i help",
+          "here today",
+          "going on",
+          "reason for"
+        ],
+        "release": "initial",
+        "source": "Organizer CSV: summary/notes"
+      },
+      {
+        "id": "f2",
+        "topic": "background",
+        "label": "Work and home",
+        "record": "Full-time state employee; associate's degree in political science.",
+        "patient_text": "I work full time for the state. I have an associate's degree in political science, so I like to understand things - but medical words just lose me.",
+        "keywords": [
+          "work",
+          "job",
+          "home life",
+          "live",
+          "family",
+          "background",
+          "occupation"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: background"
+      },
+      {
+        "id": "f3",
+        "topic": "labs",
+        "label": "Blood pressure and BMI",
+        "record": "BP 155/110 mmHg (Stage 2 hypertension range). BMI 34 (obesity class 1). Measurement dates not supplied.",
+        "patient_text": "At my last visit my blood pressure was 155 over 110, and they told me my BMI is 34.",
+        "keywords": [
+          "blood pressure reading",
+          "your numbers",
+          "bp reading",
+          "bmi",
+          "your weight",
+          "measurements",
+          "readings"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: notes"
+      },
+      {
+        "id": "f4",
+        "topic": "diet",
+        "label": "Sodium vs salt confusion",
+        "record": "Confused about the difference between sodium and salt.",
+        "patient_text": "That's the part that confuses me. Is sodium the same thing as salt? I hardly ever use the salt shaker, so I figured salt wasn't my problem.",
+        "keywords": [
+          "salt",
+          "sodium"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: notes (shaker detail demo-authored)"
+      },
+      {
+        "id": "f5",
+        "topic": "perspective",
+        "label": "Understanding of diagnosis",
+        "record": "Did not understand the explanation given at diagnosis.",
+        "patient_text": "My doctor told me, but I just didn't understand what she said. She used a lot of words I didn't know, and I was too embarrassed to ask.",
+        "keywords": [
+          "what did your doctor",
+          "what were you told",
+          "what do you understand",
+          "what do you know about your",
+          "explained to you"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: notes (patient quote)"
+      },
+      {
+        "id": "f6",
+        "topic": "perspective",
+        "label": "Feelings about diagnosis",
+        "record": "Feels overwhelmed by the diagnosis and the number of changes.",
+        "patient_text": "Overwhelmed, mostly. Everyone keeps telling me to change everything at once, and I don't know where to start.",
+        "keywords": [
+          "how do you feel",
+          "feel about",
+          "worried",
+          "concerns",
+          "overwhelmed",
+          "scared"
+        ],
+        "release": "question",
+        "source": "Organizer CSV: personality (overwhelmed)"
+      },
+      {
+        "id": "f7",
+        "topic": "diet",
+        "label": "Typical meals",
+        "record": "Most weekday lunches from the work cafeteria; relies on canned soups and frozen dinners at home for convenience.",
+        "patient_text": "Most days I grab lunch in the cafeteria at work. At night I'm tired, so it's usually a canned soup or a frozen dinner.",
+        "keywords": [
+          "usually eat",
+          "typical day",
+          "what you eat",
+          "meals",
+          "eating habits",
+          "breakfast",
+          "lunch",
+          "dinner"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      },
+      {
+        "id": "f8",
+        "topic": "perspective",
+        "label": "Readiness and preferences",
+        "record": "Willing to start with one or two concrete changes; prefers practical, step-by-step guidance.",
+        "patient_text": "I think I could start by checking labels on the soups I buy, and maybe walking at lunch. One or two things at a time.",
+        "keywords": [
+          "feels realistic",
+          "what would work",
+          "start with",
+          "would you prefer",
+          "ready to"
+        ],
+        "release": "question",
+        "source": "Demo-authored - faculty review required"
+      }
+    ],
+    "reactions": [
+      {
+        "id": "r-name",
+        "keywords": [
+          "like me to call",
+          "prefer to be called",
+          "confirm your name"
+        ],
+        "patient_text": "Yvette is fine. Yvette Armstrong."
+      },
+      {
+        "id": "r-summary",
+        "keywords": [
+          "to summarize",
+          "to summarise",
+          "what i heard",
+          "let me make sure i have"
+        ],
+        "patient_text": "Yes, that's right. That's exactly where I am."
+      },
+      {
+        "id": "r-teachback",
+        "keywords": [
+          "in your own words",
+          "tell me back",
+          "explain back"
+        ],
+        "patient_text": "Okay. My blood pressure is too high, so my heart has to work harder. Salt has sodium in it, and I should keep sodium under 2,300 milligrams a day by reading labels. And canned soup is a big one."
+      },
+      {
+        "id": "r-explain-htn",
+        "keywords": [
+          "pushing against",
+          "force of blood",
+          "heart works harder",
+          "walls of your arteries"
+        ],
+        "patient_text": "Oh, so it's like too much pressure pushing on the pipes. Why didn't anyone say it like that before?"
+      },
+      {
+        "id": "r-explain-sodium",
+        "keywords": [
+          "salt contains sodium",
+          "sodium is part of",
+          "2,300",
+          "2300"
+        ],
+        "patient_text": "So salt has sodium in it, and the canned stuff is full of it even if I never touch the shaker. I had no idea."
+      },
+      {
+        "id": "r-labels",
+        "keywords": [
+          "nutrition facts",
+          "label",
+          "herbs",
+          "spices"
+        ],
+        "patient_text": "I can do that. I'll look at the soup cans this weekend."
+      },
+      {
+        "id": "r-weight",
+        "keywords": [
+          "5%",
+          "five percent",
+          "small amount of weight",
+          "few pounds"
+        ],
+        "patient_text": "Just a few pounds makes a difference? That feels a lot more doable."
+      },
+      {
+        "id": "r-anything",
+        "keywords": [
+          "anything else",
+          "any other concerns",
+          "any other questions"
+        ],
+        "patient_text": "No, I think that covers it. This is the first time it actually made sense."
+      },
+      {
+        "id": "r-close",
+        "keywords": [
+          "next step",
+          "follow up",
+          "call 911",
+          "emergency"
+        ],
+        "patient_text": "Okay. Home cuff, labels, and call if it's over 180 or I get chest pain. Thank you - really."
+      }
+    ],
+    "objectives": [
+      {
+        "id": "o1",
+        "label": "Review BP and BMI",
+        "fact_ids": [
+          "f3"
+        ],
+        "suggestion": "Ask for her blood pressure reading and BMI - they drive the whole plan."
+      },
+      {
+        "id": "o2",
+        "label": "Explore what she understood",
+        "fact_ids": [
+          "f5"
+        ],
+        "suggestion": "Ask what her doctor told her before you start explaining."
+      },
+      {
+        "id": "o3",
+        "label": "Clarify sodium vs salt",
+        "fact_ids": [
+          "f4"
+        ],
+        "suggestion": "Ask what she knows about salt and sodium, then explain the difference."
+      },
+      {
+        "id": "o4",
+        "label": "Explore diet sources of sodium",
+        "fact_ids": [
+          "f7"
+        ],
+        "suggestion": "Ask about her typical meals to find where sodium comes from."
+      },
+      {
+        "id": "o5",
+        "label": "Explore feelings and readiness",
+        "fact_ids": [
+          "f6",
+          "f8"
+        ],
+        "suggestion": "Ask how she feels and what change feels realistic to start with."
+      },
+      {
+        "id": "o6",
+        "label": "Explore work and home context",
+        "fact_ids": [
+          "f2"
+        ],
+        "suggestion": "Ask about her work and home life to tailor advice."
+      }
+    ],
+    "validation_notes": [
+      "Facts f7 (typical meals) and f8 (readiness) and the 'salt shaker' detail in f4 are demo-authored, not in the organizer source. Faculty review required.",
+      "No medication list, allergies, symptoms, family history, or labs are in the source. The patient answers 'not provided' to those questions by design (grounding)."
+    ]
+  },
+  "case_rubric": {
+    "universal_domains": "All 7 organizer domains and the U-* universal criteria in data/clinical_scoring_criteria.json apply unchanged (opening, empathy, information gathering, cues, explanation, reasoning, closure).",
+    "case_specific_categories": [
+      {
+        "category": "Recognize the problem",
+        "domain": 6,
+        "criteria": [
+          "YA-I1",
+          "YA-I2"
+        ],
+        "standard": "States that 155/110 is Stage 2 / high, and links sodium and weight to BP."
+      },
+      {
+        "category": "Gather the right history",
+        "domain": 3,
+        "criteria": [
+          "YA-E1",
+          "YA-E2",
+          "YA-E3",
+          "YA-E4",
+          "YA-E5"
+        ],
+        "standard": "Reviews BP/BMI, asks what she understood, explores diet, screens symptoms and risk factors."
+      },
+      {
+        "category": "Plain-language education",
+        "domain": 5,
+        "criteria": [
+          "YA-D1",
+          "YA-D2",
+          "YA-D3",
+          "YA-D4"
+        ],
+        "standard": "Explains hypertension without jargon, clarifies sodium vs salt with a number, gives practical swaps, explains modest weight loss."
+      },
+      {
+        "category": "Safety",
+        "domain": 7,
+        "criteria": [
+          "YA-S1"
+        ],
+        "standard": "Safety-nets for severe BP or symptoms and suggests home monitoring."
+      }
+    ],
+    "scoring_source": "Case criteria YA-* live in data/clinical_scoring_criteria.json under this patient id."
+  },
+  "demo_script": [
+    {
+      "step": 1,
+      "phase": "Opening",
+      "clinician": "Hello Ms. Armstrong, I'm a student clinician on your care team. Today I'd like to go over your recent diagnosis with you. What brings you in today?"
+    },
+    {
+      "step": 2,
+      "phase": "Opening",
+      "clinician": "What would you like me to call you?"
+    },
+    {
+      "step": 3,
+      "phase": "History",
+      "clinician": "Can you tell me about your work and home life?"
+    },
+    {
+      "step": 4,
+      "phase": "History",
+      "clinician": "What did your doctor tell you about your diagnosis?"
+    },
+    {
+      "step": 5,
+      "phase": "Empathy",
+      "clinician": "That sounds really frustrating, and it makes sense that it was confusing. How do you feel about all of this?"
+    },
+    {
+      "step": 6,
+      "phase": "History",
+      "clinician": "Let's look at your numbers. Can you tell me your blood pressure reading and your BMI?"
+    },
+    {
+      "step": 7,
+      "phase": "History",
+      "clinician": "Tell me about what you usually eat in a typical day."
+    },
+    {
+      "step": 8,
+      "phase": "Cues",
+      "clinician": "You mentioned canned soup. What do you know about salt and sodium?"
+    },
+    {
+      "step": 9,
+      "phase": "Grounding check",
+      "clinician": "Have you had any headaches, vision changes, chest pain, or dizziness?",
+      "note": "Not in the approved profile. The patient says so instead of inventing an answer - point this out to judges."
+    },
+    {
+      "step": 10,
+      "phase": "History",
+      "clinician": "Are you taking any medications right now, and do you have any allergies?",
+      "note": "Also not in the profile - second grounding moment."
+    },
+    {
+      "step": 11,
+      "phase": "Summary",
+      "clinician": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+    },
+    {
+      "step": 12,
+      "phase": "Education",
+      "clinician": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder."
+    },
+    {
+      "step": 13,
+      "phase": "Education",
+      "clinician": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+    },
+    {
+      "step": 14,
+      "phase": "Education",
+      "clinician": "Checking the nutrition facts label is the easiest way to spot sodium, and fresh foods with herbs and spices are great swaps."
+    },
+    {
+      "step": 15,
+      "phase": "Shared decision",
+      "clinician": "What feels realistic for you to start with?"
+    },
+    {
+      "step": 16,
+      "phase": "Teach-back",
+      "clinician": "Just to make sure I explained it well, can you tell me back in your own words what we talked about?"
+    },
+    {
+      "step": 17,
+      "phase": "Closing",
+      "clinician": "Is there anything else you'd like to ask?"
+    },
+    {
+      "step": 18,
+      "phase": "Closing",
+      "clinician": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+    }
+  ],
+  "intentional_gaps": [
+    "Does not ask about family history or other conditions (U-INFO-4) - shows up as a gap in feedback.",
+    "Does not explain the benefit of modest weight loss (YA-D4) - shows up as a next-attempt suggestion.",
+    "Optional live improvisation: add 'Losing even a small amount of weight, about 5%, can lower your blood pressure.' before step 15 to show the score go up."
+  ]
+}

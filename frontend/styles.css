@@ -35,3 +35,12 @@
 .pending-actions{margin-bottom:30px}
 #faculty-login .field{margin-bottom:12px}
 #faculty-login .login-error{color:var(--red);margin:0 0 14px}
+.gen-status{margin-bottom:22px}
+.gen-status-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.validation-list .gen-error{color:var(--red)}
+.slider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.slider-field input[type=range]{width:100%;accent-color:var(--green)}
+.slider-scale{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--muted)}
+.slider-scale strong{color:var(--ink);text-align:center}
+.editor-portrait{margin-bottom:16px}
+.editor-portrait img,.editor-portrait .placeholder-portrait{width:96px;height:96px;border-radius:50%;object-fit:cover}

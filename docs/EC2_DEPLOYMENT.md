@@ -105,8 +105,10 @@
 - Live patient generation reads `AWS_BEARER_TOKEN_BEDROCK` from the same private
   server configuration. The supplied Bedrock key was installed on EC2 with your
   explicit authorization; it is outside Git and application releases. The hosted
-  connection test succeeded with Claude Sonnet 5 through Bedrock Runtime in
-  `us-west-2`. A live generation test also created a valid patient draft and
+  configuration defaults to Claude Sonnet 4.6 through Bedrock Runtime in
+  `us-west-2`, with temperature `0` and thinking disabled for generation and
+  replies. Sonnet 4.6 accepted these settings in a live preflight test; Sonnet 5
+  rejects temperature `0`. A previous live generation test created a valid patient draft and
   portrait; that synthetic draft was removed without publishing it. To replace
   an expired key, edit just `AWS_BEARER_TOKEN_BEDROCK` with
   `sudoedit /etc/twinverse/app.env`, then `sudo systemctl restart twinverse`.

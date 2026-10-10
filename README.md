@@ -152,7 +152,9 @@ AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
 ```
 
 - The key is a Bedrock API key (bearer token). Short-term keys last 12 hours; when one expires, generate a new key and restart with it.
-- Defaults: region `us-west-2`. Claude models are tried in order (`anthropic.claude-opus-5-5`, then `anthropic.claude-opus-4-8`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-4-7`) and the app uses the first one your key can reach; **Test connection** lists which work. Bedrock opens some Claude models to all accounts and gates others under Model access. Portraits use `stability.stable-image-core-v1:1` (enable it under Model access). Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated), `TWINVERSE_IMAGE_MODEL`.
+- Defaults: region `us-west-2`, Bedrock Runtime model `us.anthropic.claude-sonnet-4-6`. Fallbacks are `global.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, and `global.anthropic.claude-opus-4-6-v1`; **Test connection** lists which work with your key. Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, or `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated).
+- Patient generation, conversational replies, retries, and connection checks always send `temperature: 0` and disable thinking. This reduces variation but does not guarantee identical results. Choose models that support these settings: [Sonnet 5 rejects non-default sampling parameters](https://platform.claude.com/docs/en/models/sonnet-5/overview). Unsupported candidates are skipped; the app never silently changes the temperature. Existing reply caches are invalidated by the engine version change.
+- Portraits use `stability.stable-image-core-v1:1`, normally with seed `7`; override the image model with `TWINVERSE_IMAGE_MODEL`. Text temperature does not control image generation. Enable the image model under Bedrock Model access.
 - Use **Test connection** on the Generate patients page before a demo.
 - Never put the key in code, a committed file, or chat. This repository is public.
 

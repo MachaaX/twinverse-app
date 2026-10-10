@@ -22,15 +22,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / 'data/generated_examples'
 REGION = os.environ.get('TWINVERSE_BEDROCK_REGION', 'us-west-2')
-MODEL = os.environ.get('TWINVERSE_BEDROCK_MODEL', 'anthropic.claude-opus-5-5')
+MODEL = os.environ.get('TWINVERSE_BEDROCK_MODEL', 'us.anthropic.claude-sonnet-4-6')
 # (endpoint, model) pairs, tried in order until one works for this key. "mantle" is
 # the Claude Messages endpoint on Bedrock; "runtime" is the standard bedrock-runtime
 # InvokeModel endpoint, which some event accounts allow when mantle is not allowed.
+# Claude 4.6 accepts temperature zero with thinking disabled. Newer Claude
+# models reject non-default sampling parameters, so never select them silently.
 _FALLBACKS = [m.strip() for m in os.environ.get('TWINVERSE_BEDROCK_FALLBACK_MODELS',
-              'anthropic.claude-opus-4-8,anthropic.claude-sonnet-5,anthropic.claude-opus-4-7').split(',') if m.strip()]
-_RUNTIME_EXTRA = ['us.anthropic.claude-sonnet-5', 'global.anthropic.claude-sonnet-5', 'us.anthropic.claude-opus-4-6-v1',
-                  'global.anthropic.claude-opus-4-6-v1', 'us.anthropic.claude-sonnet-4-6', 'global.anthropic.claude-sonnet-4-6']
-CANDIDATES = list(dict.fromkeys([('mantle', m) for m in [MODEL] + _FALLBACKS] + [('runtime', m) for m in [MODEL] + _FALLBACKS + _RUNTIME_EXTRA]))
+              'global.anthropic.claude-sonnet-4-6,us.anthropic.claude-opus-4-6-v1,global.anthropic.claude-opus-4-6-v1').split(',') if m.strip()]
+_RUNTIME_EXTRA = ['us.anthropic.claude-sonnet-4-6', 'global.anthropic.claude-sonnet-4-6',
+                  'us.anthropic.claude-opus-4-6-v1', 'global.anthropic.claude-opus-4-6-v1']
+_REGIONAL_PREFIXES = ('us.', 'global.', 'eu.', 'apac.')
+CANDIDATES = list(dict.fromkeys(
+    [('runtime' if m.startswith(_REGIONAL_PREFIXES) else 'mantle', m) for m in [MODEL] + _FALLBACKS]
+    + [('runtime', m) for m in [MODEL] + _FALLBACKS if not m.startswith(_REGIONAL_PREFIXES)]
+    + [('runtime', m) for m in _RUNTIME_EXTRA]))
 _unavailable = set()
 _active = None
 _clients = {}
@@ -217,7 +223,8 @@ def bedrock_key():
 
 
 def live_status():
-    base = {'model': label(active_model()), 'image_model': IMAGE_MODEL, 'region': REGION}
+    base = {'model': label(active_model()), 'image_model': IMAGE_MODEL, 'region': REGION,
+            'temperature': 0, 'thinking': 'disabled'}
     try:
         import anthropic  # noqa: F401
     except ImportError:
@@ -244,6 +251,11 @@ def client(transport='mantle'):
 
 def call(api, model, **kwargs):
     import anthropic
+    # SDK 1.13 removed the temperature keyword. extra_body sends it in the
+    # actual Bedrock JSON body for both SDK transports, including all retries
+    # and connection probes. Do not silently retry with default sampling.
+    kwargs['extra_body'] = {**(kwargs.get('extra_body') or {}),
+                            'temperature': 0, 'thinking': {'type': 'disabled'}}
     try:
         return api.messages.create(model=model, **kwargs)
     except anthropic.AuthenticationError as e:

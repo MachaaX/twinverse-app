@@ -405,7 +405,48 @@ class SdkPath(unittest.TestCase):
         client = mock.Mock();client.messages.create.side_effect = create
         with mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'test-key'}), mock.patch.object(anthropic, 'Anthropic', return_value=client), \
              mock.patch.object(anthropic, 'AnthropicBedrock', return_value=client):
-            return fn(), calls
+            result = fn()
+        # Every generation, reply, retry, fallback, and connection probe must
+        # send zero temperature in the JSON body, not revert to model defaults.
+        for call in calls:
+            self.assertEqual(call['extra_body']['temperature'], 0)
+            self.assertEqual(call['extra_body']['thinking'], {'type': 'disabled'})
+        return result, calls
+
+    def test_sampling_body_overrides_stale_caller_settings(self):
+        api = mock.Mock()
+        generator.call(api, 'us.anthropic.claude-sonnet-4-6',
+                       extra_body={'temperature': 1, 'thinking': {'type': 'adaptive'}, 'custom': 'kept'})
+        self.assertEqual(api.messages.create.call_args.kwargs['extra_body'],
+                         {'temperature': 0, 'thinking': {'type': 'disabled'}, 'custom': 'kept'})
+
+    def test_sdk_serializes_zero_temperature_for_both_transports(self):
+        import httpx2
+        bodies = []
+        def respond(request):
+            bodies.append(json.loads(request.content))
+            return httpx2.Response(200, json={
+                'id': 'msg_test', 'type': 'message', 'role': 'assistant',
+                'model': 'us.anthropic.claude-sonnet-4-6',
+                'content': [{'type': 'text', 'text': 'ready'}],
+                'stop_reason': 'end_turn', 'stop_sequence': None,
+                'usage': {'input_tokens': 1, 'output_tokens': 1}})
+        for transport in ('mantle', 'runtime'):
+            with mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'test-key'}):
+                http_client = httpx2.Client(transport=httpx2.MockTransport(respond))
+                if transport == 'mantle':
+                    api = anthropic.Anthropic(api_key='test-key', http_client=http_client)
+                else:
+                    api = anthropic.AnthropicBedrock(api_key='test-key', aws_region='us-west-2', http_client=http_client)
+                try:
+                    generator.call(api, 'us.anthropic.claude-sonnet-4-6', max_tokens=64,
+                                   messages=[{'role': 'user', 'content': 'ready'}])
+                finally:
+                    api.close()
+        self.assertEqual(len(bodies), 2)
+        for body in bodies:
+            self.assertEqual(body['temperature'], 0)
+            self.assertEqual(body['thinking'], {'type': 'disabled'})
 
     def tool(self, name, data, stop='tool_use'):
         return _Block(stop_reason=stop, content=[_Block(type='tool_use', name=name, input=data)])

@@ -12,7 +12,7 @@ import re
 from . import generator
 from .engine import normalize, reply as scripted_reply
 
-ENGINE_VERSION = 'generative-guarded-1.0.0'
+ENGINE_VERSION = 'generative-guarded-1.1.0'
 RAPPORT_CUES = ['sorry to hear', 'sounds difficult', 'sounds hard', 'that must be', 'i understand', 'i can see', 'take your time',
                 'no rush', 'you don t have to', 'whenever you re ready', 'it s okay', 'that makes sense', 'thank you for sharing',
                 'i appreciate', 'i hear you', 'that s fair', 'only if you re comfortable']

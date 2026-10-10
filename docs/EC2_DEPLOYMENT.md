@@ -105,10 +105,14 @@
 - Live patient generation reads `AWS_BEARER_TOKEN_BEDROCK` from the same private
   server configuration. The supplied Bedrock key was installed on EC2 with your
   explicit authorization; it is outside Git and application releases. The hosted
-  configuration defaults to Claude Sonnet 4.6 through Bedrock Runtime in
-  `us-west-2`, with temperature `0` and thinking disabled for generation and
-  replies. Sonnet 4.6 accepted these settings in a live preflight test; Sonnet 5
-  rejects temperature `0`. A previous live generation test created a valid patient draft and
+  application defaults to GPT-6 Sol (`us.openai.gpt-6-sol`) through Bedrock
+  Runtime's OpenAI-compatible Responses API in `us-west-2`, with temperature `0`
+  and reasoning effort `none` for generation and replies. The first direct
+  request succeeded, but subsequent direct and SDK requests were denied because
+  AWS Private Marketplace could not complete this account's model subscription.
+  EC2 is explicitly pinned to `us.anthropic.claude-sonnet-4-6` in its private
+  environment to preserve working generation until GPT-6 Sol access is enabled.
+  A previous live Claude generation test created a valid patient draft and
   portrait; that synthetic draft was removed without publishing it. To replace
   an expired key, edit just `AWS_BEARER_TOKEN_BEDROCK` with
   `sudoedit /etc/twinverse/app.env`, then `sudo systemctl restart twinverse`.
@@ -116,6 +120,19 @@
   before generating a patient draft. Short-term keys expire after at most 12 hours
   or when the underlying session expires, whichever is earlier.
   [AWS Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)
+- To finish GPT-6 Sol activation:
+  - Ask the workshop organizer/account administrator to allow GPT-6 Sol under
+    Private Marketplace and complete the account's model subscription, with
+    access to its US/global inference profiles. Invocation permission alone
+    does not fix an incomplete subscription.
+    [AWS model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+  - Set `TWINVERSE_BEDROCK_MODEL=us.openai.gpt-6-sol` in
+    `/etc/twinverse/app.env` with `sudoedit`, keeping the existing key and region.
+    Remove any explicit Claude-only `TWINVERSE_BEDROCK_FALLBACK_MODELS` setting,
+    or set it to `global.openai.gpt-6-sol`.
+  - Run `sudo systemctl restart twinverse`. Wait five minutes after access changes
+    if AWS still reports activation pending. Sign in as Faculty, use
+    **Test connection**, and verify a generated draft before approval.
 - Drafts, encounters, sources, portraits, feedback and reports live in
   `/var/lib/twinverse/twinverse.sqlite3`. Approved profiles also go to PostgreSQL
   and files to S3. Releases do not erase this workspace. The pre-existing EC2

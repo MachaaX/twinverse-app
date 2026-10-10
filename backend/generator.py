@@ -5,7 +5,7 @@ Input: free text, optional files (PDF, image, text), and two sliders
 Output, always a DRAFT for faculty review: patient profile, case rubric criteria
 with named sources, clinical reports (labs, imaging, prior notes), and a portrait.
 
-Live generation needs the optional `anthropic` package and a Bedrock API key in
+Live generation needs the optional `openai` package and a Bedrock API key in
 AWS_BEARER_TOKEN_BEDROCK. The static example in data/generated_examples/ never
 calls the network.
 """
@@ -18,20 +18,21 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from . import bedrock_gpt
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / 'data/generated_examples'
 REGION = os.environ.get('TWINVERSE_BEDROCK_REGION', 'us-west-2')
-MODEL = os.environ.get('TWINVERSE_BEDROCK_MODEL', 'us.anthropic.claude-sonnet-4-6')
-# (endpoint, model) pairs, tried in order until one works for this key. "mantle" is
-# the Claude Messages endpoint on Bedrock; "runtime" is the standard bedrock-runtime
-# InvokeModel endpoint, which some event accounts allow when mantle is not allowed.
-# Claude 4.6 accepts temperature zero with thinking disabled. Newer Claude
-# models reject non-default sampling parameters, so never select them silently.
+MODEL = os.environ.get('TWINVERSE_BEDROCK_MODEL', 'us.openai.gpt-6-sol')
+# Try the US and global profiles of GPT-6 Sol through Bedrock Runtime.
+# Explicit Claude overrides retain the Messages adapter and compatible 4.6
+# fallbacks. All transports enforce temperature zero with reasoning off.
 _FALLBACKS = [m.strip() for m in os.environ.get('TWINVERSE_BEDROCK_FALLBACK_MODELS',
+              'global.openai.gpt-6-sol' if bedrock_gpt.is_gpt(MODEL) else
               'global.anthropic.claude-sonnet-4-6,us.anthropic.claude-opus-4-6-v1,global.anthropic.claude-opus-4-6-v1').split(',') if m.strip()]
-_RUNTIME_EXTRA = ['us.anthropic.claude-sonnet-4-6', 'global.anthropic.claude-sonnet-4-6',
-                  'us.anthropic.claude-opus-4-6-v1', 'global.anthropic.claude-opus-4-6-v1']
+_RUNTIME_EXTRA = [] if bedrock_gpt.is_gpt(MODEL) else [
+    'us.anthropic.claude-sonnet-4-6', 'global.anthropic.claude-sonnet-4-6',
+    'us.anthropic.claude-opus-4-6-v1', 'global.anthropic.claude-opus-4-6-v1']
 _REGIONAL_PREFIXES = ('us.', 'global.', 'eu.', 'apac.')
 CANDIDATES = list(dict.fromkeys(
     [('runtime' if m.startswith(_REGIONAL_PREFIXES) else 'mantle', m) for m in [MODEL] + _FALLBACKS]
@@ -224,32 +225,43 @@ def bedrock_key():
 
 def live_status():
     base = {'model': label(active_model()), 'image_model': IMAGE_MODEL, 'region': REGION,
-            'temperature': 0, 'thinking': 'disabled'}
+            'temperature': 0, 'thinking': 'disabled', 'reasoning_effort': 'none'}
+    package = 'openai' if bedrock_gpt.is_gpt(active_model()[1]) else 'anthropic'
     try:
-        import anthropic  # noqa: F401
+        __import__(package)
     except ImportError:
-        return {**base, 'live_available': False, 'reason': 'Live AI needs the anthropic package: run  python3 -m pip install anthropic  and restart the app.'}
+        return {**base, 'live_available': False, 'reason': f'Live AI needs the {package} package: run  python3 -m pip install {package}  and restart the app.'}
     if not bedrock_key():
         return {**base, 'live_available': False, 'reason': 'No Bedrock API key. Start the app with AWS_BEARER_TOKEN_BEDROCK set (see README).'}
     return {**base, 'live_available': True, 'reason': 'Bedrock key found. Use “Test connection” to confirm it still works.'}
 
 
-def client(transport='mantle'):
+def client(transport='runtime', model=None):
     status = live_status()
     if not status['live_available']:
         raise GeneratorError(status['reason'])
-    import anthropic
-    if transport not in _clients:
+    provider = 'openai' if bedrock_gpt.is_gpt(model or active_model()[1]) else 'anthropic'
+    key = (provider, transport)
+    if key not in _clients:
+        if provider == 'openai':
+            import openai
+            host = f'bedrock-runtime.{REGION}.amazonaws.com' if transport == 'runtime' else f'bedrock-mantle.{REGION}.api.aws'
+            _clients[key] = openai.OpenAI(base_url=f'https://{host}/openai/v1', api_key=bedrock_key(),
+                                        timeout=240.0, max_retries=1)
+            return _clients[key]
+        import anthropic
         # Bedrock API keys are bearer tokens. mantle: the standard client pointed at the
         # Bedrock Messages endpoint; runtime: the SDK's Bedrock (InvokeModel) client.
         if transport == 'mantle':
-            _clients[transport] = anthropic.Anthropic(base_url=f'https://bedrock-mantle.{REGION}.api.aws/anthropic', api_key=bedrock_key(), timeout=240.0, max_retries=1)
+            _clients[key] = anthropic.Anthropic(base_url=f'https://bedrock-mantle.{REGION}.api.aws/anthropic', api_key=bedrock_key(), timeout=240.0, max_retries=1)
         else:
-            _clients[transport] = anthropic.AnthropicBedrock(api_key=bedrock_key(), aws_region=REGION, timeout=240.0, max_retries=1)
-    return _clients[transport]
+            _clients[key] = anthropic.AnthropicBedrock(api_key=bedrock_key(), aws_region=REGION, timeout=240.0, max_retries=1)
+    return _clients[key]
 
 
 def call(api, model, **kwargs):
+    if bedrock_gpt.is_gpt(model):
+        return bedrock_gpt.call(api, model, **kwargs)
     import anthropic
     # SDK 1.13 removed the temperature keyword. extra_body sends it in the
     # actual Bedrock JSON body for both SDK transports, including all retries
@@ -273,15 +285,22 @@ def call(api, model, **kwargs):
 
 
 def _detail(e):
-    return re.sub(r'\s+', ' ', str(getattr(e, 'message', '') or e))[:160]
+    detail = str(getattr(e, 'message', '') or e)
+    if bedrock_key():
+        detail = detail.replace(bedrock_key(), '[REDACTED]')
+    return re.sub(r'\s+', ' ', detail)[:160]
 
 
 def _no_model_error(errors):
     if errors and all(' 401 ' in f' {err} ' for _, err in errors):
         return GeneratorError('Bedrock rejected the API key. It may have expired (short-term keys last 12 hours): generate a new key, then restart the app with it.')
+    if errors and all('private marketplace' in err.lower() for _, err in errors):
+        return GeneratorError('AWS Private Marketplace is blocking activation of the configured model. '
+                              'Ask your workshop organizer or AWS account administrator to enable its model subscription '
+                              'and Private Marketplace eligibility, then retry Test connection after five minutes.')
     shown = '; '.join(f'{label(c)}: {err}' for c, err in errors[:3])
-    return GeneratorError(f'No Claude model is available to this key in {REGION}. First errors: {shown}. '
-                          'Check Bedrock Model access for Claude in US West (Oregon), and ask the organizers whether the event key allows Claude.')
+    return GeneratorError(f'No configured text model is available to this key in {REGION}. First errors: {shown}. '
+                          'Check Bedrock Model access and ask the organizers whether the event key allows the configured model and inference profile.')
 
 
 def call_any(request, effort, skip=()):
@@ -292,7 +311,7 @@ def call_any(request, effort, skip=()):
         if candidate in _unavailable or candidate in skip:
             continue
         try:
-            message = call(client(candidate[0]), candidate[1], output_config={'effort': effort}, **request)
+            message = call(client(candidate[0], candidate[1]), candidate[1], output_config={'effort': effort}, **request)
         except ModelUnavailable as e:
             if candidate == _active:
                 raise GeneratorError(f'{label(candidate)} stopped working: {e}')
@@ -314,7 +333,7 @@ def tool_call(tool, request, effort):
     if message.stop_reason == 'max_tokens':
         raise GeneratorError('The response was too long. Shorten the input and try again.')
     calls = [b for b in message.content if b.type == 'tool_use' and b.name == tool]
-    if not calls:
+    if len(calls) != 1:
         raise GeneratorError('The model did not return the expected result. Try again.')
     return calls[0].input, label(used)
 
@@ -326,7 +345,7 @@ def test_connection():
     results, errors = [], []
     for candidate in CANDIDATES:
         try:
-            call(client(candidate[0]), candidate[1], max_tokens=256, output_config={'effort': 'low'},
+            call(client(candidate[0], candidate[1]), candidate[1], max_tokens=256, output_config={'effort': 'low'},
                  messages=[{'role': 'user', 'content': 'Reply with the single word: ready'}])
         except ModelUnavailable as e:
             _unavailable.add(candidate);errors.append((candidate, str(e)))
@@ -339,7 +358,7 @@ def test_connection():
 
 
 def generate_case(req):
-    """Call Claude on Bedrock and return (raw case dict, model id)."""
+    """Call the configured text model on Bedrock and return (raw case dict, model id)."""
     request = dict(max_tokens=20000, system=SYSTEM, tools=[CASE_TOOL], tool_choice={'type': 'auto'},
                    messages=[{'role': 'user', 'content': request_content(req)}])
     return tool_call(CASE_TOOL['name'], request, 'medium')

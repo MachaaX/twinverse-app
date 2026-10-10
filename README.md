@@ -144,7 +144,7 @@ Generated patients use **AI with guardrails** by default (switch to *Scripted* i
 Live generation is optional. The rest of the app needs no installs.
 
 ```bash
-python3 -m pip install anthropic
+python3 -m pip install -r requirements.txt
 ```
 
 ```bash
@@ -152,8 +152,9 @@ AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
 ```
 
 - The key is a Bedrock API key (bearer token). Short-term keys last 12 hours; when one expires, generate a new key and restart with it.
-- Defaults: region `us-west-2`, Bedrock Runtime model `us.anthropic.claude-sonnet-4-6`. Fallbacks are `global.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, and `global.anthropic.claude-opus-4-6-v1`; **Test connection** lists which work with your key. Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, or `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated).
-- Patient generation, conversational replies, retries, and connection checks always send `temperature: 0` and disable thinking. This reduces variation but does not guarantee identical results. Choose models that support these settings: [Sonnet 5 rejects non-default sampling parameters](https://platform.claude.com/docs/en/models/sonnet-5/overview). Unsupported candidates are skipped; the app never silently changes the temperature. Existing reply caches are invalidated by the engine version change.
+- Defaults: region `us-west-2`, GPT-6 Sol through Bedrock's OpenAI-compatible Responses API, model `us.openai.gpt-6-sol`. The fallback is the same model's `global.openai.gpt-6-sol` profile; **Test connection** reports attempts. Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, or `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated). Requests use the existing `AWS_BEARER_TOKEN_BEDROCK`, not a separate OpenAI account key. [OpenAI on Bedrock](https://developers.openai.com/api/docs/guides/amazon-bedrock).
+- Patient generation, conversational replies, retries, and connection checks always send `temperature: 0` and `reasoning: {"effort": "none"}`. This reduces variation but does not guarantee identical results. Reasoning must be off to use custom temperature with GPT-6 Sol; GPT-6.1 Sol and GPT-6 Astra cannot use this configuration. Unsupported candidates are skipped; the app never silently changes the temperature. Existing reply caches are invalidated by the engine version change. [Parameter compatibility](https://developers.openai.com/api/docs/guides/latest-model#update-api-and-model-parameters).
+- Text, PDF and image attachments are sent as Responses input blocks. Function-call results are parsed and validated before a draft is saved; conversational replies still pass the patient grounding checks. Explicit Claude 4.6 model overrides retain the previous adapter with thinking disabled, but Claude is not a default GPT fallback.
 - Portraits use `stability.stable-image-core-v1:1`, normally with seed `7`; override the image model with `TWINVERSE_IMAGE_MODEL`. Text temperature does not control image generation. Enable the image model under Bedrock Model access.
 - Use **Test connection** on the Generate patients page before a demo.
 - Never put the key in code, a committed file, or chat. This repository is public.

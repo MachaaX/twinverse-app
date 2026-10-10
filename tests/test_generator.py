@@ -384,9 +384,14 @@ class _Block:
 
 @unittest.skipUnless(anthropic, 'anthropic package not installed')
 class SdkPath(unittest.TestCase):
-    """Real SDK call path with the HTTP layer replaced."""
+    """Retained explicit Claude overrides, with the HTTP layer replaced."""
     def setUp(self):
         generator._unavailable.clear();generator._active = None;generator._clients.clear()
+        self.config = mock.patch.multiple(generator, MODEL='anthropic.claude-sonnet-4-6',
+            CANDIDATES=[('mantle','anthropic.claude-sonnet-4-6'),
+                        ('runtime','us.anthropic.claude-sonnet-4-6'),
+                        ('runtime','global.anthropic.claude-sonnet-4-6')])
+        self.config.start();self.addCleanup(self.config.stop)
 
     def tearDown(self):
         generator._unavailable.clear();generator._active = None;generator._clients.clear()
@@ -503,6 +508,121 @@ class SdkPath(unittest.TestCase):
         with self.assertRaises(generator.GeneratorError) as ctx:
             self.run_with(errors, lambda: generator.generate_case(REQUEST))
         self.assertIn('12 hours', str(ctx.exception))
+
+
+try:
+    import openai
+except ImportError:
+    openai = None
+
+
+@unittest.skipUnless(openai, 'openai package not installed')
+class GptSdkPath(unittest.TestCase):
+    """Actual Responses SDK serialization, tools, fallbacks and guardrails."""
+    def setUp(self):
+        generator._unavailable.clear();generator._active=None;generator._clients.clear()
+        config = mock.patch.multiple(generator, MODEL='us.openai.gpt-6-sol', REGION='us-west-2',
+            CANDIDATES=[('runtime','us.openai.gpt-6-sol'),('runtime','global.openai.gpt-6-sol')])
+        config.start();self.addCleanup(config.stop)
+        self.addCleanup(generator._clients.clear)
+        self.addCleanup(generator._unavailable.clear)
+        self.addCleanup(setattr,generator,'_active',None)
+
+    def response(self, name=None, data=None, status='completed', output=None):
+        return {'id':'resp_test','object':'response','created_at':1,'status':status,
+                'model':'us.openai.gpt-6-sol','output': output if output is not None else
+                ([{'type':'function_call','id':'fc_test','call_id':'call_test',
+                   'name':name,'arguments':json.dumps(data),'status':'completed'}] if name else []),
+                'parallel_tool_calls':False,'error':None,'incomplete_details':None}
+
+    def run_with(self, results, fn):
+        import httpx2
+        generator._clients.clear()
+        calls=[]
+        def respond(request):
+            self.assertEqual(str(request.url),'https://bedrock-runtime.us-west-2.amazonaws.com/openai/v1/responses')
+            self.assertEqual(request.headers['authorization'],'Bearer test-key')
+            body=json.loads(request.content);calls.append(body)
+            self.assertEqual(body['temperature'],0)
+            self.assertEqual(body['reasoning'],{'effort':'none'})
+            self.assertFalse(body['store'])
+            self.assertNotIn('thinking',body);self.assertNotIn('output_config',body)
+            code,data=results.pop(0)
+            return httpx2.Response(code,json=data)
+        api=openai.OpenAI(api_key='test-key',base_url='https://bedrock-runtime.us-west-2.amazonaws.com/openai/v1',
+                          max_retries=0,http_client=httpx2.Client(transport=httpx2.MockTransport(respond)))
+        try:
+            with mock.patch.dict(os.environ,{'AWS_BEARER_TOKEN_BEDROCK':'test-key'}), \
+                 mock.patch.object(openai,'OpenAI',return_value=api):
+                result=fn()
+            self.assertFalse(results)
+            return result,calls
+        finally:api.close()
+
+    def test_generation_serializes_files_and_preserves_patient_contract(self):
+        case=example()[1]
+        req={**REQUEST,'files':[{'name':'labs.txt','content':base64.b64encode(b'A1c 8.2%').decode()},
+                               {'name':'scan.pdf','content':base64.b64encode(b'%PDF-1.4').decode()},
+                               {'name':'rash.png','content':base64.b64encode(b'PNG').decode()}]}
+        (raw,model),calls=self.run_with([(200,self.response('save_patient_case',case))],
+                                      lambda:generator.generate_case(req))
+        self.assertEqual(raw,case);self.assertIn('us.openai.gpt-6-sol',model)
+        body=calls[0];self.assertEqual(body['instructions'],generator.SYSTEM)
+        self.assertEqual(body['max_output_tokens'],20000)
+        self.assertEqual(body['tool_choice'],{'type':'function','name':'save_patient_case'})
+        self.assertFalse(body['parallel_tool_calls'])
+        self.assertEqual(body['tools'][0]['parameters'],generator.CASE_TOOL['input_schema'])
+        self.assertFalse(body['tools'][0]['strict'])
+        content=body['input'][0]['content']
+        self.assertIn('A1c 8.2%',content[1]['text'])
+        self.assertEqual(content[2],{'type':'input_file','filename':'scan.pdf',
+                                   'file_data':'data:application/pdf;base64,JVBERi0xLjQ='})
+        self.assertEqual(content[3],{'type':'input_image','image_url':'data:image/png;base64,UE5H'})
+
+    def test_gpt_reply_is_grounded_and_retries_blocked_numbers(self):
+        profile,_=example_profile(openness=1)
+        fact=next(f for f in profile['facts'] if f['label']=='Age at diagnosis')
+        responses=[(200,self.response('patient_reply',{'reply':'I was 7.','used_fact_ids':[fact['id']]})),
+                   (200,self.response('patient_reply',{'reply':'I was 4.','used_fact_ids':[fact['id']]}))]
+        reply,calls=self.run_with(responses,lambda:dialogue.generate_reply(profile,[],'When were you diagnosed?'))
+        self.assertEqual(reply['kind'],'generative');self.assertEqual(reply['text'],'I was 4.')
+        self.assertEqual(reply['fact_ids'],[fact['id']]);self.assertEqual(len(calls),2)
+        self.assertIn(fact['id'],calls[0]['instructions'])
+        self.assertNotIn('Teaching note',calls[0]['instructions'])
+
+    def test_profile_fallback_stays_on_gpt_sol(self):
+        result,calls=self.run_with([(403,{'error':{'message':'not authorized','type':'permission_denied'}}),
+                                   (200,self.response())],generator.test_connection)
+        self.assertTrue(result['ok']);self.assertIn('global.openai.gpt-6-sol',result['model'])
+        self.assertEqual([c['model'] for c in calls],['us.openai.gpt-6-sol','global.openai.gpt-6-sol'])
+
+    def test_refusal_retries_same_model_on_next_profile(self):
+        refusal=[{'type':'message','id':'msg_test','role':'assistant','status':'completed',
+                  'content':[{'type':'refusal','refusal':'Declined'}]}]
+        (raw,model),calls=self.run_with([(200,self.response(output=refusal)),
+                                         (200,self.response('save_patient_case',example()[1]))],
+                                        lambda:generator.generate_case(REQUEST))
+        self.assertEqual(raw,example()[1]);self.assertIn('global.openai.gpt-6-sol',model)
+
+    def test_incomplete_or_malformed_responses_never_create_a_case(self):
+        for response in (self.response(status='incomplete'),self.response('save_patient_case',[]),
+                         self.response(output=[])):
+            with self.subTest(response=response), self.assertRaises(generator.GeneratorError):
+                self.run_with([(200,response)],lambda:generator.generate_case(REQUEST))
+
+    def test_auth_error_redacts_key_and_explains_expiry(self):
+        error={'error':{'message':'test-key rejected','type':'authentication_error'}}
+        with self.assertRaises(generator.GeneratorError) as ctx:
+            self.run_with([(401,error),(401,error)],generator.test_connection)
+        self.assertNotIn('test-key',str(ctx.exception));self.assertIn('expired',str(ctx.exception))
+
+    def test_marketplace_denial_explains_required_account_activation(self):
+        error={'error':{'message':'Not authorized due to private marketplace eligibility',
+                        'type':'permission_denied_error'}}
+        with self.assertRaises(generator.GeneratorError) as ctx:
+            self.run_with([(403,error),(403,error)],generator.test_connection)
+        self.assertIn('AWS Private Marketplace',str(ctx.exception))
+        self.assertIn('workshop organizer',str(ctx.exception))
 
 
 if __name__ == '__main__':

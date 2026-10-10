@@ -33,7 +33,19 @@ let count=0;
 function check(name,fn){fn();count++;console.log('PASS',name);}
 check('Eight patient cards render',()=>assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,8));
 check('Library contains patient actions',()=>assert.ok(run('casesView()').includes('data-action="start"')));
-check('Studio table renders with AI generation before Create patient',()=>{const html=run('studioView()');assert.ok(html.includes('Omar Sinclair'));assert.ok(html.includes('data-action="navigate" data-id="generate"'));assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));});
+check('Studio table renders with generation timestamps and AI generation before Create patient',()=>{
+ run("S.patients=[{...fixture.patients[0],generated_at:'2026-10-10T18:45:26Z'},...fixture.patients.slice(1)];");
+ const html=run('studioView()');
+ assert.ok(html.includes('Omar Sinclair'));
+ assert.ok(html.includes('data-action="navigate" data-id="generate"'));
+ assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));
+ assert.ok(html.includes('<th>GENERATED AT</th>'));
+ assert.ok(html.includes('datetime="2026-10-10T18:45:26.000Z"'));
+ assert.ok(html.includes('2026'));
+ assert.ok(!html.includes('Invalid Date'));
+ assert.ok(html.includes('<span class="muted">—</span>'));
+ run('S.patients=fixture.patients;');
+});
 check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
 check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
 check('Approval storage status distinguishes local, configured, incomplete, and saved',()=>{run("S.storageStatus={enabled:false};");assert.ok(run('editorView()').includes('AWS storage is off'));run("S.storageStatus={enabled:true,configured:false};");assert.ok(run('editorView()').includes('Approval is blocked'));run("S.storageStatus={enabled:true,configured:true};S.editor={...fixture.profiles[4],status:'draft'};");assert.ok(run('editorView()').includes('Approval will save'));assert.ok(!run('editorView()').includes('No uploads are sent to an external service'));run("S.editor={...fixture.profiles[4],status:'published',cloud_storage:{version:fixture.profiles[4].version,file_count:2}};");assert.ok(run('editorView()').includes('Saved to AWS'));run('S.storageStatus=null;S.editor=fixture.profiles[4];');});

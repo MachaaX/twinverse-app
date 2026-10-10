@@ -26,6 +26,7 @@ from .store import Store
 from .seed import ROOT
 from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
 from . import generator, dialogue
+from .cloud_storage import CloudStorage, CloudStorageError
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
@@ -156,7 +157,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','same-origin')
         self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
-        if getattr(self,'new_token',None):self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict')
+        if getattr(self,'new_token',None):
+            secure='; Secure' if self.server.public_origin.startswith('https://') else ''
+            self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict{secure}')
         for k,v in (headers or {}).items():self.send_header(k,v)
         self.end_headers();self.wfile.write(data)
 
@@ -168,11 +171,14 @@ class Handler(BaseHTTPRequestHandler):
     def handle_request(self,method):
         try:
             self.new_token=None
-            # Loopback-only server; browser role switching is an explicit demo feature.
+            # Nginx forwards the original Host/Origin to this loopback-only backend.
             host=self.headers.get('Host','')
-            if host.split(':')[0] not in ['127.0.0.1','localhost']:raise APIError(403,'Use localhost or 127.0.0.1 to open this local demo.')
+            public=urlparse(self.server.public_origin)
+            local=host.split(':')[0] in ['127.0.0.1','localhost']
+            if not local and (not self.server.public_origin or host!=public.netloc):raise APIError(403,'This host is not configured for TwinVerse.')
             origin=self.headers.get('Origin')
-            if origin and origin!=f'http://{host}':raise APIError(403,'Cross-origin requests are not allowed.')
+            expected=f'http://{host}' if local else self.server.public_origin
+            if origin and origin!=expected:raise APIError(403,'Cross-origin requests are not allowed.')
             self.path_only=unquote(urlparse(self.path).path)
             if not self.path_only.startswith('/api/'):
                 if method!='GET':raise APIError(405,'Method not allowed.')
@@ -190,6 +196,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.slow_generator_call(body)
             turn=re.fullmatch(r'/api/encounters/([^/]+)/turns',self.path_only)
             if method=='POST' and turn:return self.generative_turn(turn.group(1),body)
+            publish=re.fullmatch(r'/api/patients/([^/]+)/publish',self.path_only)
+            if method=='POST' and publish:return self.publish_case(publish.group(1),body)
             with self.server.store.lock:
                 self.session()
                 self.route(method,body)
@@ -342,10 +350,52 @@ class Handler(BaseHTTPRequestHandler):
 
     def save_encounter(self,e):self.store.put('encounters',e['id'],e,e['owner'])
 
+    def publish_case(self,pid,b):
+        """Snapshot under the local lock; perform cloud IO without blocking readers."""
+        with self.store.lock:
+            self.session();self.faculty();c=self.case(pid)
+            if pid in self.server.publishing_cases:raise APIError(409,'This patient is being approved. Wait for the save to finish.')
+            if b.get('approved') is not True:raise APIError(422,'Confirm faculty review before publishing.')
+            if 'draft_version' in b and b['draft_version']!=c['draft']['version']:
+                raise APIError(409,'This case changed. Reload it before approving.')
+            v=validate_profile(c['draft'])
+            if v['errors']:raise APIError(422,' '.join(v['errors']))
+            attachments=self.attachments(pid)
+            p=copy.deepcopy(c['draft'])
+            p.pop('cloud_storage',None)
+            p.update(status='published',version=c['draft']['version']+1,approved_at=now(),
+                     approval='Local faculty demo review',attachment_ids=[a['id'] for a in attachments])
+            files=[]
+            if self.server.cloud_storage.enabled:
+                files=[(json.loads(row['metadata']),bytes(row['content'])) for row in
+                       self.store.db.execute('SELECT metadata,content FROM attachments WHERE case_id=?',(pid,))]
+                # Organizer portraits are static assets rather than attachment rows.
+                image=p.get('image','')
+                if image.startswith('/assets/patients/'):
+                    path=(FRONTEND/image.lstrip('/')).resolve()
+                    if not path.is_relative_to((FRONTEND/'assets/patients').resolve()) or not path.is_file():
+                        raise APIError(422,'The patient portrait is missing. Restore it before approving.')
+                    raw=path.read_bytes()
+                    files.append(({'id':'portrait-'+pid,'name':path.name,'kind':'portrait',
+                                   'mime':mimetypes.guess_type(path.name)[0] or 'image/jpeg',
+                                   'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()},raw))
+            self.server.publishing_cases.add(pid)
+        try:
+            receipt=self.server.cloud_storage.publish(p,files)
+            if receipt:p['cloud_storage']=receipt
+            with self.store.lock:
+                if c.get('published'):c['history'].append(c['published'])
+                c.update(draft=p,published=copy.deepcopy(p));self.store.put('cases',pid,c)
+            return self.send({'profile':p,'attachments':attachments,'validation':v,
+                              'storage':self.server.cloud_storage.status()})
+        except CloudStorageError as exc:
+            raise APIError(502,f'Approval could not finish. Your draft and previous published version are preserved. {exc}') from None
+        finally:
+            with self.store.lock:self.server.publishing_cases.discard(pid)
+
     def route(self,method,b):
         parts=self.path_only.strip('/').split('/')[1:]
-        print(f'[DEBUG] Route: method={method}, parts={parts}', flush=True)
-        if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False})
+        if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False,'release':self.server.release})
         if parts==['tts'] and method=='POST':
             # Amazon Polly TTS with word timing for lip-sync
             text=b.get('text') or b.get('input') or ''
@@ -360,16 +410,12 @@ class Handler(BaseHTTPRequestHandler):
 
             try:
                 print(f'[TTS] Creating Polly client with region: {os.getenv("AWS_REGION","us-west-2")}', flush=True)
-                # Disable SSL verification if needed (common issue on Windows)
-                import warnings
                 from botocore.config import Config
                 config = Config(signature_version='v4')
                 polly=boto3.client('polly',
                     region_name=os.getenv('AWS_REGION','us-west-2'),
-                    config=config,
-                    verify=False  # Disable SSL cert verification
+                    config=config
                 )
-                warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
                 print(f'[TTS] Requesting audio for: "{text[:50]}..."', flush=True)
                 # Get audio
@@ -448,6 +494,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(csv_text(rows,['created_at','status','role','category_label','message','context_route','context_patient','context_encounter_id','context_turn_id','context_user_agent','id']).encode(),content_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="twinverse-reports.csv"'})
             raise APIError(404,'Unknown export.')
         if parts==['rubric'] and method=='GET':return self.send(RUBRIC)
+        if parts==['storage','status'] and method=='GET':
+            self.faculty();return self.send(self.server.cloud_storage.status())
         if parts and parts[0]=='generator':
             self.faculty()
             if parts==['generator','status'] and method=='GET':return self.send(generator.live_status())
@@ -477,6 +525,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({'profile':p,'attachments':[],'validation':v},201)
         if len(parts)>=2 and parts[0]=='patients':
             self.faculty();c=self.case(parts[1])
+            if method!='GET' and parts[1] in self.server.publishing_cases:
+                raise APIError(409,'This patient is being approved. Wait for the save to finish.')
             if len(parts)==2 and method=='DELETE':
                 # Keep a tombstone so an empty collection is not reseeded on restart.
                 # Encounter snapshots and their attachment downloads remain available.
@@ -491,14 +541,6 @@ class Handler(BaseHTTPRequestHandler):
                 c['draft']=p;self.store.put('cases',parts[1],c)
                 return self.send({'profile':p,'attachments':self.attachments(parts[1]),'validation':v})
             if parts[2:]==['validate'] and method=='POST':return self.send(validate_profile(b.get('profile',c['draft'])))
-            if parts[2:]==['publish'] and method=='POST':
-                if b.get('approved') is not True:raise APIError(422,'Confirm faculty review before publishing.')
-                v=validate_profile(c['draft'])
-                if v['errors']:raise APIError(422,' '.join(v['errors']))
-                if c.get('published'):c['history'].append(c['published'])
-                p=copy.deepcopy(c['draft']);p.update(status='published',version=c['draft']['version']+1,approved_at=now(),approval='Local faculty demo review',attachment_ids=[a['id'] for a in self.attachments(parts[1])])
-                c.update(draft=p,published=copy.deepcopy(p));self.store.put('cases',parts[1],c)
-                return self.send({'profile':p,'attachments':self.attachments(parts[1]),'validation':v})
             if parts[2:]==['attachments'] and method=='POST':
                 name=Path(str(b.get('name',''))).name
                 ext=Path(name).suffix.lower()
@@ -661,9 +703,23 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
-def make_server(port=8000,db_path=None,verbose=True,faculty_password=None):
+def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None,public_origin=None):
+    public_origin=(public_origin if public_origin is not None else os.environ.get('TWINVERSE_PUBLIC_ORIGIN','')).rstrip('/')
+    if public_origin:
+        origin=urlparse(public_origin)
+        if (origin.scheme not in ('http','https') or not origin.netloc or origin.path
+            or origin.query or origin.fragment or origin.username or origin.password):
+            raise ValueError('TWINVERSE_PUBLIC_ORIGIN must be an http(s) origin, without a path or credentials.')
+        if ((faculty_password or load_faculty_password()[0])==DEFAULT_FACULTY_PASSWORD
+            or load_developer_password()==DEFAULT_DEVELOPER_PASSWORD):
+            raise ValueError('Set private TWINVERSE_FACULTY_PASSWORD and TWINVERSE_DEVELOPER_PASSWORD before hosting.')
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
-    s.store=Store(db_path or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
+    s.public_origin=public_origin
+    release_file=ROOT/'.release'
+    s.release=release_file.read_text().strip() if release_file.is_file() else 'local'
+    s.store=Store(db_path or os.environ.get('TWINVERSE_DB_PATH') or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
+    s.cloud_storage=cloud_storage if cloud_storage is not None else CloudStorage()
+    s.publishing_cases=set()
     s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()
     s.login_failures={};s.report_times={};s.dev_sessions=set()  # developer access never survives a restart
     s.developer_password=load_developer_password()

@@ -1,0 +1,12 @@
+[Unit]
+Description=Check GitHub for tested TwinVerse releases every 90 seconds
+
+[Timer]
+OnBootSec=90
+OnUnitInactiveSec=90
+RandomizedDelaySec=10
+Persistent=true
+Unit=twinverse-deploy.service
+
+[Install]
+WantedBy=timers.target

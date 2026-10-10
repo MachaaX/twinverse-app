@@ -23,9 +23,9 @@ r['released_feedback']=student_feedback(r['feedback'])
 print(json.dumps({'profiles':seed_profiles(),'patients':[{**brief(p),'has_published_version':True,'published_card':brief(p)} for p in seed_profiles()],'rubric':RUBRIC,'encounter':public_encounter(e,'faculty'),'student_pending':public_encounter(e,'student'),'student_released':public_encounter(r,'student')}))
 `],{cwd:root,encoding:'utf8'}));
 const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
-const context=vm.createContext({Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}},fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
-// app.js is an ES module (avatar imports); strip imports and provide stand-ins.
-const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*$/mg,'').replace(/\nboot\(\);\s*$/,'');
+const avatarMocks={Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}}};
+const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
+const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
 vm.runInContext('S.patients=fixture.patients;S.rubric=fixture.rubric;S.encounter=fixture.encounter;',context);
 const run=code=>vm.runInContext(code,context);
@@ -36,7 +36,8 @@ check('Library contains patient actions',()=>assert.ok(run('casesView()').includ
 check('Studio table renders with AI generation before Create patient',()=>{const html=run('studioView()');assert.ok(html.includes('Omar Sinclair'));assert.ok(html.includes('data-action="navigate" data-id="generate"'));assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));});
 check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
 check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
-check('Encounter renders avatar, chat box and medical record',()=>{const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('id="avatar-container"'));assert.ok(html.includes('id="transcript-view"'));});
+check('Approval storage status distinguishes local, configured, incomplete, and saved',()=>{run("S.storageStatus={enabled:false};");assert.ok(run('editorView()').includes('AWS storage is off'));run("S.storageStatus={enabled:true,configured:false};");assert.ok(run('editorView()').includes('Approval is blocked'));run("S.storageStatus={enabled:true,configured:true};S.editor={...fixture.profiles[4],status:'draft'};");assert.ok(run('editorView()').includes('Approval will save'));assert.ok(!run('editorView()').includes('No uploads are sent to an external service'));run("S.editor={...fixture.profiles[4],status:'published',cloud_storage:{version:fixture.profiles[4].version,file_count:2}};");assert.ok(run('editorView()').includes('Saved to AWS'));run('S.storageStatus=null;S.editor=fixture.profiles[4];');});
+check('Avatar encounter and medical record render',()=>{run("S.encounter={...fixture.encounter,status:'active'};");const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('avatar-container'));assert.ok(html.includes('id="chat-form"'));run('S.encounter=fixture.encounter;');});
 check('Student feedback contains no rating editor',()=>{run("S.role='student';");assert.ok(!run('reportView()').includes('class="rating-editor"'));});
 check('Faculty feedback renders seven rating editors',()=>{run("S.role='faculty';");assert.equal((run('reportView()').match(/class="rating-editor"/g)||[]).length,7);});
 check('Faculty sees auto-suggested score and pre-filled ratings',()=>{run("S.role='faculty';S.encounter=fixture.encounter;");const html=run('reportView()');assert.ok(html.includes('Auto-suggested score'));assert.ok(html.includes('scoring criteria met'));assert.ok(html.includes('Save &amp; release to student'));const d=fixture.encounter.feedback.domains[0];assert.ok(html.includes(`<option value="${d.suggested_score}" selected>`));});
@@ -56,3 +57,46 @@ check('All-N/A review is not shown as awaiting ratings',()=>{run("S.encounter.fe
 check('Untrusted strings are HTML escaped',()=>{assert.equal(run(`esc('<img src=x onerror="attack()">')`),'&lt;img src=x onerror=&quot;attack()&quot;&gt;');});
 check('Search filters patient cards',()=>{run("S.query='Nisha';");assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,1);});
 console.log(`${count} frontend render checks passed.`);
+
+// Exercise the approval request sequence, including a failed cloud save and retry.
+(async()=>{
+ const requests=[];
+ let fail=true;
+ let pending=null;
+ const stateNode={innerHTML:'',textContent:'',hidden:false,isConnected:true,addEventListener(){},querySelectorAll:()=>[],classList:{}};
+ const sandbox=vm.createContext({...avatarMocks,fixture,
+  document:{querySelector:s=>s==='#case-form'?null:s==='#approve-case'?{checked:true}:stateNode,querySelectorAll:()=>[],addEventListener(){}},
+  window:{addEventListener(){}},location:{hash:'#studio/patient'},history:{replaceState(){}},
+  setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON,
+  fetch:async(url,options)=>{
+   const body=JSON.parse(options.body);requests.push({url,method:options.method,body});
+   if(options.method==='PUT')return {ok:true,json:async()=>({profile:{...body.profile,version:1,status:'draft'},attachments:[],validation:null})};
+   if(pending)await pending;
+   if(fail)return {ok:false,json:async()=>({error:'Approval could not finish. Your draft is preserved.'})};
+   return {ok:true,json:async()=>({profile:{...fixture.profiles[4],id:'patient',version:2,status:'published',cloud_storage:{version:2,file_count:0}},attachments:[],validation:null,storage:{enabled:true,configured:true}})};
+  }
+ });
+ vm.runInContext(source,sandbox);
+ vm.runInContext("S.editor={...fixture.profiles[4],id:'patient',version:0,status:'draft'};S.attachments=[];S.validation=null;S.dirty=true;S.storageStatus={enabled:true,configured:true};",sandbox);
+ await assert.rejects(vm.runInContext('saveCase(true)',sandbox),/draft is preserved/);
+ assert.deepEqual(requests.map(r=>r.method),['PUT','POST']);
+ assert.equal(vm.runInContext('S.editor.version',sandbox),1);
+ assert.equal(vm.runInContext('S.dirty',sandbox),false);
+ assert.ok(stateNode.innerHTML.includes('Working draft'));
+ console.log('PASS Failed cloud approval keeps the saved draft visible');
+ fail=false;
+ await vm.runInContext('saveCase(true)',sandbox);
+ assert.deepEqual(requests.map(r=>r.method),['PUT','POST','POST']);
+ assert.equal(requests[2].body.draft_version,1);
+ assert.equal(vm.runInContext('S.editor.version',sandbox),2);
+ console.log('PASS Retrying approval reuses the saved draft version');
+ let release;
+ pending=new Promise(resolve=>release=resolve);
+ const approval=vm.runInContext('saveCase(true)',sandbox);
+ vm.runInContext("S.epoch++;S.editor={...fixture.profiles[4],id:'another-patient'};S.route='studio/another-patient';",sandbox);
+ stateNode.innerHTML='another editor';
+ release();await approval;
+ assert.equal(vm.runInContext('S.editor.id',sandbox),'another-patient');
+ assert.equal(stateNode.innerHTML,'another editor');
+ console.log('PASS A slow approval preserves navigation to another patient');
+})().catch(error=>{console.error(error);process.exitCode=1;});

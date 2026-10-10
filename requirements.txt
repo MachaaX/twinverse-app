@@ -1,8 +1,5 @@
 # The core app needs no third-party Python packages (Python 3.10 or newer).
 #
 # Optional: live AI patient generation on Amazon Bedrock.
-#   python3 -m pip install -r requirements.txt
-# Retained for explicit Claude model overrides.
+#   python3 -m pip install anthropic
 anthropic>=1.13
-# GPT-6 Sol uses Bedrock's OpenAI-compatible Responses API.
-openai>=3.28

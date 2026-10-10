@@ -24,7 +24,7 @@ All mutation requests use `Content-Type: application/json`. The frontend and API
 | GET | `/api/encounters/{id}/export` | Student-safe JSON export, excluding unreleased case facts |
 | GET | `/api/generator/status` | Faculty: whether live generation is available, model and region |
 | POST | `/api/generator/check` | Faculty: `{request}` → requirement `errors` and `warnings`, no generation |
-| POST | `/api/generator/generate` | Faculty: `{request}` → creates a draft case, reports, portrait and sources with the configured text model (default GPT-6 Sol) and Stable Image Core on Bedrock; 422 if the request fails the check, 502 for Bedrock errors |
+| POST | `/api/generator/generate` | Faculty: `{request}` → creates a draft case, reports, portrait and sources with Claude and Stable Image Core on Bedrock; 422 if the request fails the check, 502 for Bedrock errors |
 | POST | `/api/generator/example` | Faculty: creates the static pediatric example draft without a network call |
 | POST | `/api/generator/test` | Faculty: tiny Bedrock request to confirm the key and model work |
 | GET | `/api/portraits/{id}` | Generated patient portrait (any role) |

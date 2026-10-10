@@ -226,11 +226,9 @@ export class Avatar3D {
 
         console.log('[Avatar3D] ✓ Polly speech with lip-sync complete');
       } else {
-        // Fallback to browser TTS if Polly unavailable
-        console.log('[Avatar3D] Polly unavailable, using browser TTS');
-        if (ttsService.isAvailable()) {
-          await ttsService.speak(text, {}, emotion);
-        }
+        // Polly unavailable: browser voice, with lip-sync driven by estimated word timings
+        console.log('[Avatar3D] Polly unavailable, using browser TTS with estimated lip-sync');
+        await this.speakWithBrowserVoice(text, emotion);
       }
 
       this.onSpeechEnd();
@@ -240,15 +238,70 @@ export class Avatar3D {
 
       // Fallback to browser TTS on error
       try {
-        if (ttsService.isAvailable()) {
-          console.log('[Avatar3D] Falling back to browser TTS');
-          await ttsService.speak(text, {}, emotion);
-        }
+        console.log('[Avatar3D] Falling back to browser TTS');
+        await this.speakWithBrowserVoice(text, emotion);
       } catch (fallbackErr) {
         console.error('[Avatar3D] Fallback TTS also failed:', fallbackErr);
       }
 
       this.onSpeechEnd();
+    }
+  }
+
+  /**
+   * Browser speech has no audio data or word timings up front, so estimate when
+   * each word is spoken (syllables and punctuation pauses), start the mouth when
+   * the voice starts, and re-sync to the spoken word if the estimate drifts.
+   * Lip-sync from Amazon Polly (server /api/tts) is more precise when available.
+   */
+  async speakWithBrowserVoice(text, emotion = 'neutral') {
+    if (!ttsService.isAvailable()) return;
+    const rate = { empathetic: 0.9, concerned: 0.85, cheerful: 1.1 }[emotion] || 1.0;
+    const tokens = [...text.matchAll(/\S+/g)].map(m => ({ word: m[0], index: m.index }));
+    const syllables = w => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, '').match(/[aeiouy]+/g) || []).length);
+    const pause = w => /[.!?]["')\]]*$/.test(w) ? 380 : /[,;:]["')\]]*$/.test(w) ? 180 : 0;
+    let plan = null;
+
+    const schedule = from => {
+      if (!this.head) return;
+      const words = [], wtimes = [], wdurations = [], starts = {};
+      let t = 0;
+      for (let i = from; i < tokens.length; i++) {
+        const d = (syllables(tokens[i].word) * 190 + 50) / rate;
+        const clean = tokens[i].word.replace(/[^\w'-]/g, '');
+        starts[i] = t;
+        if (clean) { words.push(clean); wtimes.push(t); wdurations.push(d); }
+        t += d + pause(tokens[i].word) / rate;
+      }
+      try { this.head.stopSpeaking(); } catch (e) { /* nothing queued yet */ }
+      if (words.length) {
+        // TalkingHead only times visemes against an audio clip; without one it fires them
+        // all at once. A silent clip of the estimated length gives the mouth a clock while
+        // the browser voice does the actual speaking.
+        const ctx = this.head.audioCtx;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        const silent = ctx.createBuffer(1, Math.max(1, Math.ceil(ctx.sampleRate * (t + 200) / 1000)), ctx.sampleRate);
+        this.head.speakAudio({ audio: silent, words, wtimes, wdurations }, { lipsyncLang: 'en' });
+      }
+      plan = { started: performance.now(), starts };
+    };
+
+    try {
+      await ttsService.speak(text, {
+        onStart: () => schedule(0),
+        onWord: event => {
+          if (!plan) return;
+          let i = tokens.findIndex(tok => tok.index >= event.charIndex);
+          if (i < 0) i = tokens.length - 1;
+          if (!(i in plan.starts)) return;
+          const drift = (performance.now() - plan.started) - plan.starts[i];
+          if (Math.abs(drift) > 250) schedule(i);  // the voice is ahead or behind: re-sync from this word
+        },
+        onEnd: () => { try { this.head && this.head.stopSpeaking(); } catch (e) { /* already idle */ } }
+      }, emotion);
+    } catch (error) {
+      console.error('[Avatar3D] Browser speech failed:', error);
+      try { this.head && this.head.stopSpeaking(); } catch (e) { /* already idle */ }
     }
   }
 

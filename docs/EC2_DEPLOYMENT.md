@@ -64,13 +64,17 @@
 
 ## Credentials and application data
 
-- `/etc/twinverse/app.env` contains temporary AWS credentials, existing S3/RDS
-  settings, and private faculty/developer passwords. It is readable only by root;
+- `/etc/twinverse/app.env` contains existing S3/RDS settings and private
+  faculty/developer passwords. Copying the temporary AWS credentials from your
+  computer to this file requires your explicit approval. Until that transfer is
+  approved/completed, the hosted approval flow cannot save to S3/PostgreSQL.
+  The file is readable only by root;
   systemd supplies the values to the app. It is outside all releases and Git.
-- The corresponding private local file is `.env.hosted` (Git-ignored, mode `0600`).
-  Open it locally to find `TWINVERSE_FACULTY_PASSWORD` and
-  `TWINVERSE_DEVELOPER_PASSWORD`. The public deployment rejects the repository's
-  default passwords.
+- Sign-in passwords are generated directly on EC2. View the two
+  `TWINVERSE_FACULTY_PASSWORD` / `TWINVERSE_DEVELOPER_PASSWORD` values there with
+  `sudoedit /etc/twinverse/app.env`. Downloading them into a private local
+  `.env.hosted` (Git-ignored, mode `0600`) also requires your explicit approval.
+  The public deployment rejects the repository's default passwords.
 - When workshop credentials expire, get a fresh matching access key, secret key,
   and session token. On EC2, edit only those three values and restart:
 

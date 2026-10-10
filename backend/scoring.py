@@ -17,6 +17,8 @@ import re
 import sys
 from pathlib import Path
 
+from . import sentiment
+
 CRITERIA_PATH = Path(__file__).resolve().parent.parent / 'data/clinical_scoring_criteria.json'
 _CRITERIA = None
 
@@ -126,9 +128,10 @@ def difficulty_adjustments(profile):
     t = d.get('temperament') if d.get('temperament') in range(1, 6) else 2
     o = d.get('openness') if d.get('openness') in range(1, 6) else 2
     level = max(t, o)
-    expected_turns = 6 + 2 * (o - 1) + (t - 1)
+    expected_turns = 5 + (o - 1) + (t - 1) // 2
     shift = min(0.10, 0.05 * max(0, level - 3))
-    changes = [f'Expect at least {expected_turns} student questions: a {OPENNESS_LABEL[o]}, {TEMPERAMENT_LABEL[t]} patient needs a longer interview.']
+    changes = [f'Thoroughness: about {expected_turns} questions for a {OPENNESS_LABEL[o]}, {TEMPERAMENT_LABEL[t]} patient, '
+               'or fewer if the key information or a correct assessment is reached sooner.']
     if level >= 3:
         changes.append('Added a criterion for staying patient and non-confrontational.')
     if level >= 4:
@@ -140,9 +143,9 @@ def difficulty_adjustments(profile):
 
 
 def difficulty_criteria(adj):
-    out = [{'id': 'D-LENGTH', 'domain': 3, 'tier': 'important', 'rule': 'min_turns', 'min': adj['expected_turns'],
-            'criterion': f"Sustains the interview: at least {adj['expected_turns']} questions for this patient",
-            'feedback_if_missed': 'This patient shares slowly. Keep going with open questions and follow-ups instead of ending early.'}]
+    out = [{'id': 'D-DEPTH', 'domain': 3, 'tier': 'supplementary', 'rule': 'depth', 'min': adj['expected_turns'],
+            'criterion': f"Explores enough of the story (about {adj['expected_turns']} questions, the key information, or a correct assessment)",
+            'feedback_if_missed': 'This patient shares slowly. Keep going with open questions and follow-ups until you have the key information.'}]
     if adj['level'] >= 3:
         out.append({'id': 'D-PERSIST', 'domain': 2, 'tier': 'critical' if adj['level'] == 5 else 'important',
                     'criterion': 'Stays patient and non-confrontational with a guarded or difficult patient',
@@ -153,12 +156,41 @@ def difficulty_criteria(adj):
     return out
 
 
+def synthesis_criterion(case, profile):
+    """Credit for putting the picture together: a correct assessment tied to key findings."""
+    terms = case.get('assessment_terms') or profile.get('assessment_terms')
+    if not terms:
+        terms = [t.strip().lower() for t in re.split(r'[,;·/]| and ', str(profile.get('summary', ''))) if len(t.strip()) > 3]
+    if not terms:
+        return None
+    findings = case.get('key_findings') or profile.get('key_findings')
+    groups = [[f] for f in findings] if findings else [
+        [f['label'].lower()] + list(f.get('keywords', [])) for f in profile.get('facts', []) if f.get('release') == 'question']
+    return {'id': 'SYN-1', 'domain': 6, 'tier': 'important', 'rule': 'synthesis', 'terms': terms, 'groups': groups,
+            'criterion': 'Puts the picture together: states a fitting assessment linked to key findings',
+            'feedback_if_missed': 'Before closing, say what you think is going on and connect it to the key findings you gathered.'}
+
+
 def evaluate(c, student, disclosed_by_turn, results_so_far):
     ev = []
     for fid in c.get('seed_fact_ids', []):
         ev += [{'turn_id': t, 'quote': f'(disclosed fact {fid})'} for t in disclosed_by_turn.get(fid, [])]
     rule = c.get('rule')
-    if rule == 'min_turns':
+    if rule == 'synthesis':
+        for i, m in enumerate(student):
+            if any(has(m['text'], t) for t in c['terms']):
+                window = ' '.join(x['text'] for x in student[i:i + 2])
+                linked = [g[0] for g in c['groups'] if any(has(window, phrase) for phrase in g)]
+                if len(linked) >= min(2, len(c['groups'])):
+                    return True, [{'turn_id': m['id'], 'quote': 'assessment linked to ' + ', '.join(linked[:3])}]
+        return False, []
+    if rule == 'depth':
+        gathering = [r for r in results_so_far.values() if r['domain'] == 3 and r['met'] is not None and r['id'] != c['id']]
+        covered = sum(TIER_WEIGHT[r['tier']] for r in gathering if r['met']) / max(1, sum(TIER_WEIGHT[r['tier']] for r in gathering))
+        if results_so_far.get('SYN-1', {}).get('met'):
+            return True, results_so_far['SYN-1']['evidence']
+        if covered >= 0.7:
+            return True, [{'turn_id': student[-1]['id'] if student else '-', 'quote': f'{round(covered * 100)}% of the case information gathered'}]
         return len(student) >= c['min'], [{'turn_id': student[-1]['id'], 'quote': f'{len(student)} student questions'}] if student else []
     if rule == 'co_occur':
         ev += [{'turn_id': m['id'], 'quote': m['text']} for m in student
@@ -198,6 +230,30 @@ def evaluate(c, student, disclosed_by_turn, results_so_far):
     return bool(uniq), uniq[:4]
 
 
+def gathering_adjustments(results):
+    """Critical-first information gathering. If every critical history item was gathered,
+    missed minor items count less; with a correct synthesis, missed non-critical items
+    are not counted at all. Marks forgiven rows in place."""
+    rows = [r for r in results.values() if r['domain'] == 3 and r['met'] is not None]
+    critical = [r for r in rows if r['tier'] == 'critical']
+    critical_ok = bool(critical) and all(r['met'] for r in critical)
+    synthesis = bool(results.get('SYN-1', {}).get('met'))
+    forgiven = []
+    if critical_ok:
+        for r in rows:
+            if r['met'] or r['tier'] == 'critical':
+                continue
+            r['forgiven'] = 'dropped' if r['tier'] == 'supplementary' or synthesis else 'half'
+            forgiven.append(r['id'])
+    if not critical_ok:
+        note = 'Some critical history items were missed, so every information-gathering item counts in full.' if critical else None
+    elif synthesis:
+        note = 'All critical history gathered and a correct assessment stated: missed non-critical items are not counted.'
+    else:
+        note = 'All critical history gathered: missed minor items are not counted and other missed items count half.'
+    return {'critical_ok': critical_ok, 'synthesis': synthesis, 'forgiven': forgiven, 'note': note}
+
+
 def score(crit, enc):
     profile = enc.get('profile') or {}
     pid = enc.get('patient_id') or profile.get('id') or enc.get('patient', {}).get('id')
@@ -227,8 +283,11 @@ def score(crit, enc):
     universal = crit['universal_criteria']
     if adj and adj['empathy_critical']:
         universal = [{**c, 'tier': 'critical'} if c['id'] in EMPATHY_IDS else c for c in universal]
-    criteria = universal + case_criteria + vital_criteria(crit, vkeys) + (difficulty_criteria(adj) if adj else [])
-    order = sorted(criteria, key=lambda c: c.get('rule') in ('order_check', 'before_treatment'))
+    synthesis = synthesis_criterion(case, profile)
+    criteria = universal + case_criteria + vital_criteria(crit, vkeys) + ([synthesis] if synthesis else []) + (difficulty_criteria(adj) if adj else [])
+    phase = {'order_check': 1, 'before_treatment': 1, 'synthesis': 2, 'depth': 3}
+    order = sorted(criteria, key=lambda c: phase.get(c.get('rule'), 0))
+    analysis = sentiment.analyze(msgs, profile)
 
     results = {}
     for c in order:
@@ -236,6 +295,14 @@ def score(crit, enc):
         results[c['id']] = {'id': c['id'], 'criterion': c['criterion'], 'domain': c['domain'], 'tier': c['tier'],
                             'met': met, 'evidence': ev,
                             'feedback': None if met else c.get('feedback_if_missed', '')}
+    for c, met, ev in sentiment.criteria(analysis):
+        results[c['id']] = {'id': c['id'], 'criterion': c['criterion'], 'domain': c['domain'], 'tier': c['tier'],
+                            'met': met, 'evidence': ev, 'feedback': None if met else c['feedback_if_missed']}
+    # Empathy found by the conversation analysis also satisfies the rubric's empathy criterion.
+    empathic = [t['turn_id'] for t in analysis['turns'] if t['empathy']]
+    if empathic and results.get('U-RAPP-1') and not results['U-RAPP-1']['met']:
+        results['U-RAPP-1'].update(met=True, feedback=None, evidence=[{'turn_id': t, 'quote': 'empathy statement'} for t in empathic[:4]])
+    gathering = gathering_adjustments(results)
 
     unsafe = []
     for xid, cues in UNSAFE_CUES.items():
@@ -262,9 +329,10 @@ def score(crit, enc):
         if not rows:
             domains.append({'id': did, 'key': key, 'score': 'N/A', 'coverage': None, 'met': [], 'missed': [], 'capped_by': []})
             continue
-        w_all = sum(TIER_WEIGHT[r['tier']] for r in rows)
-        w_met = sum(TIER_WEIGHT[r['tier']] for r in rows if r['met'])
-        cov = w_met / w_all
+        weight = lambda r: TIER_WEIGHT[r['tier']] * {'dropped': 0, 'half': 0.5}.get(r.get('forgiven'), 1)
+        w_all = sum(weight(r) for r in rows)
+        w_met = sum(weight(r) for r in rows if r['met'])
+        cov = w_met / w_all if w_all else 1.0
         s = next(x['score'] for x in rubric_scores if cov >= x['min_coverage'])
         capped = [r['id'] for r in rows if r['tier'] == 'critical' and not r['met']]
         if capped:
@@ -285,6 +353,7 @@ def score(crit, enc):
         'criteria_version': crit['version'], 'status': 'auto_scored_pending_faculty_review',
         'domains': domains, 'criteria_results': list(results.values()),
         'vitals': {'abnormalities': vkeys, 'news2': news}, 'unsafe_actions': unsafe, 'difficulty': adj,
+        'gathering': gathering, 'sentiment': analysis,
         'total': sum(d['score'] for d in scored), 'available_points': 4 * len(scored),
         'na_domains': sum(d['score'] == 'N/A' for d in domains),
         'review_required': bool(unsafe) or any(d['id'] in (6, 7) and d['score'] == 1 for d in scored),

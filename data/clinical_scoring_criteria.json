@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0-draft",
+  "version": "0.3.0-draft",
   "status": "DRAFT - clinical content must be reviewed and approved by faculty before use for grading",
   "purpose": "Clinical and vital-sign criteria evaluated after each virtual patient encounter to produce an explainable score on the organizer's 7-domain Patient Encounter Performance Rubric (1-4 / N/A, max 28).",
   "sources": [
@@ -862,6 +862,20 @@
       "vital_abnormalities": [
         "stage_2_hypertension_outpatient",
         "obesity"
+      ],
+      "assessment_terms": [
+        "hypertension",
+        "high blood pressure",
+        "stage 2"
+      ],
+      "key_findings": [
+        "155",
+        "110",
+        "blood pressure",
+        "sodium",
+        "salt",
+        "weight",
+        "bmi"
       ]
     },
     "b5814549-fd2b-42a2-af78-9b681ad6f268": {
@@ -1076,6 +1090,24 @@
       ],
       "vital_abnormalities": [
         "high_ldl"
+      ],
+      "assessment_terms": [
+        "dyslipidemia",
+        "high cholesterol",
+        "hypercholesterolemia",
+        "high ldl",
+        "cholesterol is high"
+      ],
+      "key_findings": [
+        "ldl",
+        "195",
+        "hdl",
+        "waist",
+        "bmi",
+        "weight",
+        "statin",
+        "cardiovascular",
+        "heart"
       ]
     },
     "4d619156-3250-4212-8399-129f3280fab1": {
@@ -1266,6 +1298,22 @@
       ],
       "vital_abnormalities": [
         "obesity"
+      ],
+      "assessment_terms": [
+        "obesity",
+        "high cholesterol",
+        "dyslipidemia",
+        "constipation"
+      ],
+      "key_findings": [
+        "bmi",
+        "cholesterol",
+        "ldl",
+        "fiber",
+        "fibre",
+        "vegetables",
+        "constipation",
+        "bowel"
       ]
     },
     "e7471161-b487-4804-b009-1b49681247b6": {
@@ -1456,6 +1504,20 @@
       ],
       "profile_gaps_to_acknowledge": [
         "Ejection fraction, vitals, medications, labs (sodium, potassium, kidney function, albumin), weight trend"
+      ],
+      "assessment_terms": [
+        "heart failure",
+        "malnutrition",
+        "undernutrition"
+      ],
+      "key_findings": [
+        "early satiety",
+        "full quickly",
+        "bmi",
+        "weight",
+        "sodium",
+        "fluid",
+        "appetite"
       ]
     },
     "3fc37c34-eb88-4b71-9406-3ec6c13dbb9f": {
@@ -1606,6 +1668,20 @@
       ],
       "profile_gaps_to_acknowledge": [
         "No vitals, labs, EF, medication list or weight in the profile"
+      ],
+      "assessment_terms": [
+        "heart failure",
+        "readmission",
+        "diet adherence"
+      ],
+      "key_findings": [
+        "diet",
+        "salt",
+        "sodium",
+        "weight",
+        "lives alone",
+        "hospital",
+        "swelling"
       ]
     },
     "5f0f9e8d-b389-4694-8e87-7c78634c7212": {
@@ -1782,6 +1858,22 @@
       ],
       "profile_gaps_to_acknowledge": [
         "No vitals, prior test results, vaccination history or mental-health screen in profile"
+      ],
+      "assessment_terms": [
+        "heavy drinking",
+        "alcohol use",
+        "substance use",
+        "hiv risk",
+        "sti risk"
+      ],
+      "key_findings": [
+        "smoking",
+        "alcohol",
+        "drinks",
+        "cocaine",
+        "condom",
+        "partners",
+        "support"
       ]
     },
     "e162495c-81de-4cb5-9110-8d69b538dcb2": {
@@ -1940,6 +2032,17 @@
       ],
       "profile_gaps_to_acknowledge": [
         "No symptoms, exam findings, MRI/CSF results, vitals or medications in profile - student should not invent them"
+      ],
+      "assessment_terms": [
+        "multiple sclerosis",
+        "ms"
+      ],
+      "key_findings": [
+        "first hospitalization",
+        "overwhelmed",
+        "questions",
+        "symptoms",
+        "support"
       ]
     },
     "4720727a-f153-465d-9e36-2b41884a1358": {
@@ -2089,6 +2192,20 @@
       ],
       "profile_gaps_to_acknowledge": [
         "Injury site, surgery, vitals, labs (Hgb), medications, pain scores not in profile"
+      ],
+      "assessment_terms": [
+        "gunshot wound",
+        "trauma",
+        "acute stress",
+        "ptsd"
+      ],
+      "key_findings": [
+        "pain",
+        "wound",
+        "sleep",
+        "safety",
+        "siblings",
+        "trust"
       ]
     }
   },

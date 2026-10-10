@@ -100,12 +100,19 @@ Generation is blocked until the description is long enough and free of real iden
 
 | Setting | Effect on the automatic draft score |
 |---|---|
-| Any patient with sliders | Expects at least 6 + 2 × (openness − 1) + (temperament − 1) student questions |
+| Any patient with sliders | Thoroughness (minor criterion): about 5 + (openness − 1) + (temperament − 1) ÷ 2 questions, **or** most of the case information gathered, **or** a correct assessment |
 | Harder level 3+ (either slider) | Adds a criterion for staying patient and non-confrontational |
 | Level 4+ | Empathy and responding to cues become critical criteria |
 | Level 4 / 5 | Score cut-offs lowered by 5 / 10 percentage points |
 
-Each adjustment is listed in the faculty feedback view. The original eight seed patients are graded exactly as before.
+Each adjustment is listed in the faculty feedback view. The original eight seed patients have no sliders.
+
+### Conversation quality, synthesis, and critical-first gathering
+
+- **The student opens the conversation.** The patient waits, and the timer starts with the student's first message.
+- **Conversation quality** (shown to faculty, and to students after release): each student message is rated warm, neutral, or cold from validating language (for example "that sounds…", "makes sense", naming the patient's feeling) and dismissive or directive phrases. The panel also counts empathy statements, open versus closed questions, and unexplained jargon, and tracks whether the patient opened up or closed down. These feed four criteria: warm tone (domain 2), open questions (domain 3), plain language (domain 5), and patient trust (domain 4). Every judgement links to the message that caused it.
+- **Synthesis:** stating a fitting assessment (for example "stage 2 hypertension") tied to at least two key findings meets a clinical-reasoning criterion. Accepted terms and findings come from `data/clinical_scoring_criteria.json`, or from the generator for new patients.
+- **Critical-first gathering:** if every critical history item was gathered, missed minor items are not counted and other missed items count half. With a correct synthesis as well, missed non-critical items are not counted at all, so a student who pieces the picture together is not penalized for skipping routine questions.
 
 ### AI conversation guardrails
 
@@ -132,6 +139,14 @@ AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
 - Defaults: region `us-west-2`. Claude models are tried in order (`anthropic.claude-opus-5-5`, then `anthropic.claude-opus-4-8`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-4-7`) and the app uses the first one your key can reach; **Test connection** lists which work. Bedrock opens some Claude models to all accounts and gates others under Model access. Portraits use `stability.stable-image-core-v1:1` (enable it under Model access). Override with `TWINVERSE_BEDROCK_REGION`, `TWINVERSE_BEDROCK_MODEL`, `TWINVERSE_BEDROCK_FALLBACK_MODELS` (comma-separated), `TWINVERSE_IMAGE_MODEL`.
 - Use **Test connection** on the Generate patients page before a demo.
 - Never put the key in code, a committed file, or chat. This repository is public.
+
+## Ratings and problem reports
+
+- **Report a problem** (top bar, every screen, students and faculty): choose a category (wrong or made-up patient answer, scoring, something broke, clinical content, other) and describe it. The page, encounter, latest message, and role are attached automatically. Limited to 20 reports per browser per hour.
+- **Rate the conversation:** after finishing, students give the conversation 1–5 stars with an optional comment.
+- **Rate the automatic score:** on the review page, faculty rate how accurate the auto-suggested score was, 1–5 stars with an optional comment. Students never see this rating.
+- **Developer** (sidebar, both roles): password-protected view of all raw ratings and problem reports, star counts, report counts by type, status, and role, plus CSV and JSON exports. The default password is `twinverse-dev` (printed at startup); change it with `TWINVERSE_DEVELOPER_PASSWORD`. Access ends when you click Lock or the server restarts. Like the faculty password, the default is visible in this repository.
+- **Feedback & reports** (faculty sidebar): average ratings overall and per patient, recent comments, and every problem report with a link to the encounter and message. Mark reports resolved or reopen them.
 
 ## Attachment behavior
 

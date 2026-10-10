@@ -16,6 +16,7 @@ class Store:
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, role TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS attachments(id TEXT PRIMARY KEY, case_id TEXT NOT NULL, metadata TEXT NOT NULL, content BLOB NOT NULL);
         CREATE TABLE IF NOT EXISTS reply_cache(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY, document TEXT NOT NULL);
         ''')
         if not self.db.execute('SELECT 1 FROM cases LIMIT 1').fetchone():
             for p in seed_profiles():self.put('cases',p['id'],{'draft':p,'published':p,'history':[]})
@@ -24,7 +25,8 @@ class Store:
     def put(self,table,id,value,owner=None):
         with self.lock:
             if table=='encounters':self.db.execute('INSERT OR REPLACE INTO encounters VALUES(?,?,?)',(id,owner,json.dumps(value)))
-            else:self.db.execute('INSERT OR REPLACE INTO cases VALUES(?,?)',(id,json.dumps(value)))
+            elif table in ('cases','reports'):self.db.execute(f'INSERT OR REPLACE INTO {table} VALUES(?,?)',(id,json.dumps(value)))
+            else:raise ValueError(f'Unknown table {table}')
             self.db.commit()
 
     def get(self,table,id):

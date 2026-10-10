@@ -28,6 +28,14 @@ All mutation requests use `Content-Type: application/json`. The frontend and API
 | POST | `/api/generator/example` | Faculty: creates the static pediatric example draft without a network call |
 | POST | `/api/generator/test` | Faculty: tiny Bedrock request to confirm the key and model work |
 | GET | `/api/portraits/{id}` | Generated patient portrait (any role) |
+| POST | `/api/encounters/{id}/rating` | `{kind: "student" or "auto_score", stars: 1-5, comment}`. Students rate their finished conversation; faculty rate the automatic score |
+| POST | `/api/reports` | Any role: `{category, message, context}` problem report (20 per browser per hour) |
+| GET | `/api/reports` | Faculty: all problem reports, newest first |
+| PUT | `/api/reports/{id}` | Faculty: `{status: "open" or "resolved"}` |
+| GET | `/api/ratings/summary` | Faculty: average ratings, per-patient averages, recent comments |
+| POST | `/api/developer/login` / `logout` | `{password}` unlocks the developer data view for this browser session (separate lockout from faculty) |
+| GET | `/api/developer/data` | Developer: all ratings and reports with summary counts |
+| GET | `/api/developer/export/{ratings.csv, reports.csv, data.json}` | Developer: downloads |
 | GET | `/api/resources` | Faculty list of original source documents |
 | GET | `/api/resources/{index}` | Faculty source download |
 

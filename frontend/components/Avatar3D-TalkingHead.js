@@ -96,6 +96,12 @@ export class Avatar3D {
 
       console.log('[Avatar3D] ✓✓✓ Avatar loaded successfully!');
 
+      // Note: AudioContext will be suspended until user interaction
+      // It will be resumed automatically on first button click
+      if(this.head.audioCtx && this.head.audioCtx.state === 'suspended'){
+        console.log('[Avatar3D] AudioContext suspended - will resume on user interaction');
+      }
+
       // Force renderer to resize to container dimensions
       const width = this.viewElement.offsetWidth || this.container.offsetWidth;
       const height = this.viewElement.offsetHeight || this.container.offsetHeight;

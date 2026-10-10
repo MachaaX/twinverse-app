@@ -1,6 +1,7 @@
 // Import avatar components - using TalkingHead.js version
 import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
+import { voiceInput } from './components/VoiceInput.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -18,11 +19,12 @@ const paths = {
  down:'M12 3v12 M7 10l5 5 5-5 M4 16v5h16v-5',info:'M12 11v6 M12 7v1 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
  dot:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 8v4l3 2',
  sound:'M11 5L6 9H3v6h3l5 4z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14',
+ mic:'M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8',
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
  flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
-const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, epoch:0};
+const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, epoch:0};
 const main = $('#main');
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
@@ -36,6 +38,43 @@ const notice=(text,kind='')=>`<div class="notice ${kind}">${icon('info')}<div>${
 const date=(s)=>new Date(s).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 const initials=(s)=>s.split(' ').map(x=>x[0]).slice(0,2).join('');
 function portrait(p,cls=''){return p.image?`<img class="${cls}" src="${esc(p.image)}" alt="Organizer-provided synthetic portrait of ${esc(p.name)}" loading="lazy">`:`<div class="placeholder-portrait ${cls}">${esc(initials(p.name || 'New Patient'))}</div>`;}
+
+// Input mode UI (chat vs voice)
+function inputModeUI(){
+  if(!voiceInput.isAvailable()){
+    // Voice not supported, show only chat
+    return `
+      <form class="avatar-input-section" id="chat-form" style="display:flex">
+        <textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea>
+        <button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button>
+      </form>
+    `;
+  }
+
+  return `
+    <div class="input-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px;padding:4px;background:#f5f7f2;border-radius:8px;position:relative;z-index:10;">
+      <button type="button" class="mode-btn ${!S.voiceMode?'active':''}" data-action="toggle-input-mode" data-mode="chat" style="flex:1;padding:8px;border:none;border-radius:6px;background:${!S.voiceMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${!S.voiceMode?'600':'400'};pointer-events:auto;">
+        ${icon('send')} Chat Mode
+      </button>
+      <button type="button" class="mode-btn ${S.voiceMode?'active':''}" data-action="toggle-input-mode" data-mode="voice" style="flex:1;padding:8px;border:none;border-radius:6px;background:${S.voiceMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${S.voiceMode?'600':'400'};pointer-events:auto;">
+        ${icon('mic')} Voice Mode
+      </button>
+    </div>
+    <form class="avatar-input-section" id="chat-form" style="display:${!S.voiceMode?'flex':'none'}">
+      <textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea>
+      <button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button>
+    </form>
+    <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
+      <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
+        ${icon('mic')}
+        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
+      </button>
+      <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
+        ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
+      </div>
+    </div>
+  `;
+}
 
 // Initialize avatar for current encounter
 function initializeAvatar(){
@@ -174,7 +213,7 @@ async function saveCase(publish=false){
 }
 function encounterView(){const e=S.encounter;const p=e.patient;
  return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}<button class="btn btn-small" data-action="toggle-transcript" id="transcript-toggle">${icon('history')} View transcript</button></div></div>
- <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div><form class="avatar-input-section" id="chat-form"><textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea><button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button></form><div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
+ <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
  <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
  <dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
 }
@@ -187,6 +226,95 @@ function chartView(){const e=S.encounter;
 function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
 setInterval(updateClock,1000);
+
+// Voice input functions
+function startVoiceInput(){
+  if(!voiceInput.isAvailable()){
+    toast('Voice input not supported in this browser', true);
+    return;
+  }
+
+  S.isListening = true;
+  updateVoiceUI();
+
+  let interimTranscript = '';
+
+  voiceInput.startListening({
+    onStart: () => {
+      console.log('[Voice] Started listening');
+      S.isListening = true;
+      updateVoiceUI();
+    },
+    onResult: (transcript, isFinal) => {
+      const transcriptEl = $('#voice-transcript');
+      if(transcriptEl){
+        if(isFinal){
+          console.log('[Voice] Final transcript:', transcript);
+          transcriptEl.textContent = transcript;
+          // Send the question
+          setTimeout(() => sendVoiceQuestion(transcript), 500);
+        }else{
+          interimTranscript = transcript;
+          transcriptEl.innerHTML = `<span style="color:#666;">${esc(transcript)}</span>`;
+        }
+      }
+    },
+    onEnd: () => {
+      console.log('[Voice] Stopped listening');
+      S.isListening = false;
+      updateVoiceUI();
+    },
+    onError: (error) => {
+      console.error('[Voice] Error:', error);
+      S.isListening = false;
+      updateVoiceUI();
+      toast('Voice input error: ' + (error.error || error.message), true);
+    }
+  });
+}
+
+function stopVoiceInput(){
+  voiceInput.stopListening();
+  S.isListening = false;
+  updateVoiceUI();
+}
+
+function toggleVoiceInput(){
+  if(S.isListening){
+    stopVoiceInput();
+  }else{
+    startVoiceInput();
+  }
+}
+
+function updateVoiceUI(){
+  const voiceBtn = $('[data-action="toggle-voice"]');
+  const transcriptEl = $('#voice-transcript');
+
+  if(voiceBtn){
+    voiceBtn.className = `voice-btn ${S.isListening?'listening':''}`;
+    voiceBtn.style.borderColor = S.isListening?'#e74c3c':'#1e584b';
+    voiceBtn.style.background = S.isListening?'#e74c3c':'#1e584b';
+    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Tap to Speak'}`;
+  }
+
+  if(transcriptEl && !S.isListening){
+    transcriptEl.innerHTML = '<span style="color:#999;">Tap the button and speak your question</span>';
+  }
+}
+
+async function sendVoiceQuestion(text){
+  if(!text || !text.trim()) return;
+
+  // Use the same sendQuestion logic
+  const input = $('#question');
+  if(input){
+    input.value = text;
+    await sendQuestion();
+    input.value = '';
+  }
+}
+
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
  try{
@@ -350,6 +478,47 @@ document.addEventListener('click',async event=>{
   if(action==='navigate'){location.hash=id;return;}
   if(action==='close-dialog'){$('#confirm-dialog').close();$('#transcript-dialog')?.close();return;}
   if(action==='toggle-transcript'){$('#transcript-dialog')?.showModal();return;}
+  if(action==='toggle-input-mode'){
+    console.log('[toggle-input-mode] Clicked, mode:', el.dataset.mode);
+    const mode = el.dataset.mode;
+    S.voiceMode = (mode === 'voice');
+
+    // Resume audio context on first user interaction
+    if(S.avatar && S.avatar.head && S.avatar.head.audioCtx){
+      if(S.avatar.head.audioCtx.state === 'suspended'){
+        console.log('[Audio] Resuming AudioContext');
+        S.avatar.head.audioCtx.resume().catch(e => console.warn('[Audio] Resume failed:', e));
+      }
+    }
+
+    if(!S.voiceMode && S.isListening){
+      stopVoiceInput();
+    }
+
+    // Re-render the input UI
+    const inputSection = $('#chat-form')?.parentElement;
+    if(inputSection){
+      const newHTML = inputModeUI();
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = newHTML;
+      inputSection.innerHTML = tempDiv.innerHTML;
+    }
+    return;
+  }
+  if(action==='toggle-voice'){
+    console.log('[toggle-voice] Clicked');
+
+    // Resume audio context on first user interaction
+    if(S.avatar && S.avatar.head && S.avatar.head.audioCtx){
+      if(S.avatar.head.audioCtx.state === 'suspended'){
+        console.log('[Audio] Resuming AudioContext');
+        S.avatar.head.audioCtx.resume().catch(e => console.warn('[Audio] Resume failed:', e));
+      }
+    }
+
+    toggleVoiceInput();
+    return;
+  }
   if(action==='role'){
    if(S.dirty&&!confirm('Switch workspaces and discard unsaved case edits?'))return;
    if(id===S.role)return;

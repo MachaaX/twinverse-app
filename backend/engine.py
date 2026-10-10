@@ -5,6 +5,8 @@ Keyword observations are evidence candidates, never validated competency ratings
 """
 import copy
 import re
+from datetime import datetime, timezone
+from .scoring import auto_score
 
 ENGINE_VERSION = 'sample-rules-1.0.0'
 
@@ -81,10 +83,48 @@ def assess(encounter, rubric):
                 if m['role']=='student' and re.search(pattern,normalize(m['text'])):
                     candidates.append({'label':label,'turn_id':m['id'],'quote':m['text']})
         domains.append({**copy.deepcopy(d),'score':None,'review_note':'','evidence_ids':[], 'observations':candidates[:6]})
-    return {'engine_version':ENGINE_VERSION,'rubric_version':'organizer-1','status':'awaiting_review','review_version':0,'reviewer':'','domains':domains,'checkpoints':checks,'total':None,'available_points':0,'rated_domains':0,'na_domains':0,'unrated_domains':7,'review_required':False,'review_trigger_domains':[],'coverage_label':'Keyword-based observations; not a clinical competence score.'}
+    auto=auto_score(encounter)
+    by_domain={x['id']:x for x in auto['domains']}
+    for d in domains:
+        a=by_domain.get(d['id'],{})
+        d['suggested_score']=a.get('score')
+        d['suggested_coverage']=a.get('coverage')
+        d['criteria']=[{k:r[k] for k in ['id','criterion','tier','met','evidence','feedback']} for r in auto['criteria_results'] if r['domain']==d['id'] and r['met'] is not None]
+        d['suggested_note']=suggested_note(d,a)
+        d['suggested_evidence_ids']=list(dict.fromkeys(e['turn_id'] for r in d['criteria'] if r['met'] for e in r['evidence'] if e['turn_id'] in {m['id'] for m in messages}))[:6]
+    summary={'comments':'','strengths':auto['strengths'],'improvements':auto['gaps'],'next_steps':[x for x in auto['next_attempt_suggestions'] if x]}
+    return {'engine_version':ENGINE_VERSION,'rubric_version':'organizer-1','status':'awaiting_review','review_version':0,'reviewer':'','domains':domains,'checkpoints':checks,'total':None,'available_points':0,'rated_domains':0,'na_domains':0,'unrated_domains':7,'review_required':False,'review_trigger_domains':[],'coverage_label':'Keyword-based observations; not a clinical competence score.',
+            'auto_score':{k:auto[k] for k in ['criteria_version','total','available_points','na_domains','review_required','unsafe_actions','vitals','profile_gaps_to_acknowledge']},
+            'summary':summary,'suggested_summary':copy.deepcopy(summary),'released':False,'released_at':None,'released_by':'','released_review_version':None}
 
-def apply_review(report, ratings, valid_turn_ids, reviewer):
+def suggested_note(d,a):
+    if a.get('score') in (None,'N/A'):
+        return 'No applicable automatic criteria for this domain; suggested N/A. Confirm against the transcript.'
+    crit={r['id']:r for r in d['criteria']}
+    met=[crit[i]['criterion'] for i in a.get('met',[]) if i in crit]
+    missed=[crit[i]['criterion'] for i in a.get('missed',[]) if i in crit]
+    note=f"Auto-suggested {a['score']}/4 ({round(100*a['coverage'])}% of weighted criteria met)."
+    if met:note+=' Met: '+'; '.join(met[:4])+'.'
+    if missed:note+=' Missed: '+'; '.join(missed[:4])+'.'
+    if a.get('capped_by'):note+=' Capped because a critical item or safety gate was not met.'
+    return note
+
+def clean_summary(summary):
+    if summary is None:return None
+    if not isinstance(summary,dict):raise ValueError('Summary feedback must be an object.')
+    comments=summary.get('comments','')
+    if not isinstance(comments,str) or len(comments)>4000:raise ValueError('Overall comments must be text under 4000 characters.')
+    out={'comments':comments.strip()}
+    for key in ['strengths','improvements','next_steps']:
+        items=summary.get(key,[])
+        if not isinstance(items,list) or len(items)>20 or any(not isinstance(x,str) or len(x)>500 for x in items):
+            raise ValueError('Feedback lists must contain up to 20 short text items.')
+        out[key]=[x.strip() for x in items if x.strip()]
+    return out
+
+def apply_review(report, ratings, valid_turn_ids, reviewer, summary=None):
     result=copy.deepcopy(report)
+    summary=clean_summary(summary)
     incoming={r['key']:r for r in ratings}
     if len(incoming)!=len(ratings) or set(incoming)!={d['key'] for d in result['domains']}:
         raise ValueError('Provide exactly one rating for each of the seven domains.')
@@ -98,6 +138,7 @@ def apply_review(report, ratings, valid_turn_ids, reviewer):
         if score is not None and len(note)<5:
             raise ValueError('Add a short evidence-based explanation for each rating or N/A decision.')
         d.update(score=score,review_note=note,evidence_ids=list(dict.fromkeys(evidence)))
+        d['changed_from_suggestion']='suggested_score' in d and score is not None and score!=d['suggested_score']
     scored=[d for d in result['domains'] if type(d['score'])==int]
     result.update(total=sum(d['score'] for d in scored) if scored else None,available_points=4*len(scored),rated_domains=len(scored),na_domains=sum(d['score']=='N/A' for d in result['domains']),unrated_domains=sum(d['score'] is None for d in result['domains']))
     result['review_trigger_domains']=[d['name'] for d in scored if d['score']==1 and d['triggers_review_if_score_1']]
@@ -105,4 +146,14 @@ def apply_review(report, ratings, valid_turn_ids, reviewer):
     result['status']='reviewed' if result['unrated_domains']==0 else 'partially_reviewed'
     result['reviewer']=reviewer
     result['review_version']+=1
+    if summary is not None:result['summary']=summary
+    # Any edit pulls the score back from the student until faculty release it again.
+    result['released']=False
+    return result
+
+def release_feedback(report, reviewer):
+    if report.get('status')!='reviewed':
+        raise ValueError('Rate all seven domains (a score or N/A) and save the review before releasing it.')
+    result=copy.deepcopy(report)
+    result.update(released=True,released_at=datetime.now(timezone.utc).isoformat(),released_by=reviewer,released_review_version=result['review_version'])
     return result

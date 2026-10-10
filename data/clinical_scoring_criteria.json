@@ -1,0 +1,2559 @@
+{
+  "version": "0.2.0-draft",
+  "status": "DRAFT - clinical content must be reviewed and approved by faculty before use for grading",
+  "purpose": "Clinical and vital-sign criteria evaluated after each virtual patient encounter to produce an explainable score on the organizer's 7-domain Patient Encounter Performance Rubric (1-4 / N/A, max 28).",
+  "sources": [
+    "faculty-provided-sample-patient-details.csv (patient facts and values)",
+    "evaluation rubrics/encounter_evaluation_rubric.json (7 domains, 1-4/N/A, review triggers on domains 6 and 7)",
+    "SHP_C1_Virtual_Patient_Encounter_System_Overview.pdf (feedback must cover elicited vs missed findings, sequencing, communication, explainability, faculty-defined objectives)",
+    "Reference thresholds: ACC/AHA 2017 BP categories; NCEP ATP III / 2018 ACC/AHA cholesterol guideline; NHLBI 2011 pediatric lipid cut-points (age <20); CDC/WHO BMI classes; NIAAA drinking limits; USPSTF/CDC screening recommendations",
+    "vital-signs-criteria.md and clinical-rules-sources.md (team research, 2026-10-10): V1-V4 vital rules, NEWS2 (RCP 2017), BTS 2017 O2 targets, AHA/ACC 2025 BP, ACLS 2020, SSC 2021, ADA; SEGUE (Makoul 2001) and Kalamazoo (Acad Med 2001) communication items"
+  ],
+  "scoring_model": {
+    "layers": [
+      {
+        "key": "elicit",
+        "description": "Did the student ask for / obtain the clinically important findings in the approved profile?"
+      },
+      {
+        "key": "interpret",
+        "description": "Did the student correctly interpret vitals/labs against reference ranges and connect findings?"
+      },
+      {
+        "key": "educate",
+        "description": "Did the student explain findings and next steps accurately, in plain language, and check understanding?"
+      },
+      {
+        "key": "safety",
+        "description": "Did the student screen red flags, safety-net, avoid unsafe advice and avoid inventing facts?"
+      },
+      {
+        "key": "communication",
+        "description": "Universal interview behaviours (opening, empathy, cues, closure)."
+      }
+    ],
+    "tiers": {
+      "critical": {
+        "weight": 3,
+        "note": "Missing any critical item caps the mapped domain at 2."
+      },
+      "important": {
+        "weight": 2
+      },
+      "supplementary": {
+        "weight": 1
+      }
+    },
+    "domain_mapping_rule": "Each criterion carries a rubric domain id (1-7). Domain coverage = sum(weights met) / sum(weights applicable) for that domain.",
+    "coverage_to_rubric_score": [
+      {
+        "min_coverage": 0.85,
+        "score": 4,
+        "label": "Strong"
+      },
+      {
+        "min_coverage": 0.65,
+        "score": 3,
+        "label": "Competent"
+      },
+      {
+        "min_coverage": 0.4,
+        "score": 2,
+        "label": "Developing"
+      },
+      {
+        "min_coverage": 0.0,
+        "score": 1,
+        "label": "Unsafe or absent"
+      }
+    ],
+    "caps_and_gates": [
+      {
+        "id": "GATE-CRITICAL-MISSED",
+        "rule": "If any 'critical' criterion mapped to a domain is not met, that domain score is capped at 2."
+      },
+      {
+        "id": "GATE-UNSAFE-ACTION",
+        "rule": "If any unsafe_action is detected, domain 7 = 1 (and domain 6 = 1 if the unsafe action is a clinical-reasoning error). This triggers faculty review."
+      },
+      {
+        "id": "GATE-NA",
+        "rule": "A domain with no applicable criteria in this case is scored N/A and excluded from available points."
+      }
+    ],
+    "output": {
+      "total": "sum of domain scores (N/A excluded)",
+      "available_points": "4 x number of scored domains (max 28)",
+      "review_required": "true if domain 6 or 7 scores 1, or any unsafe_action detected",
+      "status": "auto_scored_pending_faculty_review - the automated score is a draft; faculty confirm via the existing review screen"
+    },
+    "explainability_contract": "Every criterion result must include: met (true/false), evidence turn ids + quote (or 'no evidence'), and the criterion's feedback_if_missed. No score without evidence."
+  },
+  "reference_ranges": {
+    "_note": "Adult resting values unless stated. Units must be confirmed per case - the source CSV omits lipid units; mg/dL is assumed and must be faculty-confirmed.",
+    "blood_pressure_mmHg": {
+      "source": "AHA/ACC 2025 (categories unchanged from 2017); target <130/80 for most adults",
+      "normal": "SBP <120 and DBP <80",
+      "elevated": "SBP 120-129 and DBP <80",
+      "stage_1_htn": "SBP 130-139 or DBP 80-89",
+      "stage_2_htn": "SBP >=140 or DBP >=90",
+      "severe_hypertension_or_crisis": "SBP >180 and/or DBP >120 -> urgent assessment; emergency if new chest pain, dyspnoea, neuro deficit, vision change, confusion",
+      "hypotension": "SBP <=90 (NEWS2 red) / MAP <65 in sepsis"
+    },
+    "heart_rate_bpm": {
+      "normal": "60-100",
+      "tachycardia": ">100",
+      "symptomatic_bradycardia": "<50 with symptoms",
+      "red": "<=40 or >=131"
+    },
+    "respiratory_rate_per_min": {
+      "normal": "12-20",
+      "amber": "21-24",
+      "red": "<=8 or >=25"
+    },
+    "temperature": {
+      "normal": "36.1-38.0 C (NEWS2 0 points)",
+      "fever": ">=38.0 C (100.4 F)",
+      "hypothermia": "<=35.0 C",
+      "older_adult_ltc_fever": "single oral >37.8 C, repeated >37.2 C, or >1.1 C above baseline (IDSA)"
+    },
+    "spo2_percent": {
+      "target_scale_1": "94-98",
+      "red": "<=91",
+      "copd_hypercapnic_target_scale_2": "88-92",
+      "source": "BTS 2017, NEWS2"
+    },
+    "pain_score_0_10": {
+      "mild": "1-3",
+      "moderate": "4-6",
+      "severe": "7-10"
+    },
+    "bmi_adult_kg_m2": {
+      "underweight": "<18.5",
+      "healthy": "18.5-24.9",
+      "overweight": "25.0-29.9",
+      "obesity_class_1": "30.0-34.9",
+      "obesity_class_2": "35.0-39.9",
+      "obesity_class_3": ">=40"
+    },
+    "bmi_under_20": "Use CDC BMI-for-age percentiles: >=85th overweight, >=95th obesity. A BMI of 32 at age 18 is >=95th percentile (obesity).",
+    "waist_circumference": {
+      "increased_risk_men": ">40 in (102 cm)",
+      "increased_risk_women": ">35 in (88 cm)"
+    },
+    "lipids_adult_mg_dL": {
+      "source": "NCEP ATP III; 2018 ACC/AHA",
+      "total_cholesterol": {
+        "desirable": "<200",
+        "borderline_high": "200-239",
+        "high": ">=240"
+      },
+      "ldl": {
+        "optimal": "<100",
+        "near_optimal": "100-129",
+        "borderline_high": "130-159",
+        "high": "160-189",
+        "very_high": ">=190 (severe hypercholesterolaemia: high-intensity statin indicated without risk calculation; consider familial hypercholesterolaemia)"
+      },
+      "hdl": {
+        "low_men": "<40",
+        "low_women": "<50",
+        "protective": ">=60"
+      },
+      "triglycerides": {
+        "normal": "<150",
+        "borderline_high": "150-199",
+        "high": "200-499",
+        "very_high": ">=500"
+      }
+    },
+    "lipids_under_20_mg_dL": {
+      "source": "NHLBI 2011 Expert Panel (children/adolescents)",
+      "total_cholesterol": {
+        "acceptable": "<170",
+        "borderline": "170-199",
+        "high": ">=200"
+      },
+      "ldl": {
+        "acceptable": "<110",
+        "borderline": "110-129",
+        "high": ">=130"
+      },
+      "hdl": {
+        "low": "<40"
+      }
+    },
+    "metabolic_syndrome_atp3": "Any 3 of: waist >40 in (men)/>35 in (women); TG >=150; HDL <40 (men)/<50 (women); BP >=130/85 or treated; fasting glucose >=100",
+    "alcohol_niaaa": "Heavy drinking - men: >4 drinks/day or >14/week; women: >3/day or >7/week",
+    "sodium": "General limit <2,300 mg/day; AHA ideal <1,500 mg/day for most adults with hypertension. 1 tsp table salt ~= 2,300 mg sodium; salt is ~40% sodium.",
+    "fibre_dga": "~14 g per 1,000 kcal; males 14-18 ~31 g/day, males 19-30 ~34 g/day",
+    "heart_failure_terms": "NYHA = functional CLASS I-IV; ACC/AHA = STAGE A-D. 'NYHA Stage C' mixes the two systems and should be flagged.",
+    "glucose_mg_dL_inpatient": {
+      "target": "70-180",
+      "level_1_hypo": "<70",
+      "level_2_hypo": "<54",
+      "source": "ADA Standards of Care"
+    },
+    "orthostatic_hypotension": "SBP drop >=20 or DBP drop >=10 within 3 min of standing",
+    "pediatric_note": "For age <18 use PALS age bands and AAP 2017 BP percentiles (see vital-signs-criteria.md section 3); pregnancy uses obstetric thresholds (severe >=160/110) and MEOWS, not NEWS2."
+  },
+  "universal_criteria": [
+    {
+      "id": "U-OPEN-1",
+      "layer": "communication",
+      "domain": 1,
+      "tier": "critical",
+      "criterion": "Introduces self by name and role",
+      "cues": [
+        "my name is",
+        "i am a student",
+        "i'm a student",
+        "student clinician",
+        "student nurse",
+        "student dietitian"
+      ],
+      "feedback_if_missed": "Start by giving your name and role so the patient knows who they are talking to.",
+      "framework": "SEGUE Set the stage; Kalamazoo Opens"
+    },
+    {
+      "id": "U-OPEN-2",
+      "layer": "communication",
+      "domain": 1,
+      "tier": "important",
+      "criterion": "Confirms patient identity (name) respectfully",
+      "cues": [
+        "confirm your name",
+        "what would you like me to call",
+        "prefer to be called",
+        "can you tell me your name",
+        "date of birth"
+      ],
+      "feedback_if_missed": "Confirm the patient's name and how they'd like to be addressed.",
+      "framework": "SEGUE Set the stage"
+    },
+    {
+      "id": "U-OPEN-3",
+      "layer": "communication",
+      "domain": 1,
+      "tier": "important",
+      "criterion": "States purpose/agenda and elicits the patient's main concern with an open question",
+      "cues": [
+        "what brings you",
+        "what brought you",
+        "main concern",
+        "today we",
+        "the purpose of",
+        "what would you like to focus",
+        "how can i help"
+      ],
+      "feedback_if_missed": "Set the agenda early: explain why you're there and ask an open question about their main concern.",
+      "framework": "SEGUE Set the stage; Kalamazoo Opens"
+    },
+    {
+      "id": "U-RAPP-1",
+      "layer": "communication",
+      "domain": 2,
+      "tier": "critical",
+      "criterion": "Acknowledges emotion or difficulty with an empathic statement",
+      "cues": [
+        "sounds difficult",
+        "sorry to hear",
+        "that must be",
+        "i can understand",
+        "i can see",
+        "it makes sense that",
+        "thank you for sharing",
+        "i appreciate you"
+      ],
+      "feedback_if_missed": "When the patient shares a concern or feeling, name it and acknowledge it before moving on.",
+      "framework": "Kalamazoo Builds relationship"
+    },
+    {
+      "id": "U-RAPP-2",
+      "layer": "communication",
+      "domain": 2,
+      "tier": "important",
+      "criterion": "Uses non-judgemental language about lifestyle, weight, adherence or substance use (absence of blaming language)",
+      "negative_cues": [
+        "you should know better",
+        "why didn't you",
+        "noncompliant",
+        "non-compliant",
+        "lazy",
+        "you need to just",
+        "that's bad"
+      ],
+      "feedback_if_missed": "Avoid blaming language; ask about barriers instead of labelling the patient.",
+      "framework": "Kalamazoo Builds relationship"
+    },
+    {
+      "id": "U-INFO-1",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "important",
+      "criterion": "Uses open-ended questions before closed questions",
+      "cues": [
+        "tell me about",
+        "tell me more",
+        "how has",
+        "describe",
+        "walk me through",
+        "what has"
+      ],
+      "feedback_if_missed": "Begin topics with open questions ('Tell me about...') and narrow down afterwards.",
+      "framework": "Kalamazoo Gathers information"
+    },
+    {
+      "id": "U-INFO-2",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "important",
+      "criterion": "Asks about current medications and adherence",
+      "cues": [
+        "medication",
+        "medicine",
+        "pills",
+        "prescription",
+        "taking anything"
+      ],
+      "feedback_if_missed": "Always review current medications and how they are actually being taken.",
+      "framework": "SEGUE Elicit information"
+    },
+    {
+      "id": "U-INFO-3",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "important",
+      "criterion": "Asks about allergies",
+      "cues": [
+        "allerg"
+      ],
+      "feedback_if_missed": "Ask about medication and other allergies.",
+      "framework": "SEGUE Elicit information"
+    },
+    {
+      "id": "U-INFO-4",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "supplementary",
+      "criterion": "Asks about relevant past medical and family history",
+      "cues": [
+        "medical history",
+        "family history",
+        "anyone in your family",
+        "parents",
+        "other conditions"
+      ],
+      "feedback_if_missed": "Explore past medical and family history relevant to the presenting problem.",
+      "framework": "SEGUE Elicit information"
+    },
+    {
+      "id": "U-INFO-5",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "supplementary",
+      "criterion": "Asks about social context (living situation, work, support, substances)",
+      "cues": [
+        "live with",
+        "living situation",
+        "work",
+        "support",
+        "smok",
+        "alcohol",
+        "drink"
+      ],
+      "feedback_if_missed": "Ask about home, work and support - it shapes what plan is realistic.",
+      "framework": "SEGUE Elicit information"
+    },
+    {
+      "id": "U-VITAL-1",
+      "layer": "elicit",
+      "domain": 3,
+      "tier": "important",
+      "criterion": "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+      "cues": [
+        "vital",
+        "blood pressure",
+        "heart rate",
+        "pulse",
+        "temperature",
+        "oxygen",
+        "weight",
+        "bmi"
+      ],
+      "feedback_if_missed": "Review the available vital signs and measurements in the chart before forming a plan.",
+      "framework": "vital-signs VA"
+    },
+    {
+      "id": "U-CUE-1",
+      "layer": "communication",
+      "domain": 4,
+      "tier": "important",
+      "criterion": "Follows up on something the patient said (reflects/clarifies)",
+      "cues": [
+        "you mentioned",
+        "you said",
+        "what do you mean",
+        "can you tell me more",
+        "earlier you",
+        "it sounds like"
+      ],
+      "feedback_if_missed": "Pick up on the patient's own words and follow up ('You mentioned...').",
+      "framework": "Kalamazoo Gathers information"
+    },
+    {
+      "id": "U-CUE-2",
+      "layer": "communication",
+      "domain": 4,
+      "tier": "important",
+      "criterion": "Asks for the patient's ideas, concerns or expectations",
+      "cues": [
+        "what worries you",
+        "worried about",
+        "what do you think",
+        "what are you hoping",
+        "what concerns you",
+        "how do you feel about"
+      ],
+      "feedback_if_missed": "Ask what the patient thinks is going on, what worries them and what they hope for.",
+      "framework": "SEGUE Understand perspective; ICE"
+    },
+    {
+      "id": "U-EXPL-1",
+      "layer": "educate",
+      "domain": 5,
+      "tier": "critical",
+      "criterion": "Checks understanding (teach-back or explicit check)",
+      "cues": [
+        "in your own words",
+        "can you tell me back",
+        "does that make sense",
+        "what questions do you have",
+        "to make sure i explained",
+        "can you explain back"
+      ],
+      "feedback_if_missed": "Use teach-back: 'To make sure I explained it well, can you tell me in your own words...'",
+      "framework": "SEGUE Give information; Kalamazoo Shares information"
+    },
+    {
+      "id": "U-EXPL-2",
+      "layer": "educate",
+      "domain": 5,
+      "tier": "important",
+      "criterion": "Involves the patient in decisions / explores readiness and preferences",
+      "cues": [
+        "what would work for you",
+        "would you prefer",
+        "what matters most",
+        "how ready",
+        "on a scale",
+        "which of these",
+        "what feels realistic"
+      ],
+      "feedback_if_missed": "Offer options and ask what feels realistic, rather than prescribing a single plan.",
+      "framework": "Kalamazoo Reaches agreement"
+    },
+    {
+      "id": "U-REAS-1",
+      "layer": "interpret",
+      "domain": 6,
+      "tier": "critical",
+      "criterion": "Summarises key findings back to the patient",
+      "cues": [
+        "to summarize",
+        "to summarise",
+        "so far you've told me",
+        "what i heard",
+        "let me make sure i have",
+        "putting this together"
+      ],
+      "feedback_if_missed": "Summarise the key findings before moving to explanation or plan.",
+      "framework": "Kalamazoo Gathers information (summarises)"
+    },
+    {
+      "id": "U-REAS-2",
+      "layer": "interpret",
+      "domain": 6,
+      "tier": "important",
+      "criterion": "Acknowledges uncertainty or missing data rather than guessing",
+      "cues": [
+        "we don't have",
+        "not in your record",
+        "we would need",
+        "i'm not sure",
+        "need to check",
+        "further testing",
+        "we'd want to confirm"
+      ],
+      "feedback_if_missed": "Name what is still unknown and what would be needed to find out.",
+      "framework": "Rubric domain 6 (uncertainty)"
+    },
+    {
+      "id": "U-CLOSE-1",
+      "layer": "safety",
+      "domain": 7,
+      "tier": "critical",
+      "criterion": "Closes with a clear next step / follow-up plan",
+      "cues": [
+        "next step",
+        "follow up",
+        "follow-up",
+        "plan is",
+        "next appointment",
+        "we'll",
+        "before we finish"
+      ],
+      "feedback_if_missed": "End with a clear, shared next step and follow-up.",
+      "framework": "SEGUE End the encounter; Kalamazoo Closes"
+    },
+    {
+      "id": "U-CLOSE-2",
+      "layer": "safety",
+      "domain": 7,
+      "tier": "important",
+      "criterion": "Safety-nets: tells patient which symptoms need urgent care",
+      "cues": [
+        "call 911",
+        "emergency",
+        "seek care",
+        "come back if",
+        "call us if",
+        "go to the er",
+        "if you notice"
+      ],
+      "feedback_if_missed": "Safety-net: tell the patient which warning signs should prompt urgent care.",
+      "framework": "Rubric domain 7 (safety-netting)"
+    },
+    {
+      "id": "U-CLOSE-3",
+      "layer": "safety",
+      "domain": 7,
+      "tier": "supplementary",
+      "criterion": "States limits of own role / defers to supervising clinician where appropriate",
+      "cues": [
+        "my supervisor",
+        "the doctor will",
+        "your care team",
+        "i'll discuss with",
+        "outside my role",
+        "your physician"
+      ],
+      "feedback_if_missed": "Be clear about your role's limits and who will make final decisions.",
+      "framework": "Rubric domain 7 (limitations)"
+    },
+    {
+      "id": "U-ELSE-1",
+      "layer": "communication",
+      "domain": 4,
+      "tier": "important",
+      "framework": "SEGUE; Kalamazoo",
+      "criterion": "Asks 'anything else?' before closing",
+      "cues": [
+        "anything else",
+        "something else",
+        "any other concerns",
+        "is there more"
+      ],
+      "feedback_if_missed": "Before closing, ask 'Is there anything else you wanted to discuss?'"
+    },
+    {
+      "id": "U-SEQ-1",
+      "layer": "communication",
+      "domain": 3,
+      "tier": "important",
+      "framework": "Kalamazoo phases; Calgary-Cambridge",
+      "criterion": "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
+      "rule": "order_check",
+      "phases": [
+        [
+          "U-OPEN-1",
+          "U-OPEN-3"
+        ],
+        [
+          "U-INFO-1",
+          "U-INFO-2",
+          "U-INFO-3",
+          "U-INFO-5"
+        ],
+        [
+          "U-REAS-1",
+          "U-EXPL-1"
+        ],
+        [
+          "U-CLOSE-1"
+        ]
+      ],
+      "feedback_if_missed": "Follow a clear structure: open, explore, gather history, summarise/explain, then close."
+    },
+    {
+      "id": "U-SAFE-MED-1",
+      "layer": "safety",
+      "domain": 7,
+      "tier": "important",
+      "framework": "SEGUE; medication safety",
+      "criterion": "Asks about medications and allergies before suggesting any treatment",
+      "rule": "before_treatment",
+      "requires": [
+        "U-INFO-2",
+        "U-INFO-3"
+      ],
+      "treatment_cues": [
+        "you should take",
+        "start you on",
+        "i recommend taking",
+        "prescribe",
+        "statin",
+        "medication for"
+      ],
+      "feedback_if_missed": "Check medications and allergies before suggesting any treatment."
+    }
+  ],
+  "unsafe_actions": [
+    {
+      "id": "X-1",
+      "domain": 7,
+      "also_domain": 6,
+      "description": "Advises stopping or changing a prescribed medication or dose without the prescriber"
+    },
+    {
+      "id": "X-2",
+      "domain": 6,
+      "also_domain": 7,
+      "description": "Misinterprets a clearly abnormal value as normal (e.g. calls BP 155/110 or LDL 195 'normal' / 'nothing to worry about')"
+    },
+    {
+      "id": "X-3",
+      "domain": 7,
+      "description": "Gives false reassurance or overstates certainty about diagnosis/prognosis"
+    },
+    {
+      "id": "X-4",
+      "domain": 7,
+      "description": "States clinical facts not in the approved profile as if they were the patient's results"
+    },
+    {
+      "id": "X-5",
+      "domain": 2,
+      "also_domain": 7,
+      "description": "Stigmatising or discriminatory remarks (sexuality, ethnicity, weight, substance use, immigration status)"
+    },
+    {
+      "id": "X-6",
+      "domain": 7,
+      "description": "Misses an explicit red-flag statement from the patient without acting/escalating"
+    }
+  ],
+  "patients": {
+    "6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8": {
+      "name": "Yvette Armstrong",
+      "age": 64,
+      "sex": "female",
+      "summary": "Newly diagnosed Stage 2 hypertension; BMI 34; confused about sodium vs salt; low understanding of prior explanation.",
+      "profile_values": {
+        "bp_mmHg": "155/110",
+        "bmi": 34
+      },
+      "expected_interpretation": {
+        "bp": "155/110 = Stage 2 hypertension (SBP >=140 and DBP >=90); not in crisis range (>180/>120).",
+        "bmi": "34 = obesity class 1."
+      },
+      "criteria": [
+        {
+          "id": "YA-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Obtains/reviews BP reading and BMI",
+          "cues": [
+            "blood pressure",
+            "bmi",
+            "weight"
+          ],
+          "feedback_if_missed": "Review her BP (155/110) and BMI (34) - they drive the whole teaching plan."
+        },
+        {
+          "id": "YA-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f5"
+          ],
+          "criterion": "Asks what she already understands about her diagnosis",
+          "cues": [
+            "what did your doctor",
+            "what do you understand",
+            "what do you know about",
+            "what were you told"
+          ],
+          "feedback_if_missed": "Ask what she was told and understood before explaining - she said she didn't understand her doctor."
+        },
+        {
+          "id": "YA-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Explores current diet / salt use / food sources (processed food, eating out)",
+          "cues": [
+            "salt",
+            "sodium",
+            "diet",
+            "eat",
+            "processed",
+            "canned",
+            "eating out"
+          ],
+          "feedback_if_missed": "Ask about her typical meals and where her sodium comes from."
+        },
+        {
+          "id": "YA-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about BP-related symptoms (headache, vision change, chest pain, shortness of breath)",
+          "cues": [
+            "headache",
+            "vision",
+            "chest pain",
+            "short of breath",
+            "dizz"
+          ],
+          "feedback_if_missed": "Screen for symptoms that would make this urgent."
+        },
+        {
+          "id": "YA-E5",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "supplementary",
+          "criterion": "Asks about other CV risk factors (diabetes, kidney disease, smoking, family history) and medications",
+          "cues": [
+            "diabet",
+            "kidney",
+            "smok",
+            "family history",
+            "medication"
+          ],
+          "feedback_if_missed": "Ask about other cardiovascular risk factors and current medications."
+        },
+        {
+          "id": "YA-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "critical",
+          "criterion": "Correctly identifies 155/110 as Stage 2 (high) hypertension",
+          "cues": [
+            "stage 2",
+            "stage two",
+            "high blood pressure",
+            "above",
+            "too high",
+            "elevated"
+          ],
+          "feedback_if_missed": "Explicitly interpret the reading: 155/110 is Stage 2 hypertension (>=140/90)."
+        },
+        {
+          "id": "YA-I2",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Links excess weight and sodium to blood pressure",
+          "cues": [
+            "weight",
+            "sodium raises",
+            "salt raises",
+            "water",
+            "fluid"
+          ],
+          "feedback_if_missed": "Connect the dots: sodium and extra weight both raise BP."
+        },
+        {
+          "id": "YA-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Explains hypertension in plain language (no jargon)",
+          "cues": [
+            "pressure in your",
+            "force of blood",
+            "pushing against",
+            "arteries",
+            "blood vessels",
+            "heart works harder"
+          ],
+          "feedback_if_missed": "Explain hypertension in everyday words (e.g. 'blood pushing too hard against the vessel walls')."
+        },
+        {
+          "id": "YA-D2",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Clarifies sodium vs salt and gives a numeric limit (<2,300 mg/day; ideally ~1,500 mg)",
+          "cues": [
+            "2300",
+            "2,300",
+            "1500",
+            "1,500",
+            "teaspoon",
+            "salt contains sodium",
+            "sodium is part of"
+          ],
+          "feedback_if_missed": "Clarify that salt contains sodium and give a concrete daily limit (about 1 teaspoon of salt = 2,300 mg)."
+        },
+        {
+          "id": "YA-D3",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Teaches food-label reading or practical swaps (DASH-style)",
+          "cues": [
+            "label",
+            "nutrition facts",
+            "dash",
+            "fresh",
+            "herbs",
+            "spices",
+            "fruits and vegetables"
+          ],
+          "feedback_if_missed": "Give practical tools: reading the sodium line on labels, DASH-style swaps."
+        },
+        {
+          "id": "YA-D4",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Explains benefit of modest weight loss (5-10%)",
+          "cues": [
+            "5%",
+            "10%",
+            "five percent",
+            "ten percent",
+            "few pounds",
+            "modest weight",
+            "small amount of weight"
+          ],
+          "feedback_if_missed": "Explain that even modest (5-10%) weight loss lowers blood pressure."
+        },
+        {
+          "id": "YA-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "important",
+          "criterion": "Safety-nets for severe BP / symptoms (>=180/120, chest pain, neuro or vision change) and suggests home BP monitoring",
+          "cues": [
+            "180",
+            "home blood pressure",
+            "monitor at home",
+            "cuff",
+            "chest pain",
+            "emergency"
+          ],
+          "feedback_if_missed": "Advise home BP monitoring and when to seek emergency care."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "No HR, other vitals, labs (kidney function, glucose, lipids) or medication list in profile"
+      ],
+      "vital_abnormalities": [
+        "stage_2_hypertension_outpatient",
+        "obesity"
+      ]
+    },
+    "b5814549-fd2b-42a2-af78-9b681ad6f268": {
+      "name": "Omar Sinclair",
+      "age": 45,
+      "sex": "male",
+      "summary": "Dyslipidaemia (TC 260, LDL 195, HDL 30), BMI 29, waist 43 in, uncomfortable with medications.",
+      "profile_values": {
+        "total_cholesterol": 260,
+        "ldl": 195,
+        "hdl": 30,
+        "bmi": 29,
+        "waist_in": 43,
+        "units": "not supplied - assume mg/dL, faculty to confirm"
+      },
+      "expected_interpretation": {
+        "tc": "260 = high (>=240)",
+        "ldl": "195 = very high (>=190): statin indicated per 2018 ACC/AHA without risk calculation; evaluate for familial hypercholesterolaemia",
+        "hdl": "30 = low (<40 in men)",
+        "bmi": "29 = overweight",
+        "waist": "43 in = increased risk (>40 in)",
+        "metsyn": "2 of 5 ATP III criteria known (waist, HDL); TG, BP and fasting glucose missing to decide"
+      },
+      "criteria": [
+        {
+          "id": "OS-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Reviews lipid panel (TC, LDL, HDL)",
+          "cues": [
+            "cholesterol",
+            "ldl",
+            "hdl",
+            "lipid"
+          ],
+          "feedback_if_missed": "Review his lipid panel - LDL 195 is the central finding."
+        },
+        {
+          "id": "OS-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Reviews BMI and waist circumference",
+          "cues": [
+            "bmi",
+            "waist",
+            "weight"
+          ],
+          "feedback_if_missed": "Review BMI (29) and waist (43 in) - both add cardiometabolic risk."
+        },
+        {
+          "id": "OS-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f5"
+          ],
+          "criterion": "Explores his concerns about taking medication",
+          "cues": [
+            "feel about taking",
+            "medication",
+            "statin",
+            "pills",
+            "concerns about"
+          ],
+          "feedback_if_missed": "Explore why he is uncomfortable with medication before recommending one."
+        },
+        {
+          "id": "OS-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about family history of early heart disease / high cholesterol",
+          "cues": [
+            "family history",
+            "father",
+            "mother",
+            "brother",
+            "heart attack",
+            "runs in your family"
+          ],
+          "feedback_if_missed": "LDL >=190 raises suspicion of familial hypercholesterolaemia - ask about family history."
+        },
+        {
+          "id": "OS-E5",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about other ASCVD risk factors: smoking, BP, diabetes, activity, diet",
+          "cues": [
+            "smok",
+            "blood pressure",
+            "diabet",
+            "sugar",
+            "exercise",
+            "activity",
+            "diet",
+            "eat"
+          ],
+          "feedback_if_missed": "Ask about smoking, BP, diabetes, diet and activity to estimate overall risk."
+        },
+        {
+          "id": "OS-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "critical",
+          "criterion": "Identifies LDL 195 as very high and HDL 30 as low",
+          "cues": [
+            "very high",
+            "too high",
+            "high ldl",
+            "low hdl",
+            "above 190",
+            "well above"
+          ],
+          "feedback_if_missed": "Interpret explicitly: LDL 195 is very high (>=190) and HDL 30 is low (<40)."
+        },
+        {
+          "id": "OS-I2",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Notes missing data needed (triglycerides, glucose/A1c, BP) for full risk / metabolic-syndrome assessment",
+          "cues": [
+            "triglyceride",
+            "glucose",
+            "a1c",
+            "blood sugar",
+            "need more tests",
+            "blood pressure"
+          ],
+          "feedback_if_missed": "Point out what's missing: TG, glucose and BP are needed to complete his risk picture."
+        },
+        {
+          "id": "OS-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Explains LDL ('bad') vs HDL ('good') in plain language",
+          "cues": [
+            "bad cholesterol",
+            "good cholesterol",
+            "clogs",
+            "plaque",
+            "removes cholesterol",
+            "carries cholesterol"
+          ],
+          "feedback_if_missed": "Explain LDL vs HDL simply - he specifically needs this."
+        },
+        {
+          "id": "OS-D2",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Explains the purpose of statins and benefits/side-effects honestly, respecting his choice",
+          "cues": [
+            "statin",
+            "lower your ldl",
+            "reduce your risk",
+            "side effect",
+            "muscle",
+            "your choice",
+            "decide together"
+          ],
+          "feedback_if_missed": "Explain what a statin does and its trade-offs; make it a shared decision."
+        },
+        {
+          "id": "OS-D3",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Gives realistic diet steps (less saturated/trans fat, more soluble fibre, weight/waist reduction, activity)",
+          "cues": [
+            "saturated",
+            "fried",
+            "fibre",
+            "fiber",
+            "oats",
+            "beans",
+            "exercise",
+            "walk"
+          ],
+          "feedback_if_missed": "Offer practical, realistic diet changes that fit his work life."
+        },
+        {
+          "id": "OS-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "important",
+          "criterion": "Does not tell him diet alone is sufficient at LDL >=190; defers prescribing decision to prescriber",
+          "cues": [
+            "your doctor",
+            "prescriber",
+            "discuss with",
+            "care team",
+            "follow up"
+          ],
+          "feedback_if_missed": "At LDL >=190 guidelines recommend a statin - don't imply diet alone is enough; refer the decision to the prescriber."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "Lipid units and collection date",
+        "Triglycerides, glucose, BP, smoking status, family history, current medications"
+      ],
+      "vital_abnormalities": [
+        "high_ldl"
+      ]
+    },
+    "4d619156-3250-4212-8399-129f3280fab1": {
+      "name": "Wyatt Nelson",
+      "age": 18,
+      "sex": "male",
+      "summary": "Obesity (BMI 32), dyslipidaemia (TC 235, LDL 145), constipation he avoids discussing, dislikes fruits/vegetables; shy and resistant.",
+      "profile_values": {
+        "bmi": 32,
+        "total_cholesterol": 235,
+        "ldl": 145,
+        "units": "not supplied - assume mg/dL"
+      },
+      "expected_interpretation": {
+        "bmi": "Age 18: use BMI-for-age; 32 is >=95th percentile = obesity",
+        "lipids": "Pediatric (<20) cut-points: TC 235 high (>=200); LDL 145 high (>=130)"
+      },
+      "criteria": [
+        {
+          "id": "WN-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Reviews BMI and lipid values",
+          "cues": [
+            "bmi",
+            "cholesterol",
+            "ldl",
+            "weight",
+            "lab"
+          ],
+          "feedback_if_missed": "Review his BMI and lipid results."
+        },
+        {
+          "id": "WN-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Sensitively elicits bowel history (frequency, stool form, straining, fluid intake)",
+          "cues": [
+            "bowel",
+            "constipat",
+            "stool",
+            "bathroom",
+            "how often do you go"
+          ],
+          "feedback_if_missed": "He avoids the topic - normalise it ('many people your age...') and ask directly about bowel habits."
+        },
+        {
+          "id": "WN-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f5"
+          ],
+          "criterion": "Explores food preferences and typical day of eating",
+          "cues": [
+            "typical day",
+            "what do you eat",
+            "favorite food",
+            "fruits",
+            "vegetables",
+            "snack"
+          ],
+          "feedback_if_missed": "Ask about a typical day of eating and foods he does like."
+        },
+        {
+          "id": "WN-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about physical activity, screen time, sleep and fluid intake",
+          "cues": [
+            "activity",
+            "sport",
+            "exercise",
+            "screen",
+            "games",
+            "sleep",
+            "water",
+            "drink"
+          ],
+          "feedback_if_missed": "Ask about activity, screen time, sleep and fluids."
+        },
+        {
+          "id": "WN-E5",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "supplementary",
+          "criterion": "Asks about family history of high cholesterol / early heart disease",
+          "cues": [
+            "family history",
+            "parents",
+            "runs in your family"
+          ],
+          "feedback_if_missed": "Ask about family history of high cholesterol or early heart disease."
+        },
+        {
+          "id": "WN-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "critical",
+          "criterion": "Recognises lipids as high for age and links low fibre diet to constipation and lipids",
+          "cues": [
+            "high for your age",
+            "fiber",
+            "fibre",
+            "connected",
+            "both",
+            "helps cholesterol"
+          ],
+          "feedback_if_missed": "Link the findings: low fibre affects both constipation and cholesterol - one change helps both."
+        },
+        {
+          "id": "WN-I2",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Screens for constipation red flags (blood in stool, weight loss, severe pain, vomiting)",
+          "cues": [
+            "blood",
+            "weight loss",
+            "severe pain",
+            "vomit"
+          ],
+          "feedback_if_missed": "Screen constipation red flags (blood, weight loss, severe pain)."
+        },
+        {
+          "id": "WN-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Uses developmentally appropriate, weight-neutral, non-shaming language and motivational approach",
+          "cues": [
+            "what would you be willing",
+            "one small change",
+            "on a scale",
+            "what do you think",
+            "your choice"
+          ],
+          "negative_cues": [
+            "fat",
+            "obese kid",
+            "lazy"
+          ],
+          "feedback_if_missed": "Use motivational, non-shaming language and let him choose one small goal."
+        },
+        {
+          "id": "WN-D2",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Suggests acceptable fibre sources he might tolerate (whole grains, beans, smoothies) and fluids",
+          "cues": [
+            "whole grain",
+            "oatmeal",
+            "beans",
+            "smoothie",
+            "popcorn",
+            "water"
+          ],
+          "feedback_if_missed": "Offer fibre options he might actually accept, plus fluid intake."
+        },
+        {
+          "id": "WN-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "important",
+          "criterion": "Offers confidentiality appropriate to an 18-year-old and checks comfort",
+          "cues": [
+            "confidential",
+            "between us",
+            "comfortable",
+            "private"
+          ],
+          "feedback_if_missed": "He's shy - make privacy explicit to help him open up."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "Lipid units/date, TG, HDL, glucose, BP, bowel frequency details"
+      ],
+      "vital_abnormalities": [
+        "obesity"
+      ]
+    },
+    "e7471161-b487-4804-b009-1b49681247b6": {
+      "name": "Marcus Ramirez",
+      "age": 59,
+      "sex": "male",
+      "summary": "Heart failure ~1 year, BMI 19, early satiety, unsure how diet affects symptoms.",
+      "profile_values": {
+        "bmi": 19,
+        "hf_duration": "about 1 year",
+        "classification_text": "NYHA Stage C (terminology to flag)"
+      },
+      "expected_interpretation": {
+        "bmi": "19 = low-normal; with early satiety in HF, consider malnutrition/cardiac cachexia risk",
+        "classification": "NYHA uses classes I-IV; ACC/AHA uses stages A-D - clarify which is meant"
+      },
+      "criteria": [
+        {
+          "id": "MR-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Explores early satiety (when, portion size, nausea, abdominal fullness/swelling)",
+          "cues": [
+            "full",
+            "appetite",
+            "portion",
+            "nausea",
+            "bloat",
+            "swelling in your belly"
+          ],
+          "feedback_if_missed": "Explore his early satiety in detail - it's his main nutrition problem."
+        },
+        {
+          "id": "MR-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "criterion": "Asks about HF symptoms: breathlessness on exertion, orthopnoea, PND, leg swelling, fatigue",
+          "cues": [
+            "short of breath",
+            "breath",
+            "pillows",
+            "lying flat",
+            "wake up",
+            "swelling",
+            "ankles",
+            "legs",
+            "tired"
+          ],
+          "feedback_if_missed": "Ask about breathlessness, lying flat, night waking and leg swelling."
+        },
+        {
+          "id": "MR-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f5"
+          ],
+          "criterion": "Asks about weight trend and daily weighing (unintentional loss vs fluid gain)",
+          "cues": [
+            "weight",
+            "weigh yourself",
+            "lost weight",
+            "gained",
+            "scale"
+          ],
+          "feedback_if_missed": "Ask about weight changes - loss suggests malnutrition, rapid gain suggests fluid."
+        },
+        {
+          "id": "MR-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about sodium and fluid intake and HF medications/adherence",
+          "cues": [
+            "salt",
+            "sodium",
+            "fluid",
+            "water",
+            "medication",
+            "diuretic",
+            "water pill"
+          ],
+          "feedback_if_missed": "Review sodium/fluid intake and his HF medicines."
+        },
+        {
+          "id": "MR-E5",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "supplementary",
+          "criterion": "Requests vitals relevant to HF (BP, HR, SpO2, weight)",
+          "cues": [
+            "blood pressure",
+            "heart rate",
+            "pulse",
+            "oxygen",
+            "vital"
+          ],
+          "feedback_if_missed": "Request BP, HR, SpO2 and weight."
+        },
+        {
+          "id": "MR-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "critical",
+          "criterion": "Recognises BMI 19 + early satiety as malnutrition risk (not 'healthy weight, no concern')",
+          "cues": [
+            "malnutrition",
+            "not getting enough",
+            "losing muscle",
+            "underweight",
+            "low side",
+            "calories",
+            "protein"
+          ],
+          "feedback_if_missed": "BMI 19 with early satiety in HF signals malnutrition risk - name it."
+        },
+        {
+          "id": "MR-I2",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "supplementary",
+          "criterion": "Clarifies HF classification (NYHA class vs ACC/AHA stage) rather than repeating 'NYHA Stage C'",
+          "cues": [
+            "nyha class",
+            "class i",
+            "class ii",
+            "class iii",
+            "stage c",
+            "acc/aha"
+          ],
+          "feedback_if_missed": "'NYHA Stage C' mixes two systems - clarify the functional class vs stage."
+        },
+        {
+          "id": "MR-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Explains HF pathophysiology simply (heart not pumping/filling well, fluid backs up)",
+          "cues": [
+            "pump",
+            "weaker",
+            "fluid builds",
+            "backs up",
+            "stiff"
+          ],
+          "feedback_if_missed": "Explain HF in simple terms - he asked for this."
+        },
+        {
+          "id": "MR-D2",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Connects diet to symptoms: avoid excess sodium (fluid), small frequent nutrient/protein-dense meals for early satiety",
+          "cues": [
+            "small meals",
+            "smaller meals",
+            "frequent",
+            "protein",
+            "nutrient dense",
+            "sodium",
+            "fluid"
+          ],
+          "feedback_if_missed": "Link diet to symptoms: sodium -> fluid -> breathlessness; small, frequent, energy-dense meals for early satiety."
+        },
+        {
+          "id": "MR-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "critical",
+          "criterion": "Safety-nets HF decompensation: rapid weight gain (e.g. >2-3 lb/day or 5 lb/week), worsening breathlessness, chest pain, fainting",
+          "cues": [
+            "pounds in a day",
+            "lbs",
+            "weight gain",
+            "worse breathing",
+            "chest pain",
+            "faint",
+            "call"
+          ],
+          "feedback_if_missed": "Teach warning signs of worsening HF and when to call."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "Ejection fraction, vitals, medications, labs (sodium, potassium, kidney function, albumin), weight trend"
+      ]
+    },
+    "3fc37c34-eb88-4b71-9406-3ec6c13dbb9f": {
+      "name": "Walter Greene",
+      "age": 72,
+      "sex": "male",
+      "summary": "Heart failure with frequent readmissions, difficulty following diet, lives alone, grumpy/humorous, dislikes students.",
+      "profile_values": {},
+      "expected_interpretation": {
+        "readmissions": "Frequent HF readmissions + diet non-adherence + lives alone = high readmission risk; focus on barriers and self-care"
+      },
+      "criteria": [
+        {
+          "id": "WG-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Explores barriers to following the diet (cost, cooking, taste, knowledge, shopping, living alone)",
+          "cues": [
+            "hard to",
+            "difficult",
+            "what gets in the way",
+            "who cooks",
+            "shopping",
+            "afford",
+            "cost"
+          ],
+          "feedback_if_missed": "Ask what makes the diet hard - don't just restate it."
+        },
+        {
+          "id": "WG-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "criterion": "Asks about HF symptoms and what led to recent admissions",
+          "cues": [
+            "short of breath",
+            "swelling",
+            "hospital",
+            "last time",
+            "admitted",
+            "what happened"
+          ],
+          "feedback_if_missed": "Ask what symptoms led to his recent hospital visits."
+        },
+        {
+          "id": "WG-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about daily weights, medications and adherence",
+          "cues": [
+            "weigh",
+            "scale",
+            "medication",
+            "pills",
+            "water pill"
+          ],
+          "feedback_if_missed": "Ask about daily weights and medicines."
+        },
+        {
+          "id": "WG-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f2"
+          ],
+          "criterion": "Explores living alone / support / social isolation",
+          "cues": [
+            "live alone",
+            "lives alone",
+            "anyone help",
+            "family",
+            "neighbors",
+            "support"
+          ],
+          "feedback_if_missed": "He lives alone - ask who helps him."
+        },
+        {
+          "id": "WG-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Identifies readmission risk drivers (diet, isolation, self-monitoring) and suggests support (home health, meals, cardiac rehab, social work)",
+          "cues": [
+            "home health",
+            "meals on wheels",
+            "social work",
+            "cardiac rehab",
+            "visiting nurse",
+            "support"
+          ],
+          "feedback_if_missed": "Connect the drivers of readmission to concrete supports."
+        },
+        {
+          "id": "WG-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Negotiates one realistic diet goal with him rather than lecturing",
+          "cues": [
+            "one thing",
+            "what could you",
+            "willing to try",
+            "small change",
+            "what would work"
+          ],
+          "feedback_if_missed": "Negotiate one realistic change instead of lecturing."
+        },
+        {
+          "id": "WG-C1",
+          "layer": "communication",
+          "domain": 2,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Maintains respect and rapport despite his dislike of students (uses humour/his interests, doesn't become defensive)",
+          "cues": [
+            "talking shop",
+            "i appreciate",
+            "thanks for",
+            "i understand",
+            "fair enough",
+            "you know a lot"
+          ],
+          "feedback_if_missed": "Build rapport on his terms - he enjoys 'talking shop'."
+        },
+        {
+          "id": "WG-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "critical",
+          "criterion": "Safety-nets HF warning signs and when to call before it becomes an admission",
+          "cues": [
+            "call",
+            "weight gain",
+            "worse breathing",
+            "swelling",
+            "emergency"
+          ],
+          "feedback_if_missed": "Teach warning signs that should prompt a call before he ends up back in hospital."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "No vitals, labs, EF, medication list or weight in the profile"
+      ]
+    },
+    "5f0f9e8d-b389-4694-8e87-7c78634c7212": {
+      "name": "Vladko Bareche",
+      "age": 31,
+      "sex": "male",
+      "summary": "1 ppd smoker, heavy alcohol use, occasional intranasal cocaine, MSM with inconsistent condom use, vegetarian, recent immigrant with limited support.",
+      "profile_values": {
+        "tobacco": "1 pack/day",
+        "alcohol": "2-8 drinks on 2-6 nights/week (up to ~48/week)",
+        "cocaine": "1-2x/month intranasal"
+      },
+      "expected_interpretation": {
+        "alcohol": "Exceeds NIAAA heavy-drinking threshold (>4/day or >14/week for men)",
+        "tobacco": "1 ppd = 20 cigarettes/day; heavy smoker",
+        "sexual_health": "Indications for HIV/STI testing and PrEP discussion; hepatitis A/B vaccination status"
+      },
+      "criteria": [
+        {
+          "id": "VB-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Takes a substance-use history: tobacco, alcohol (quantity/frequency), other drugs",
+          "cues": [
+            "smok",
+            "cigarette",
+            "alcohol",
+            "drink",
+            "drugs",
+            "substance",
+            "cocaine"
+          ],
+          "feedback_if_missed": "Take a full, quantified substance-use history."
+        },
+        {
+          "id": "VB-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Takes a sexual history respectfully (partners, protection, prior testing)",
+          "cues": [
+            "sexual",
+            "partners",
+            "condom",
+            "protection",
+            "tested",
+            "sti",
+            "hiv"
+          ],
+          "feedback_if_missed": "Take a sexual history using inclusive, non-judgemental language (the 5 Ps)."
+        },
+        {
+          "id": "VB-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f6"
+          ],
+          "criterion": "Explores stress, support and mood after immigration",
+          "cues": [
+            "support",
+            "stress",
+            "lonely",
+            "friends",
+            "mood",
+            "how are you coping",
+            "since moving"
+          ],
+          "feedback_if_missed": "Explore stress, isolation and mood after his move."
+        },
+        {
+          "id": "VB-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "supplementary",
+          "seed_fact_ids": [
+            "f5"
+          ],
+          "criterion": "Asks about diet (vegetarian) and activity",
+          "cues": [
+            "diet",
+            "eat",
+            "vegetarian",
+            "exercise",
+            "cricket",
+            "walk"
+          ],
+          "feedback_if_missed": "Ask about diet and activity."
+        },
+        {
+          "id": "VB-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "critical",
+          "criterion": "Recognises alcohol intake exceeds safe limits and the combined risk with cocaine/tobacco",
+          "cues": [
+            "above the recommended",
+            "more than recommended",
+            "heavy drinking",
+            "14 drinks",
+            "risky",
+            "together with"
+          ],
+          "feedback_if_missed": "Name that his drinking exceeds safe limits (>14/week) and the compounded risk with cocaine."
+        },
+        {
+          "id": "VB-I2",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Identifies need for HIV/STI testing and PrEP and hepatitis vaccination discussion",
+          "cues": [
+            "prep",
+            "hiv test",
+            "sti test",
+            "screening",
+            "hepatitis",
+            "vaccin"
+          ],
+          "feedback_if_missed": "Inconsistent condom use with male partners = offer HIV/STI testing and discuss PrEP."
+        },
+        {
+          "id": "VB-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Uses brief intervention / motivational style (asks readiness, offers support) rather than lecturing",
+          "cues": [
+            "how ready",
+            "on a scale",
+            "would you be interested",
+            "thought about cutting",
+            "what would help",
+            "support to quit"
+          ],
+          "feedback_if_missed": "Use a brief motivational intervention: ask readiness, offer help."
+        },
+        {
+          "id": "VB-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "critical",
+          "criterion": "Assures confidentiality before sensitive questions",
+          "cues": [
+            "confidential",
+            "private",
+            "stays between",
+            "won't be shared"
+          ],
+          "feedback_if_missed": "State confidentiality before sensitive questions."
+        },
+        {
+          "id": "VB-C1",
+          "layer": "communication",
+          "domain": 2,
+          "tier": "critical",
+          "criterion": "Remains non-judgemental about sexuality, substance use and immigration status",
+          "negative_cues": [
+            "illegal",
+            "you shouldn't be",
+            "lifestyle choice",
+            "dangerous lifestyle"
+          ],
+          "feedback_if_missed": "Keep language neutral and non-judgemental."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "No vitals, prior test results, vaccination history or mental-health screen in profile"
+      ]
+    },
+    "e162495c-81de-4cb5-9110-8d69b538dcb2": {
+      "name": "Nisha Patel",
+      "age": 29,
+      "sex": "female",
+      "summary": "Newly diagnosed multiple sclerosis, first hospitalisation, anxious, wants every detail, married IT professional.",
+      "profile_values": {},
+      "expected_interpretation": {
+        "focus": "Emotional support, accurate plain-language information, no false reassurance, refer DMT details to neurology"
+      },
+      "criteria": [
+        {
+          "id": "NP-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "criterion": "Asks what she has been told about MS and what she understands",
+          "cues": [
+            "what have you been told",
+            "what do you understand",
+            "what do you know about"
+          ],
+          "feedback_if_missed": "Start from what she already knows."
+        },
+        {
+          "id": "NP-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about her symptoms (vision, numbness, weakness, balance, bladder, fatigue)",
+          "cues": [
+            "vision",
+            "numb",
+            "tingl",
+            "weak",
+            "balance",
+            "bladder",
+            "fatigue",
+            "symptom"
+          ],
+          "feedback_if_missed": "Ask about her neurological symptoms."
+        },
+        {
+          "id": "NP-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Explores emotional state and specific fears/questions",
+          "cues": [
+            "how are you feeling",
+            "worried",
+            "scared",
+            "overwhelmed",
+            "what questions"
+          ],
+          "feedback_if_missed": "Ask how she is feeling and what her questions are."
+        },
+        {
+          "id": "NP-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "supplementary",
+          "seed_fact_ids": [
+            "f2"
+          ],
+          "criterion": "Explores support (spouse), work impact and future plans",
+          "cues": [
+            "husband",
+            "spouse",
+            "partner",
+            "work",
+            "job",
+            "future",
+            "plans"
+          ],
+          "feedback_if_missed": "Ask about support at home and impact on work/plans."
+        },
+        {
+          "id": "NP-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Recognises anxiety needs addressing and screens mood (depression/anxiety)",
+          "cues": [
+            "mood",
+            "down",
+            "depressed",
+            "anxious",
+            "sleep",
+            "counselor",
+            "support group"
+          ],
+          "feedback_if_missed": "Screen her mood - anxiety and depression are common after an MS diagnosis."
+        },
+        {
+          "id": "NP-D1",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "critical",
+          "criterion": "Explains MS accurately in plain language and invites questions",
+          "cues": [
+            "immune system",
+            "nerves",
+            "coating",
+            "myelin",
+            "what questions do you have"
+          ],
+          "feedback_if_missed": "Explain MS simply (immune system affecting nerve coating) and invite questions."
+        },
+        {
+          "id": "NP-D2",
+          "layer": "educate",
+          "domain": 5,
+          "tier": "important",
+          "criterion": "Mentions treatments exist (disease-modifying therapy) and defers specifics to neurology",
+          "cues": [
+            "treatment",
+            "therapies",
+            "neurologist",
+            "medications that slow"
+          ],
+          "feedback_if_missed": "Let her know effective treatments exist and her neurologist will discuss options."
+        },
+        {
+          "id": "NP-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "critical",
+          "criterion": "Avoids false reassurance or prognostic certainty",
+          "negative_cues": [
+            "you'll be fine",
+            "nothing to worry",
+            "it's not serious",
+            "you will definitely"
+          ],
+          "feedback_if_missed": "Avoid promises about prognosis; be honest about uncertainty."
+        },
+        {
+          "id": "NP-S2",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "supplementary",
+          "criterion": "Safety-nets new/worsening neurological symptoms",
+          "cues": [
+            "new symptoms",
+            "getting worse",
+            "let us know",
+            "call"
+          ],
+          "feedback_if_missed": "Tell her which new symptoms to report."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "No symptoms, exam findings, MRI/CSF results, vitals or medications in profile - student should not invent them"
+      ]
+    },
+    "4720727a-f153-465d-9e36-2b41884a1358": {
+      "name": "Dominic Rivera",
+      "age": 22,
+      "sex": "male",
+      "summary": "Recovering from gunshot wound on trauma service; mistrusts authority/healthcare; protective of younger siblings; cultural-humility scenario.",
+      "profile_values": {},
+      "expected_interpretation": {
+        "focus": "Trauma-informed care, pain and wound assessment, psychological trauma screen, safety, cultural humility"
+      },
+      "criteria": [
+        {
+          "id": "DR-E1",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "criterion": "Assesses pain (location, severity 0-10, control)",
+          "cues": [
+            "pain",
+            "hurt",
+            "scale of",
+            "0 to 10",
+            "1 to 10"
+          ],
+          "feedback_if_missed": "Assess pain with a 0-10 scale."
+        },
+        {
+          "id": "DR-E2",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "criterion": "Asks about wound status / infection signs (fever, redness, drainage)",
+          "cues": [
+            "wound",
+            "fever",
+            "redness",
+            "drainage",
+            "infection",
+            "dressing"
+          ],
+          "feedback_if_missed": "Ask about the wound and signs of infection."
+        },
+        {
+          "id": "DR-E3",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "critical",
+          "criterion": "Screens for psychological trauma (sleep, nightmares, flashbacks, hypervigilance, mood)",
+          "cues": [
+            "sleep",
+            "nightmare",
+            "flashback",
+            "on edge",
+            "mood",
+            "how are you coping"
+          ],
+          "feedback_if_missed": "Screen for acute stress/PTSD symptoms."
+        },
+        {
+          "id": "DR-E4",
+          "layer": "elicit",
+          "domain": 3,
+          "tier": "important",
+          "seed_fact_ids": [
+            "f4"
+          ],
+          "criterion": "Explores family/support and his concerns about siblings",
+          "cues": [
+            "family",
+            "siblings",
+            "brother",
+            "sister",
+            "who's at home",
+            "support"
+          ],
+          "feedback_if_missed": "Ask about his family - he's protective of his siblings."
+        },
+        {
+          "id": "DR-I1",
+          "layer": "interpret",
+          "domain": 6,
+          "tier": "important",
+          "criterion": "Assesses safety at discharge / risk of further violence and offers violence-intervention or social work",
+          "cues": [
+            "feel safe",
+            "safe at home",
+            "safety",
+            "social work",
+            "violence intervention",
+            "program"
+          ],
+          "feedback_if_missed": "Assess safety and offer violence-intervention / social-work support."
+        },
+        {
+          "id": "DR-C1",
+          "layer": "communication",
+          "domain": 2,
+          "tier": "critical",
+          "seed_fact_ids": [
+            "f3"
+          ],
+          "criterion": "Acknowledges mistrust with cultural humility; explains role; asks permission before sensitive topics",
+          "cues": [
+            "is it okay if",
+            "would you be comfortable",
+            "you don't have to",
+            "i understand why",
+            "trust",
+            "your choice"
+          ],
+          "feedback_if_missed": "Acknowledge his mistrust, ask permission, and give him control over what he shares."
+        },
+        {
+          "id": "DR-S1",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "critical",
+          "criterion": "Explains confidentiality and its limits honestly; does not interrogate about the shooting",
+          "cues": [
+            "confidential",
+            "private",
+            "not the police",
+            "you don't have to tell"
+          ],
+          "negative_cues": [
+            "who shot you",
+            "were you in a gang",
+            "what did you do"
+          ],
+          "feedback_if_missed": "Clarify confidentiality and avoid interrogating him about the event."
+        },
+        {
+          "id": "DR-S2",
+          "layer": "safety",
+          "domain": 7,
+          "tier": "important",
+          "criterion": "Screens for self-harm/suicidal thoughts when exploring mood",
+          "cues": [
+            "hurting yourself",
+            "suicid",
+            "end your life",
+            "harm yourself"
+          ],
+          "feedback_if_missed": "If mood is low, screen for self-harm risk."
+        }
+      ],
+      "profile_gaps_to_acknowledge": [
+        "Injury site, surgery, vitals, labs (Hgb), medications, pain scores not in profile"
+      ]
+    }
+  },
+  "score_payload_example": {
+    "encounter_id": "uuid",
+    "patient_id": "6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8",
+    "criteria_version": "0.2.0-draft",
+    "status": "auto_scored_pending_faculty_review",
+    "domains": [
+      {
+        "id": 6,
+        "key": "clinical_reasoning_and_synthesis",
+        "score": 2,
+        "coverage": 0.5,
+        "capped_by": [
+          "YA-I1"
+        ],
+        "met": [
+          "U-REAS-2"
+        ],
+        "missed": [
+          "YA-I1",
+          "U-REAS-1"
+        ]
+      }
+    ],
+    "criteria_results": [
+      {
+        "id": "YA-I1",
+        "met": false,
+        "evidence": [],
+        "feedback": "Explicitly interpret the reading: 155/110 is Stage 2 hypertension (>=140/90)."
+      },
+      {
+        "id": "YA-E1",
+        "met": true,
+        "evidence": [
+          {
+            "turn_id": "t5",
+            "quote": "Can we look at your blood pressure reading?"
+          }
+        ]
+      }
+    ],
+    "unsafe_actions": [],
+    "total": 19,
+    "available_points": 28,
+    "na_domains": 0,
+    "review_required": false,
+    "strengths": [
+      "..."
+    ],
+    "gaps": [
+      "..."
+    ],
+    "next_attempt_suggestions": [
+      "..."
+    ]
+  },
+  "vital_sign_rules": {
+    "_note": "Generic templates - generated automatically from whatever vitals a case contains, so they work for any patient faculty create. Faculty may override thresholds per case (e.g. COPD SpO2 baseline).",
+    "per_abnormal_vital": [
+      {
+        "id": "V1",
+        "name": "Recognized",
+        "domain": 6,
+        "tier": "critical",
+        "met_when": "Student names/acknowledges the abnormal value or rechecks it",
+        "feedback_if_missed": "You did not comment on the abnormal {vital} ({value}). Name it and say why it matters."
+      },
+      {
+        "id": "V2",
+        "name": "Assessed",
+        "domain": 3,
+        "tier": "important",
+        "met_when": ">=2 items from the abnormality's assess list asked/ordered",
+        "feedback_if_missed": "Follow up the abnormal {vital} with targeted questions: {assess}."
+      },
+      {
+        "id": "V3",
+        "name": "Treated / escalated",
+        "domain": 6,
+        "also_domain": 7,
+        "tier": "critical",
+        "met_when": "States an expected first action from the abnormality's treat list",
+        "feedback_if_missed": "State the first action for {abnormality}: {treat}."
+      },
+      {
+        "id": "V4",
+        "name": "Reassessed",
+        "domain": 7,
+        "tier": "supplementary",
+        "optional": true,
+        "met_when": "Requests repeat vitals after a V3 action",
+        "feedback_if_missed": "Recheck the vitals after your intervention."
+      }
+    ],
+    "encounter_wide": [
+      {
+        "id": "VA",
+        "name": "Full set obtained",
+        "domain": 3,
+        "tier": "important",
+        "met_when": "HR, BP, RR, SpO2, temperature all reviewed (+ pain/glucose when relevant)"
+      },
+      {
+        "id": "VB",
+        "name": "Early-warning escalation",
+        "domain": 7,
+        "tier": "critical",
+        "applies_when": "adult, non-pregnant, NEWS2 >=5 or any single parameter = 3",
+        "met_when": "Student escalates (senior / rapid response / higher acuity)",
+        "not_met_if": "discharges or sends home",
+        "unsafe_action_if_not_met": true
+      }
+    ],
+    "news2": {
+      "source": "Royal College of Physicians 2017",
+      "rr": [
+        [
+          8,
+          3
+        ],
+        [
+          11,
+          1
+        ],
+        [
+          20,
+          0
+        ],
+        [
+          24,
+          2
+        ],
+        [
+          999,
+          3
+        ]
+      ],
+      "spo2_scale1": [
+        [
+          91,
+          3
+        ],
+        [
+          93,
+          2
+        ],
+        [
+          95,
+          1
+        ],
+        [
+          100,
+          0
+        ]
+      ],
+      "on_oxygen": 2,
+      "sbp": [
+        [
+          90,
+          3
+        ],
+        [
+          100,
+          2
+        ],
+        [
+          110,
+          1
+        ],
+        [
+          219,
+          0
+        ],
+        [
+          999,
+          3
+        ]
+      ],
+      "hr": [
+        [
+          40,
+          3
+        ],
+        [
+          50,
+          1
+        ],
+        [
+          90,
+          0
+        ],
+        [
+          110,
+          1
+        ],
+        [
+          130,
+          2
+        ],
+        [
+          999,
+          3
+        ]
+      ],
+      "consciousness_not_alert": 3,
+      "temp_c": [
+        [
+          35.0,
+          3
+        ],
+        [
+          36.0,
+          1
+        ],
+        [
+          38.0,
+          0
+        ],
+        [
+          39.0,
+          1
+        ],
+        [
+          99,
+          2
+        ]
+      ],
+      "_format": "[upper_bound_inclusive, points] evaluated in order",
+      "response": {
+        "0": "routine",
+        "1-4": "nurse assessment",
+        "single_3": "urgent clinician review",
+        "5-6": "urgent response; consider sepsis",
+        ">=7": "emergency response"
+      }
+    },
+    "abnormalities": [
+      {
+        "key": "hypoxemia",
+        "trigger": "SpO2 <94 (or <88 if COPD scale 2)",
+        "assess": [
+          "respiratory rate",
+          "work of breathing",
+          "lung exam",
+          "copd history",
+          "blood gas",
+          "chest x-ray"
+        ],
+        "treat": [
+          "oxygen titrated to 94-98% (88-92% COPD)",
+          "sit upright",
+          "escalate if not improving"
+        ],
+        "source": "BTS 2017"
+      },
+      {
+        "key": "tachycardia",
+        "trigger": "HR >100",
+        "assess": [
+          "pain",
+          "fever",
+          "bleeding",
+          "dehydration",
+          "anxiety",
+          "medications/caffeine",
+          "ecg"
+        ],
+        "treat": [
+          "treat cause",
+          "ECG + escalate if HR >=150 or unstable"
+        ],
+        "source": "AHA ACLS 2020"
+      },
+      {
+        "key": "bradycardia",
+        "trigger": "HR <50 with symptoms",
+        "assess": [
+          "dizziness",
+          "syncope",
+          "beta-blocker/digoxin",
+          "ecg"
+        ],
+        "treat": [
+          "ECG",
+          "escalate",
+          "atropine if unstable"
+        ],
+        "source": "AHA ACLS 2020"
+      },
+      {
+        "key": "hypotension",
+        "trigger": "SBP <=90 or MAP <65",
+        "assess": [
+          "bleeding",
+          "infection",
+          "dehydration",
+          "cardiac cause",
+          "mental status",
+          "urine output",
+          "lactate"
+        ],
+        "treat": [
+          "IV access",
+          "fluid bolus (30 mL/kg if sepsis)",
+          "escalate"
+        ],
+        "source": "SSC 2021"
+      },
+      {
+        "key": "severe_hypertension",
+        "trigger": "SBP >180 or DBP >120",
+        "assess": [
+          "chest pain",
+          "headache",
+          "vision change",
+          "neuro deficit",
+          "shortness of breath",
+          "medication adherence"
+        ],
+        "treat": [
+          "no organ damage: resume/adjust oral meds, recheck, follow-up (rapid IV lowering = not met)",
+          "organ damage: emergency, monitored IV therapy"
+        ],
+        "source": "AHA/ACC 2025"
+      },
+      {
+        "key": "stage_2_hypertension_outpatient",
+        "trigger": "SBP >=140 or DBP >=90 (not severe)",
+        "assess": [
+          "symptoms of organ damage",
+          "medication adherence",
+          "home readings",
+          "other CV risk factors"
+        ],
+        "treat": [
+          "confirm with repeat/home BP",
+          "lifestyle (sodium, weight, DASH)",
+          "prescriber to start/adjust therapy (often two drugs for stage 2)",
+          "follow-up"
+        ],
+        "source": "AHA/ACC 2025"
+      },
+      {
+        "key": "fever",
+        "trigger": "Temp >=38.0 C",
+        "assess": [
+          "infection source",
+          "immune status",
+          "travel",
+          "sepsis screen"
+        ],
+        "treat": [
+          "antipyretic",
+          "investigate source",
+          "sepsis bundle if criteria met"
+        ],
+        "source": "NICE NG51 / SSC 2021"
+      },
+      {
+        "key": "hypothermia",
+        "trigger": "Temp <=35.0 C",
+        "assess": [
+          "exposure",
+          "sepsis",
+          "hypothyroid",
+          "drugs"
+        ],
+        "treat": [
+          "active warming",
+          "sepsis screen"
+        ],
+        "source": "NEWS2"
+      },
+      {
+        "key": "tachypnea",
+        "trigger": "RR >=21",
+        "assess": [
+          "spo2",
+          "lung exam",
+          "pain",
+          "glucose/ketones"
+        ],
+        "treat": [
+          "treat cause",
+          "oxygen if hypoxic",
+          "escalate if >=25"
+        ],
+        "source": "NEWS2"
+      },
+      {
+        "key": "hypoglycemia",
+        "trigger": "Glucose <70 mg/dL",
+        "assess": [
+          "symptoms",
+          "insulin/sulfonylurea",
+          "food intake"
+        ],
+        "treat": [
+          "15-20 g fast glucose (IV dextrose/glucagon if cannot swallow)",
+          "recheck in 15 min"
+        ],
+        "source": "ADA"
+      },
+      {
+        "key": "new_confusion",
+        "trigger": "Not alert (ACVPU)",
+        "assess": [
+          "glucose",
+          "spo2",
+          "infection",
+          "medications",
+          "neuro exam"
+        ],
+        "treat": [
+          "check glucose",
+          "escalate"
+        ],
+        "source": "NEWS2"
+      },
+      {
+        "key": "severe_pain",
+        "trigger": "Pain >=7/10",
+        "assess": [
+          "OPQRST",
+          "red flags"
+        ],
+        "treat": [
+          "offer analgesia",
+          "reassess"
+        ],
+        "source": "common practice"
+      },
+      {
+        "key": "high_ldl",
+        "trigger": "LDL >=190 mg/dL (adult)",
+        "assess": [
+          "family history",
+          "other ASCVD risk factors",
+          "secondary causes"
+        ],
+        "treat": [
+          "prescriber discussion of high-intensity statin",
+          "lifestyle"
+        ],
+        "source": "2018 ACC/AHA cholesterol"
+      },
+      {
+        "key": "obesity",
+        "trigger": "BMI >=30 (adult) or >=95th percentile (<20 y)",
+        "assess": [
+          "diet",
+          "activity",
+          "sleep",
+          "readiness to change"
+        ],
+        "treat": [
+          "non-stigmatising counselling",
+          "one small goal",
+          "follow-up"
+        ],
+        "source": "CDC/WHO"
+      }
+    ]
+  }
+}

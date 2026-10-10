@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import mimetypes
+import os
 import secrets
 import time
 import uuid
@@ -15,11 +16,21 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote
 from .store import Store
 from .seed import ROOT
-from .engine import reply, assess, apply_review, includes, is_inquiry, ENGINE_VERSION
+from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
 MAX_BODY=8*1024*1024
+MAX_LOGIN_FAILURES=5
+LOCKOUT_SECONDS=60
+
+# Shared demo password for the faculty view. Change it here, or start the app with
+# TWINVERSE_FACULTY_PASSWORD="..." python3 run.py to override it without editing code.
+DEFAULT_FACULTY_PASSWORD='twinverse-faculty'
+
+def load_faculty_password():
+    env=os.environ.get('TWINVERSE_FACULTY_PASSWORD','').strip()
+    return (env,'TWINVERSE_FACULTY_PASSWORD') if env else (DEFAULT_FACULTY_PASSWORD,'default')
 
 def now():return datetime.now(timezone.utc).isoformat()
 def uid():return str(uuid.uuid4())
@@ -70,8 +81,29 @@ def event(e,kind,**fields):
     v={'id':uid(),'sequence':len(e['events'])+1,'type':kind,'timestamp':now(),**fields}
     e['events'].append(v);return v
 
-def public_encounter(e):
-    return {'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'ended_at':e.get('ended_at'),'messages':e['messages'],'events':e['events'],'records':[f for f in e['profile']['facts'] if f['id'] in e['disclosed'] and f.get('release')!='faculty_only'],'artifacts':[a for a in e.get('attachments',[]) if a['id'] in e['released_artifacts'] and a['kind']=='artifact'],'feedback':e.get('feedback'),'engine_version':ENGINE_VERSION}
+FACULTY_ONLY_DOMAIN_KEYS=['suggested_score','suggested_coverage','suggested_note','suggested_evidence_ids','changed_from_suggestion']
+
+def student_feedback(f):
+    """Final, faculty-approved feedback as the student sees it (no auto-suggestions)."""
+    out={k:v for k,v in copy.deepcopy(f).items() if k not in ['auto_score','suggested_summary']}
+    for d in out['domains']:
+        for k in FACULTY_ONLY_DOMAIN_KEYS:d.pop(k,None)
+    return out
+
+def pending_feedback(f):
+    """Shown to students until faculty release a score: no scores, notes, or auto-suggestions."""
+    return {'status':'awaiting_release','released':False,'total':None,'available_points':0,'review_version':f['review_version'],'input_sha256':f.get('input_sha256'),'checkpoints':f['checkpoints'],
+            'domains':[{k:d[k] for k in ['id','key','name','descriptors','triggers_review_if_score_1']}|{'score':None,'review_note':'','evidence_ids':[],'observations':[]} for d in f['domains']]}
+
+def feedback_for(e,role):
+    f=e.get('feedback')
+    if not f or role=='faculty':return f
+    released=e.get('released_feedback')
+    if released:return {**released,'update_pending':not f.get('released')}
+    return pending_feedback(f)
+
+def public_encounter(e,role='student'):
+    return {'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'ended_at':e.get('ended_at'),'messages':e['messages'],'events':e['events'],'records':[f for f in e['profile']['facts'] if f['id'] in e['disclosed'] and f.get('release')!='faculty_only'],'artifacts':[a for a in e.get('attachments',[]) if a['id'] in e['released_artifacts'] and a['kind']=='artifact'],'feedback':feedback_for(e,role),'engine_version':ENGINE_VERSION}
 
 class Handler(BaseHTTPRequestHandler):
     server_version='TwinVerseLocal/1.0'
@@ -139,6 +171,16 @@ class Handler(BaseHTTPRequestHandler):
         else:self.role=row['role']
         self.token=token
 
+    def check_faculty_password(self,supplied):
+        failures=self.server.login_failures
+        count,locked_until=failures.get(self.token,(0,0))
+        if locked_until>time.time():raise APIError(429,f'Too many incorrect passwords. Try again in {int(locked_until-time.time())+1} seconds.')
+        if not isinstance(supplied,str) or not secrets.compare_digest(supplied.strip().encode(),self.server.faculty_password.encode()):
+            count+=1
+            failures[self.token]=(0,time.time()+LOCKOUT_SECONDS) if count>=MAX_LOGIN_FAILURES else (count,0)
+            raise APIError(403,'Incorrect faculty password.')
+        failures.pop(self.token,None)
+
     def faculty(self):
         if self.role!='faculty':raise APIError(403,'Switch to the Faculty demo workspace for this action.')
 
@@ -164,8 +206,9 @@ class Handler(BaseHTTPRequestHandler):
         if parts==['session']:
             if method=='POST':
                 if b.get('role') not in ['student','faculty']:raise APIError(400,'Choose Student or Faculty.')
+                if b['role']=='faculty' and self.role!='faculty':self.check_faculty_password(b.get('password'))
                 self.role=b['role'];self.store.db.execute('UPDATE sessions SET role=? WHERE token=?',(self.role,self.token));self.store.db.commit()
-            return self.send({'role':self.role,'mode':'local-demo','authentication':'Demo role switch; not production authentication.'})
+            return self.send({'role':self.role,'mode':'local-demo','faculty_login':'password','authentication':'Faculty view requires the shared demo password.'})
         if parts==['rubric'] and method=='GET':return self.send(RUBRIC)
         if parts==['validate'] and method=='POST':
             self.faculty();return self.send(validate_profile(b.get('profile',{})))
@@ -222,7 +265,7 @@ class Handler(BaseHTTPRequestHandler):
             rows=[]
             for e in self.store.all('encounters'):
                 if self.role=='faculty' or e['owner']==self.token:
-                    rows.append({'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'turns':sum(m['role']=='student' for m in e['messages']),'feedback_status':(e.get('feedback') or {}).get('status')})
+                    rows.append({'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'turns':sum(m['role']=='student' for m in e['messages']),'feedback_status':(e.get('feedback') or {}).get('status'),'released':bool(e.get('released_feedback')),'release_pending':bool(e.get('feedback')) and not (e.get('feedback') or {}).get('released')})
             return self.send({'encounters':sorted(rows,key=lambda x:x['started_at'],reverse=True)})
         if parts==['encounters'] and method=='POST':
             c=self.case(b.get('patient_id',''));p=c.get('published')
@@ -234,16 +277,16 @@ class Handler(BaseHTTPRequestHandler):
             event(e,'encounter_started',profile_version=p['version'])
             for fid in e['disclosed']:event(e,'fact_available',fact_id=fid,reason='baseline')
             for aid in e['released_artifacts']:event(e,'artifact_released',artifact_id=aid,reason='baseline')
-            self.save_encounter(e);return self.send(public_encounter(e),201)
+            self.save_encounter(e);return self.send(public_encounter(e,self.role),201)
         if len(parts)>=2 and parts[0]=='encounters':
             e=self.encounter(parts[1])
-            if len(parts)==2 and method=='GET':return self.send(public_encounter(e))
+            if len(parts)==2 and method=='GET':return self.send(public_encounter(e,self.role))
             if parts[2:]==['turns'] and method=='POST':
                 if e['status']!='active':raise APIError(409,'This encounter is finished. Start a new attempt.')
                 text=b.get('text','');rid=b.get('request_id','')
                 if not isinstance(text,str) or not text.strip() or len(text)>4000:raise APIError(422,'Enter a question of 1–4000 characters.')
                 if not isinstance(rid,str) or not rid or len(rid)>100:raise APIError(422,'A unique request ID is required.')
-                if rid in e['requests']:return self.send(public_encounter(e))
+                if rid in e['requests']:return self.send(public_encounter(e,self.role))
                 if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
                 text=text.strip();tid='t'+str(len(e['messages']))
                 e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()})
@@ -257,26 +300,37 @@ class Handler(BaseHTTPRequestHandler):
                     for a in e['attachments']:
                         if a['id'] not in e['released_artifacts'] and any(includes(text,k) for k in a['keywords']):
                             e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
-                e['requests'].append(rid);self.save_encounter(e);return self.send(public_encounter(e))
+                e['requests'].append(rid);self.save_encounter(e);return self.send(public_encounter(e,self.role))
             if parts[2:]==['finish'] and method=='POST':
                 if e['status']=='active':
                     e.update(status='completed',ended_at=now());event(e,'encounter_finished')
                     e['feedback']=assess(e,e['rubric']);event(e,'assessment_created',engine_version=ENGINE_VERSION)
                     e['feedback']['input_sha256']=hashlib.sha256(json.dumps({'profile':e['profile'],'rubric':e['rubric'],'messages':e['messages'],'engine_version':ENGINE_VERSION},sort_keys=True).encode()).hexdigest()
                     self.save_encounter(e)
-                return self.send(public_encounter(e))
+                return self.send(public_encounter(e,self.role))
             if parts[2:]==['review'] and method=='POST':
                 self.faculty()
                 if not e.get('feedback'):raise APIError(409,'Finish the encounter before reviewing it.')
                 if b.get('review_version')!=e['feedback']['review_version']:raise APIError(409,'Feedback has changed. Reload before reviewing.')
                 reviewer=str(b.get('reviewer','')).strip()
                 if not reviewer:raise APIError(422,'Enter the reviewer name.')
-                updated=apply_review(e['feedback'],b.get('ratings',[]),{m['id'] for m in e['messages']},reviewer)
+                updated=apply_review(e['feedback'],b.get('ratings',[]),{m['id'] for m in e['messages']},reviewer,b.get('summary'))
                 e['review_history'].append(e['feedback']);e['feedback']=updated
                 event(e,'faculty_review_saved',reviewer=reviewer,review_version=updated['review_version'])
-                self.save_encounter(e);return self.send(public_encounter(e))
+                self.save_encounter(e);return self.send(public_encounter(e,self.role))
+            if parts[2:]==['release'] and method=='POST':
+                self.faculty()
+                if not e.get('feedback'):raise APIError(409,'Finish the encounter before releasing feedback.')
+                if b.get('review_version')!=e['feedback']['review_version']:raise APIError(409,'Feedback has changed. Reload before releasing.')
+                reviewer=str(b.get('reviewer') or e['feedback'].get('reviewer','')).strip()
+                if not reviewer:raise APIError(422,'Enter the reviewer name.')
+                try:e['feedback']=release_feedback(e['feedback'],reviewer)
+                except ValueError as err:raise APIError(422,str(err))
+                e['released_feedback']=student_feedback(e['feedback'])
+                event(e,'feedback_released',reviewer=reviewer,review_version=e['feedback']['review_version'])
+                self.save_encounter(e);return self.send(public_encounter(e,self.role))
             if parts[2:]==['export'] and method=='GET':
-                return self.send(public_encounter(e),headers={'Content-Disposition':f'attachment; filename="encounter-{e["id"]}.json"'})
+                return self.send(public_encounter(e,self.role),headers={'Content-Disposition':f'attachment; filename="encounter-{e["id"]}.json"'})
             if len(parts)==4 and parts[2]=='artifacts' and method=='GET':
                 if parts[3] not in e['released_artifacts']:raise APIError(403,'This record has not been released in this encounter.')
                 event(e,'artifact_opened',artifact_id=parts[3]);self.save_encounter(e)
@@ -306,7 +360,11 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
-def make_server(port=8000,db_path=None,verbose=True):
+def make_server(port=8000,db_path=None,verbose=True,faculty_password=None):
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
     s.store=Store(db_path or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
+    s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()
+    s.login_failures={}
+    # Faculty access never survives a restart: every browser must enter the password again.
+    s.store.db.execute("UPDATE sessions SET role='student'");s.store.db.commit()
     return s

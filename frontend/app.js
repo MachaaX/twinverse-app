@@ -154,7 +154,7 @@ function inputModeUI(){
     <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
       <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
         ${icon('mic')}
-        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
+        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Speak'}</span>
       </button>
       <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
         ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
@@ -382,7 +382,7 @@ function updateVoiceUI(){
     voiceBtn.className = `voice-btn ${S.isListening?'listening':''}`;
     voiceBtn.style.borderColor = S.isListening?'#e74c3c':'#1e584b';
     voiceBtn.style.background = S.isListening?'#e74c3c':'#1e584b';
-    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Tap to Speak'}`;
+    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Speak'}`;
   }
 
   if(transcriptEl && !S.isListening){

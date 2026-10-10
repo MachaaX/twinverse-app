@@ -19,6 +19,7 @@ from .store import Store
 from .seed import ROOT
 from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
 from . import generator, dialogue
+from .cloud_storage import CloudStorage, CloudStorageError
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
@@ -183,6 +184,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.slow_generator_call(body)
             turn=re.fullmatch(r'/api/encounters/([^/]+)/turns',self.path_only)
             if method=='POST' and turn:return self.generative_turn(turn.group(1),body)
+            publish=re.fullmatch(r'/api/patients/([^/]+)/publish',self.path_only)
+            if method=='POST' and publish:return self.publish_case(publish.group(1),body)
             with self.server.store.lock:
                 self.session()
                 self.route(method,body)
@@ -331,6 +334,49 @@ class Handler(BaseHTTPRequestHandler):
 
     def save_encounter(self,e):self.store.put('encounters',e['id'],e,e['owner'])
 
+    def publish_case(self,pid,b):
+        """Snapshot under the local lock; perform cloud IO without blocking readers."""
+        with self.store.lock:
+            self.session();self.faculty();c=self.case(pid)
+            if pid in self.server.publishing_cases:raise APIError(409,'This patient is being approved. Wait for the save to finish.')
+            if b.get('approved') is not True:raise APIError(422,'Confirm faculty review before publishing.')
+            if 'draft_version' in b and b['draft_version']!=c['draft']['version']:
+                raise APIError(409,'This case changed. Reload it before approving.')
+            v=validate_profile(c['draft'])
+            if v['errors']:raise APIError(422,' '.join(v['errors']))
+            attachments=self.attachments(pid)
+            p=copy.deepcopy(c['draft'])
+            p.pop('cloud_storage',None)
+            p.update(status='published',version=c['draft']['version']+1,approved_at=now(),
+                     approval='Local faculty demo review',attachment_ids=[a['id'] for a in attachments])
+            files=[]
+            if self.server.cloud_storage.enabled:
+                files=[(json.loads(row['metadata']),bytes(row['content'])) for row in
+                       self.store.db.execute('SELECT metadata,content FROM attachments WHERE case_id=?',(pid,))]
+                # Organizer portraits are static assets rather than attachment rows.
+                image=p.get('image','')
+                if image.startswith('/assets/patients/'):
+                    path=(FRONTEND/image.lstrip('/')).resolve()
+                    if not path.is_relative_to((FRONTEND/'assets/patients').resolve()) or not path.is_file():
+                        raise APIError(422,'The patient portrait is missing. Restore it before approving.')
+                    raw=path.read_bytes()
+                    files.append(({'id':'portrait-'+pid,'name':path.name,'kind':'portrait',
+                                   'mime':mimetypes.guess_type(path.name)[0] or 'image/jpeg',
+                                   'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()},raw))
+            self.server.publishing_cases.add(pid)
+        try:
+            receipt=self.server.cloud_storage.publish(p,files)
+            if receipt:p['cloud_storage']=receipt
+            with self.store.lock:
+                if c.get('published'):c['history'].append(c['published'])
+                c.update(draft=p,published=copy.deepcopy(p));self.store.put('cases',pid,c)
+            return self.send({'profile':p,'attachments':attachments,'validation':v,
+                              'storage':self.server.cloud_storage.status()})
+        except CloudStorageError as exc:
+            raise APIError(502,f'Approval could not finish. Your draft and previous published version are preserved. {exc}') from None
+        finally:
+            with self.store.lock:self.server.publishing_cases.discard(pid)
+
     def route(self,method,b):
         parts=self.path_only.strip('/').split('/')[1:]
         if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False})
@@ -357,6 +403,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(csv_text(rows,['created_at','status','role','category_label','message','context_route','context_patient','context_encounter_id','context_turn_id','context_user_agent','id']).encode(),content_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="twinverse-reports.csv"'})
             raise APIError(404,'Unknown export.')
         if parts==['rubric'] and method=='GET':return self.send(RUBRIC)
+        if parts==['storage','status'] and method=='GET':
+            self.faculty();return self.send(self.server.cloud_storage.status())
         if parts and parts[0]=='generator':
             self.faculty()
             if parts==['generator','status'] and method=='GET':return self.send(generator.live_status())
@@ -386,6 +434,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({'profile':p,'attachments':[],'validation':v},201)
         if len(parts)>=2 and parts[0]=='patients':
             self.faculty();c=self.case(parts[1])
+            if method!='GET' and parts[1] in self.server.publishing_cases:
+                raise APIError(409,'This patient is being approved. Wait for the save to finish.')
             if len(parts)==2 and method=='DELETE':
                 # Keep a tombstone so an empty collection is not reseeded on restart.
                 # Encounter snapshots and their attachment downloads remain available.
@@ -400,14 +450,6 @@ class Handler(BaseHTTPRequestHandler):
                 c['draft']=p;self.store.put('cases',parts[1],c)
                 return self.send({'profile':p,'attachments':self.attachments(parts[1]),'validation':v})
             if parts[2:]==['validate'] and method=='POST':return self.send(validate_profile(b.get('profile',c['draft'])))
-            if parts[2:]==['publish'] and method=='POST':
-                if b.get('approved') is not True:raise APIError(422,'Confirm faculty review before publishing.')
-                v=validate_profile(c['draft'])
-                if v['errors']:raise APIError(422,' '.join(v['errors']))
-                if c.get('published'):c['history'].append(c['published'])
-                p=copy.deepcopy(c['draft']);p.update(status='published',version=c['draft']['version']+1,approved_at=now(),approval='Local faculty demo review',attachment_ids=[a['id'] for a in self.attachments(parts[1])])
-                c.update(draft=p,published=copy.deepcopy(p));self.store.put('cases',parts[1],c)
-                return self.send({'profile':p,'attachments':self.attachments(parts[1]),'validation':v})
             if parts[2:]==['attachments'] and method=='POST':
                 name=Path(str(b.get('name',''))).name
                 ext=Path(name).suffix.lower()
@@ -570,9 +612,11 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
-def make_server(port=8000,db_path=None,verbose=True,faculty_password=None):
+def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None):
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
     s.store=Store(db_path or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
+    s.cloud_storage=cloud_storage if cloud_storage is not None else CloudStorage()
+    s.publishing_cases=set()
     s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()
     s.login_failures={};s.report_times={};s.dev_sessions=set()  # developer access never survives a restart
     s.developer_password=load_developer_password()

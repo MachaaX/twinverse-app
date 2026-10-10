@@ -69,6 +69,16 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 
 Draft changes do not modify the last published version. Publish to make edits available to new encounters. Existing encounters always retain the profile, attachments, and rubric snapshots they started with.
 
+### Save faculty approvals to AWS
+
+Optional AWS storage saves each approved patient profile to PostgreSQL and its
+attached files to S3 before publishing. Failed cloud saves preserve the local draft
+and previous published version. Configure existing endpoints and permissions with
+the [step-by-step AWS storage setup](docs/AWS_STORAGE_SETUP.md), starting from
+`.env.example` and `requirements-cloud.txt`. No AWS administrator role is needed to
+use resources that their owner has provisioned and granted access to. Local mode
+remains available; drafts and encounters continue to use SQLite.
+
 ## Automatic scoring and faculty release
 
 1. When a student finishes, the app drafts a score from `data/clinical_scoring_criteria.json` (communication, vital-sign/NEWS2 and per-patient clinical criteria).

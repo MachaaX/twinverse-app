@@ -64,13 +64,19 @@
 
 ## Credentials and application data
 
-- `/etc/twinverse/app.env` contains temporary AWS credentials, existing S3/RDS
-  settings, and private faculty/developer passwords. It is readable only by root;
+- `/etc/twinverse/app.env` contains S3/RDS settings, private faculty/developer
+  passwords, and the three temporary AWS credentials transferred with your
+  explicit approval on October 10, 2026. A live hosted faculty approval saved a
+  synthetic profile to PostgreSQL and TXT/PDF files to S3; downloaded file bytes,
+  hashes, and MIME types matched. The test case and its cloud copies were removed.
+  The file is readable only by root;
   systemd supplies the values to the app. It is outside all releases and Git.
-- The corresponding private local file is `.env.hosted` (Git-ignored, mode `0600`).
-  Open it locally to find `TWINVERSE_FACULTY_PASSWORD` and
-  `TWINVERSE_DEVELOPER_PASSWORD`. The public deployment rejects the repository's
-  default passwords.
+- Sign-in passwords are generated directly on EC2. View the two
+  `TWINVERSE_FACULTY_PASSWORD` / `TWINVERSE_DEVELOPER_PASSWORD` values there with
+  `sudoedit /etc/twinverse/app.env`. As requested, these passwords stay on EC2;
+  they were not downloaded into a local `.env.hosted` file. Use the faculty
+  password when signing in as Faculty, or the developer password for developer
+  access. The public deployment rejects the repository's default passwords.
 - When workshop credentials expire, get a fresh matching access key, secret key,
   and session token. On EC2, edit only those three values and restart:
 
@@ -79,12 +85,35 @@
   sudo systemctl restart twinverse
   ```
 
+- Verify the refreshed settings from the server without displaying credentials:
+
+  ```bash
+  cd /opt/twinverse/current
+  sudo env TWINVERSE_ENV_FILE=/etc/twinverse/app.env \
+    .venv/bin/python -m backend.cloud_storage check
+  ```
+
+  Expect `OK postgresql` and `OK s3`, then sign in again and approve a synthetic
+  patient with a small TXT/PDF attachment. Saved drafts stay local until approval.
+
 - IAM PostgreSQL tokens are generated anew for each connection. Expired workshop
   credentials also prevent S3 uploads and future database connections. The current
   web EC2 instance has no IAM instance profile; a resource owner can later provide
   an EC2 role with S3 and `rds-db:connect` access for unattended AWS storage. Once
   that role is attached, remove the three static temporary credentials and any
   `AWS_PROFILE` setting from the server environment, then restart.
+- Live patient generation reads `AWS_BEARER_TOKEN_BEDROCK` from the same private
+  server configuration. The supplied Bedrock key was installed on EC2 with your
+  explicit authorization; it is outside Git and application releases. The hosted
+  connection test succeeded with Claude Sonnet 5 through Bedrock Runtime in
+  `us-west-2`. A live generation test also created a valid patient draft and
+  portrait; that synthetic draft was removed without publishing it. To replace
+  an expired key, edit just `AWS_BEARER_TOKEN_BEDROCK` with
+  `sudoedit /etc/twinverse/app.env`, then `sudo systemctl restart twinverse`.
+  Sign in as Faculty, open **Generate patient with AI**, and use **Test connection**
+  before generating a patient draft. Short-term keys expire after at most 12 hours
+  or when the underlying session expires, whichever is earlier.
+  [AWS Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)
 - Drafts, encounters, sources, portraits, feedback and reports live in
   `/var/lib/twinverse/twinverse.sqlite3`. Approved profiles also go to PostgreSQL
   and files to S3. Releases do not erase this workspace. The pre-existing EC2

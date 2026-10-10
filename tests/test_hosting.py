@@ -75,6 +75,19 @@ class HostedApiTests(unittest.TestCase):
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_build_runs_without_production_credentials(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base=Path(temp); state=base/'state'; state.mkdir()
+            with patch.object(deployer,'BASE',base), patch.object(deployer,'STATE',state), \
+                 patch.object(deployer,'run') as run:
+                release=deployer.build_release(base/'repo.git','a'*40)
+            builds=[call for call in run.call_args_list if call.args[0]=='/usr/sbin/runuser']
+            self.assertEqual(len(builds),4)
+            for call in builds:
+                self.assertEqual(call.args[1:4],('-u','twinverse-build','--'))
+                self.assertFalse(any(key.startswith(('AWS_','PG','TWINVERSE_')) for key in call.kwargs['env']))
+            self.assertTrue((release/'.ready').is_file())
+
     def test_only_exact_main_push_success_can_deploy(self):
         good = {'id':1,'run_attempt':1,'head_sha':'correct','head_branch':'main','event':'push',
                 'status':'completed','conclusion':'success'}

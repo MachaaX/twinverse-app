@@ -140,7 +140,7 @@ def build_release(repository, sha):
     environment = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': '/var/lib/twinverse-build',
                    'LANG': 'C.UTF-8', 'PYTHONDONTWRITEBYTECODE': '1'}
     def build(*args):
-        run('runuser', '-u', BUILD_USER, '--', *args, cwd=release, env=environment, timeout=600)
+        run('/usr/sbin/runuser', '-u', BUILD_USER, '--', *args, cwd=release, env=environment, timeout=600)
     python = str(release / '.venv/bin/python')
     try:
         build('python3', '-m', 'venv', str(release / '.venv'))

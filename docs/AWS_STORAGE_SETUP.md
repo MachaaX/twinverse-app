@@ -33,6 +33,11 @@ authentication credential.
   synthetic profile to PostgreSQL and uploaded TXT/PDF files to S3. Downloads
   matched the original bytes and hashes. The verification's test records and
   objects were then removed; existing records were untouched.
+- The hosted app at `https://44.246.200.136` also passed this approval/upload/
+  download test after the approved AWS credential transfer. Its server-only
+  configuration is `/etc/twinverse/app.env`; sign-in passwords stay on EC2.
+  Follow [the EC2 walkthrough](EC2_DEPLOYMENT.md) to sign in, refresh workshop
+  credentials on the server, and deploy changes from GitHub.
 - The resource owner must enable IAM database authentication, grant `rds_iam`
   to the database login, and allow your AWS identity `rds-db:connect` for that
   cluster's database user. Generating a signed token alone does not prove those

@@ -1,149 +1,159 @@
+"""Deterministic sample adapter. No LLM or external service is called.
+
+All patient-specific behavior comes from fact data, not condition branches.
+Keyword observations are evidence candidates, never validated competency ratings.
+"""
+import copy
 import re
-import os
-import json
-import requests
+from datetime import datetime, timezone
+from .scoring import auto_score
+
+ENGINE_VERSION = 'sample-rules-1.0.0'
+
+TOPICS = {
+    'concern': ['what brings', 'brought you', 'main concern', 'chief concern', 'chief complaint', 'how can i help', 'reason for', 'symptom', 'feeling today', 'going on', 'diagnos', 'condition', 'medical history'],
+    'background': ['work', 'job', 'occupation', 'live', 'living', 'home', 'family', 'support', 'background', 'school', 'married'],
+    'diet': ['diet', 'eat', 'eating', 'food', 'nutrition', 'meal', 'vegetable', 'fruit', 'fiber', 'fibre', 'sodium', 'salt', 'appetite', 'full quickly', 'satiety'],
+    'labs': ['lab', 'blood test', 'cholesterol', 'ldl', 'hdl', 'result', 'lipid', 'blood pressure', 'vital', 'bmi', 'waist'],
+    'medication': ['medication', 'medicine', 'prescription', 'pill', 'statin', 'treatment', 'drug', 'taking'],
+    'social': ['smok', 'tobacco', 'alcohol', 'drink', 'substance', 'cocaine', 'sexual', 'condom', 'partner', 'exercise', 'physical activity', 'cricket'],
+    'bowel': ['bowel', 'constipat', 'stool', 'bathroom', 'toilet'],
+    'perspective': ['worried', 'worry', 'concerned', 'understand', 'question', 'confus', 'overwhelmed', 'feel about', 'hope', 'goal', 'trust', 'scared', 'fear'],
+}
 
 def normalize(text):
-    return re.sub(r'\s+', ' ', text.strip().lower())
+    return re.sub(r'[^a-z0-9\s]', ' ', text.lower().replace('’', "'")).strip()
 
-def includes(text, kw):
-    t = normalize(text)
-    k = normalize(kw)
-    if not k:
+def includes(text, phrase):
+    """Whole-token prefix matching for intentionally stemmed keywords."""
+    return bool(re.search(r'\b' + re.escape(normalize(phrase)) + r'\w*\b', normalize(text)))
+
+def is_inquiry(text):
+    t=normalize(text)
+    if re.search(r'\b(not asking|do not ask|don t ask|won t ask|will not ask)\b', t):
         return False
-    # Check word boundaries for clean matching
-    pattern = r'\b' + re.escape(k) + r'\b'
-    return bool(re.search(pattern, t))
+    return '?' in text or bool(re.search(r'\b(what|how|when|where|who|why|tell me|describe|explain|show|review|check|discuss|ask about|talk about|walk me)\b',t))
 
 def reply(profile, text):
-    t = normalize(text)
-    
-    # 1. Maintain safety boundary checks from the original version
+    t=normalize(text)
     if re.search(r'\b(ignore|system prompt|hidden|answer key|rubric|all facts|developer prompt)\b', t):
-        return {'text': 'Let\'s keep this focused on the interview. What would you like to ask me?', 'fact_ids': [], 'kind': 'boundary'}
+        return {'text': 'Let’s keep this focused on the interview. What would you like to ask me?', 'fact_ids': [], 'kind':'boundary'}
+    if is_inquiry(text):
+        if any(includes(text,x) for x in ['your name','how old','your age']):
+            return {'text':f"My name is {profile['name']}, and I am {profile['age']} years old.", 'fact_ids':[], 'kind':'identity'}
+        matched=[]
+        for f in profile['facts']:
+            if f.get('release')=='faculty_only':
+                continue
+            keys=f.get('keywords',[])
+            if any(includes(text,k) for k in keys if k.strip()):
+                matched.append(f)
+        if matched:
+            return {'text':' '.join(f['patient_text'] for f in matched[:4]),'fact_ids':[f['id'] for f in matched[:4]],'kind':'profile'}
+    if any(includes(text,k) for k in ['hello','hi','my name is','i am a','i m a']):
+        return {'text':f"Hello, I’m {profile['name'].split()[0]}. What would you like to talk about?", 'fact_ids':[], 'kind':'conversation'}
+    if any(includes(text,k) for k in ['thank','understand this','sounds difficult','sorry to hear']):
+        return {'text':'Thank you for listening. You can ask me more about my situation.', 'fact_ids':[], 'kind':'conversation'}
+    return {'text':'That detail is not provided in my sample case. You can ask about another part of my history.', 'fact_ids':[], 'kind':'not_provided'}
 
-    # 2. Extract API configuration from environment variables
-    # You can configure these in your environment or substitute your key directly below
-    api_key = os.environ.get("LLM_API_KEY", "bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29tLz9BY3Rpb249Q2FsbFdpdGhCZWFyZXJUb2tlbiZYLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFTSUFXVE9XSUpDQ1hEUTRZWFpRJTJGMjAyNjEwMTAlMkZ1cy1lYXN0LTElMkZiZWRyb2NrJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjEwMTBUMTgzNzAyWiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPUlRb0piM0pwWjJsdVgyVmpFSlAlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkZ3RWFDWFZ6TFdWaGMzUXRNU0pHTUVRQ0lCbm16VllTVjZqbjRyOUdIWSUyQlVqZHhPcGwlMkZmMXkwN2tSNWdGc2w2TkRrMUFpQnolMkJqZ2hwMCUyQnFjQUFHVGFONHN3bGZwbkM4TkdTTXlDMFJRVWR1dGpscEhDcTBBd2hjRUFBYUREUTFOREV3TlRJMU5EQXlNU0lNWnNyalYyOWRrUkhTT3c0UEtwRUR3bmgzOGNjWHZWMEVFdDdzTXl5QVNxRjUyUHVYcnJUTnh6NUpOcnlWQ1RPcWc3QTh1TyUyQmM3VkkwM1dZeUJXMUJEWVlFaWg0Y3JmQlJqMHAwWTA4WTRqanFJRmwlMkY4VlpMVW1vJTJCWCUyRjAycHF1QktXU1U5UXJnVkZYSzVoRHZPeTJtNUU0dmNIWjdlVjJkcTUlMkZsUTRZU25ncVZ1b3dpcW95OXdPa3o5JTJCSEtFaTlGc21HWnZSM0JCbW5STTdQWk03eXRlaWM1ZlRFWE1aR0slMkZJNWF0RktzTTAwdzF6Um1UVG54dENUeHROdHlpaldXWk1kcHlycFo3bklDSDVwam4yU0YzeWtCVjQwdEZkakpaaDB0Q2ZMcTRMJTJCZlZGVnk3UFg0UkJ4WEdpdXFZWGloZ3lCa3VIYnRqR014ZEVyNzdkaFp0NVVYc3RHQW5KRUloaXBLOXAwU095Tnl1WiUyQkltbCUyRllLdm5ST2JNOVRhSkVWaWpSUW5KNCUyRkk4b01ia3lTdmJiSlZQNGF2VDJFSHElMkY4NEpjUFRscWhDbWg1RjVrRW9WcTFkRENCVzlTdTJKc3JYbHFMSWJvMEN3OTV1VDZWRHVJcm5jYnVQYjA1RkJhbFBBMFZtMFk2cVhMeXZTVjhIN0REdGpEYmtMbnowd041JTJGNm1Qc2x2M3NKSmViUTZSWGZIZzg1bFhmVmx2M0xyWUt6czdZSlRmS2d3aU1PcDFnWTZ1QUxVd0JtQ0dITVZia3pZRzU0ZGl0MHlRNGF0TklSemZFa0NHamwzaGJ5REFhOEY2N1M1VGIzbUtXaWJpNk84S05obFhxSk1abXgwQkp2TTFGTUhDdFBSTkJsdmdMMzRYTk9vc2Jjb0UzJTJCa3ZJZEVrWkFFUnlkbm9iVmZxOTZGa1hEZXFIeUp1blhxckp3JTJGJTJCVDFNNVIwYWlNY0ExZFRwQW5EaFBuN3BFeURVc3BwZWV5SUlMNGlCJTJCZkpHcHNjQnl4YnREQ0lGMnpSNVVEcDE5Q0U3UTFqWCUyQiUyQjhnd1hXWFlETkx0ejRnNiUyRndkc2ZOcHh0ZXQlMkZxMFpaVHlTYjhlWjZmWklaa2slMkJBZnZkeUsxaGRmZ3YwSXJzSnZDdHpCM2tUOUhEbXM0eTJvZ1FDMHIzeVlIRVBOciUyRlRVTkMlMkJVWEhrT1BydTJKJTJGd0d2NU9QbWJMZGkzamhaN1UwNjU4c1BVdmV0WTVaNUNhd0p1bnlxbk9VSnhDYzduMiUyQnV1NU5oVWdEZEh1RWNVdHgzbkFETmN0SExoNmtuRDglMkJkcFRnaW9qTDglM0QmWC1BbXotU2lnbmF0dXJlPTg2NjcwMDRkN2Y3ZjRmMDJkM2NhMzE5Y2UzY2MzMWRhMWI0YjNiZmM2MTkzNzA5ZTBhZWU2MzUyNDgwNjkxODUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JlZlcnNpb249MQ==")
-    api_url = os.environ.get("LLM_API_URL", "https://bedrock-mantle.east-1.api.aws/openai/v1 (e.g., https://bedrock-mantle.us-east-2.api.aws/openai/v1")
-    model_name = os.environ.get("LLM_MODEL", "gpt-4o") # Change to your target model endpoint if needed
-
-    # 3. Gather patient-safe facts (exclude faculty-only disclosures)
-    safe_facts = [
-        {
-            "id": f.get("id"),
-            "fact_text": f.get("patient_text") or f.get("fact_text"),
-            "keywords": f.get("keywords", [])
-        }
-        for f in profile.get("facts", [])
-        if f.get("release") != "faculty_only"
-    ]
-
-    # 4. Construct the clinical persona prompt matching the hardcoded rules
-    system_prompt = f"""
-You are roleplaying as a virtual clinical patient in a medical training simulation named {profile.get('name')}.
-Patient Demographics & Background:
-- Age: {profile.get('age')}
-- Gender: {profile.get('gender')}
-- Case Summary: {profile.get('case_summary')}
-- Background & Life: {profile.get('background')}
-- Conversational Style & Persona: {profile.get('style')}
-
-Available Clinical Facts and Details You Can Reveal:
-{json.dumps(safe_facts, indent=2)}
-
-Instructions & Guidelines:
-1. Respond naturally and authentically in character as the patient to the student clinician's message.
-2. If the user's inquiry matches or touches upon information contained in the Available Clinical Facts above, disclose that information natively in your dialogue and include its corresponding exact string ID in the "fact_ids" list.
-3. If the user asks about personal identity (name, age), acknowledge it properly and set kind to "identity".
-4. If it is a casual greeting or polite conversational remark, respond warmly and set kind to "conversation".
-5. If the requested clinical information is NOT present in your available facts or case details, politely state that you do not have/recall that information or that it was not provided in your sample case, and set kind to "not provided".
-6. You MUST return your answer strictly as a JSON object with EXACTLY three keys:
-   - "text": The conversational text response spoken by the patient.
-   - "fact_ids": An array of string IDs corresponding to any facts revealed during this turn.
-   - "kind": Exactly one of ["profile", "conversation", "identity", "boundary", "not provided"].
-"""
-
-    payload = {
-        "model": model_name,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text}
-        ],
-        "response_format": {"type": "json_object"}
-    }
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    try:
-        response = requests.post(api_url, json=payload, headers=headers, timeout=20)
-        response.raise_for_status()
-        result = response.json()
-        
-        # Parse the model's structured JSON output
-        content = json.loads(result["choices"]["message"]["content"])
-        
-        return {
-            "text": content.get("text", "Could you tell me a bit more about what you mean?"),
-            "fact_ids": content.get("fact_ids", []),
-            "kind": content.get("kind", "conversation")
-        }
-        
-    except Exception as exc:
-        # Fallback behavior if network or API parsing encounters an issue
-        return {
-            'text': 'That detail is not provided in my sample case. You can ask about another part of my history.',
-            'fact_ids': [],
-            'kind': 'not provided'
-        }
-
+OBSERVATIONS = {
+    'opening_and_purpose': [('Introduction',r'\b(my name is|i am|i m)\b'),('Agenda or concern',r'\b(brings|brought|concern|talk about|discuss)\b')],
+    'rapport_respect_empathy': [('Acknowledgment language',r'\b(thank you|sorry to hear|sounds difficult|understand|appreciate)\b')],
+    'information_gathering': [('Question or invitation',r'\b(what|how|when|tell me|describe|could you)\b')],
+    'listening_and_response_to_cues': [('Clarification language',r'\b(tell me more|you mentioned|you said|what do you mean|can you explain)\b')],
+    'explanation_and_shared_decisions': [('Understanding or preference check',r'\b(in your own words|make sense|questions for me|what matters|would you prefer|how do you feel about)\b')],
+    'clinical_reasoning_and_synthesis': [('Summary language',r'\b(to summarize|to summarise|from what you|what i heard|put this together)\b')],
+    'professionalism_safety_closure': [('Next-step or closure language',r'\b(next step|follow up|followup|before we finish|before we end|plan is|thank you for your time)\b')],
+}
 
 def assess(encounter, rubric):
-    """Retains the baseline evidence gathering and scoring structure for the evaluation rubric."""
-    transcript = encounter.get('transcript', [])
-    domains = rubric.get('domains', [])
-    reports = []
-    
-    for domain in domains:
-        domain_id = domain.get('id')
-        evidence_list = []
-        for turn in transcript:
-            if turn.get('speaker') == 'student':
-                text = turn.get('text', '')
-                for keyword in domain.get('keywords', []):
-                    if includes(text, keyword):
-                        evidence_list.append({
-                            'turn_id': turn.get('id'),
-                            'snippet': text
-                        })
-                        break
-        reports.append({
-            'domain_id': domain_id,
-            'candidate_evidence': evidence_list
-        })
-        
-    return {
-        'reports': reports,
-        'version': 'llm-dynamic-v1'
-    }
+    p=encounter['profile']; messages=encounter['messages']
+    asked={fid for m in messages if m['role']=='patient' and m.get('reply_to') for fid in m.get('fact_ids',[])}
+    checks=[]
+    for o in p.get('objectives',[]):
+        needed=set(o.get('fact_ids',[])); hits=needed & asked
+        status='observed' if needed and needed<=asked else 'partial' if hits else 'not_observed' if needed else 'manual_review'
+        evidence=[m['reply_to'] for m in messages if m['role']=='patient' and m.get('reply_to') and hits.intersection(m.get('fact_ids',[]))]
+        checks.append({'id':o['id'],'label':o['label'],'status':status,'evidence_ids':list(dict.fromkeys(evidence)), 'suggestion':o.get('suggestion','Review the relevant history and ask a focused follow-up.')})
+    domains=[]
+    for d in rubric['domains']:
+        candidates=[]
+        for label,pattern in OBSERVATIONS[d['key']]:
+            for m in messages:
+                if m['role']=='student' and re.search(pattern,normalize(m['text'])):
+                    candidates.append({'label':label,'turn_id':m['id'],'quote':m['text']})
+        domains.append({**copy.deepcopy(d),'score':None,'review_note':'','evidence_ids':[], 'observations':candidates[:6]})
+    auto=auto_score(encounter)
+    by_domain={x['id']:x for x in auto['domains']}
+    for d in domains:
+        a=by_domain.get(d['id'],{})
+        d['suggested_score']=a.get('score')
+        d['suggested_coverage']=a.get('coverage')
+        d['criteria']=[{k:r[k] for k in ['id','criterion','tier','met','evidence','feedback']} for r in auto['criteria_results'] if r['domain']==d['id'] and r['met'] is not None]
+        d['suggested_note']=suggested_note(d,a)
+        d['suggested_evidence_ids']=list(dict.fromkeys(e['turn_id'] for r in d['criteria'] if r['met'] for e in r['evidence'] if e['turn_id'] in {m['id'] for m in messages}))[:6]
+    summary={'comments':'','strengths':auto['strengths'],'improvements':auto['gaps'],'next_steps':[x for x in auto['next_attempt_suggestions'] if x]}
+    return {'engine_version':ENGINE_VERSION,'rubric_version':'organizer-1','status':'awaiting_review','review_version':0,'reviewer':'','domains':domains,'checkpoints':checks,'total':None,'available_points':0,'rated_domains':0,'na_domains':0,'unrated_domains':7,'review_required':False,'review_trigger_domains':[],'coverage_label':'Keyword-based observations; not a clinical competence score.',
+            'auto_score':{k:auto[k] for k in ['criteria_version','total','available_points','na_domains','review_required','unsafe_actions','vitals','profile_gaps_to_acknowledge']},
+            'summary':summary,'suggested_summary':copy.deepcopy(summary),'released':False,'released_at':None,'released_by':'','released_review_version':None}
 
+def suggested_note(d,a):
+    if a.get('score') in (None,'N/A'):
+        return 'No applicable automatic criteria for this domain; suggested N/A. Confirm against the transcript.'
+    crit={r['id']:r for r in d['criteria']}
+    met=[crit[i]['criterion'] for i in a.get('met',[]) if i in crit]
+    missed=[crit[i]['criterion'] for i in a.get('missed',[]) if i in crit]
+    note=f"Auto-suggested {a['score']}/4 ({round(100*a['coverage'])}% of weighted criteria met)."
+    if met:note+=' Met: '+'; '.join(met[:4])+'.'
+    if missed:note+=' Missed: '+'; '.join(missed[:4])+'.'
+    if a.get('capped_by'):note+=' Capped because a critical item or safety gate was not met.'
+    return note
 
-def apply_review(encounter, review_input):
-    """Calculates final scores based on faculty reviews."""
-    ratings = review_input.get('ratings', {})
-    numeric_scores = []
-    for domain_id, rating_val in ratings.items():
-        if isinstance(rating_val, (int, float)):
-            numeric_scores.append(rating_val)
-        elif isinstance(rating_val, str) and rating_val.isdigit():
-            numeric_scores.append(int(rating_val))
-            
-    total = sum(numeric_scores) if numeric_scores else None
-    return {
-        'ratings': ratings,
-        'total_score': total,
-        'status': 'reviewed'
-    }
+def clean_summary(summary):
+    if summary is None:return None
+    if not isinstance(summary,dict):raise ValueError('Summary feedback must be an object.')
+    comments=summary.get('comments','')
+    if not isinstance(comments,str) or len(comments)>4000:raise ValueError('Overall comments must be text under 4000 characters.')
+    out={'comments':comments.strip()}
+    for key in ['strengths','improvements','next_steps']:
+        items=summary.get(key,[])
+        if not isinstance(items,list) or len(items)>20 or any(not isinstance(x,str) or len(x)>500 for x in items):
+            raise ValueError('Feedback lists must contain up to 20 short text items.')
+        out[key]=[x.strip() for x in items if x.strip()]
+    return out
+
+def apply_review(report, ratings, valid_turn_ids, reviewer, summary=None):
+    result=copy.deepcopy(report)
+    summary=clean_summary(summary)
+    incoming={r['key']:r for r in ratings}
+    if len(incoming)!=len(ratings) or set(incoming)!={d['key'] for d in result['domains']}:
+        raise ValueError('Provide exactly one rating for each of the seven domains.')
+    for d in result['domains']:
+        r=incoming[d['key']];score=r.get('score');note=r.get('review_note','').strip()
+        if score is not None and score!='N/A' and (type(score)!=int or score not in [1,2,3,4]):
+            raise ValueError('Scores must be 1–4, N/A, or unreviewed.')
+        evidence=r.get('evidence_ids',[])
+        if not isinstance(evidence,list) or any(x not in valid_turn_ids for x in evidence):
+            raise ValueError('Evidence must reference actual encounter turns.')
+        if score is not None and len(note)<5:
+            raise ValueError('Add a short evidence-based explanation for each rating or N/A decision.')
+        d.update(score=score,review_note=note,evidence_ids=list(dict.fromkeys(evidence)))
+        d['changed_from_suggestion']='suggested_score' in d and score is not None and score!=d['suggested_score']
+    scored=[d for d in result['domains'] if type(d['score'])==int]
+    result.update(total=sum(d['score'] for d in scored) if scored else None,available_points=4*len(scored),rated_domains=len(scored),na_domains=sum(d['score']=='N/A' for d in result['domains']),unrated_domains=sum(d['score'] is None for d in result['domains']))
+    result['review_trigger_domains']=[d['name'] for d in scored if d['score']==1 and d['triggers_review_if_score_1']]
+    result['review_required']=bool(result['review_trigger_domains'])
+    result['status']='reviewed' if result['unrated_domains']==0 else 'partially_reviewed'
+    result['reviewer']=reviewer
+    result['review_version']+=1
+    if summary is not None:result['summary']=summary
+    # Any edit pulls the score back from the student until faculty release it again.
+    result['released']=False
+    return result
+
+def release_feedback(report, reviewer):
+    if report.get('status')!='reviewed':
+        raise ValueError('Rate all seven domains (a score or N/A) and save the review before releasing it.')
+    result=copy.deepcopy(report)
+    result.update(released=True,released_at=datetime.now(timezone.utc).isoformat(),released_by=reviewer,released_review_version=result['review_version'])
+    return result

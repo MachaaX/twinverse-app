@@ -10,6 +10,7 @@ const paths = {
  plus:'M12 5v14 M5 12h14',search:'M21 21l-6-6 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
  check:'M5 12l4 4L19 6',shield:'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6z M8 12l3 3 5-6',
  send:'M22 2L9 15 M22 2l-7 20-6-7-7-6z',close:'M6 6l12 12 M18 6L6 18',
+ trash:'M3 6h18 M9 6V3h6v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7',
  down:'M12 3v12 M7 10l5 5 5-5 M4 16v5h16v-5',info:'M12 11v6 M12 7v1 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
  dot:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 8v4l3 2',
  sound:'M11 5L6 9H3v6h3l5 4z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14',
@@ -86,14 +87,14 @@ function patientCards(){
  return list.length?list.map(p=>`<article class="patient-card"><div class="portrait-wrap">${portrait(p)}<span class="portrait-tag">SYNTHETIC PATIENT</span></div><div class="card-body"><div class="patient-name-line"><h3>${esc(p.name)}</h3><span class="age">${p.age} years · ${esc(p.gender)}</span></div><p class="summary">${esc(p.summary)}</p><div class="card-bottom"><span>Guided interview practice</span><button class="start-link" data-action="start" data-id="${p.id}">Start encounter ${icon('arrow')}</button></div></div></article>`).join(''):'<div class="empty-state"><h3>No matching patients</h3><p>Try a different name or select All patients.</p></div>';
 }
 function studioView(){
- return heading('FACULTY WORKSPACE','Patient Studio','Shape the case. Set the learning goals. Publish when you’re ready.',button('Create patient','navigate','studio/new','btn-primary','plus'))+
+ return heading('FACULTY WORKSPACE','Patient Studio','Shape the case. Set the learning goals. Publish when you’re ready.',`<div class="button-row">${button('Generate patient with AI','navigate','generate','btn','send')}${button('Create patient','navigate','studio/new','btn-primary','plus')}</div>`)+
  notice('The faculty view is protected by a shared demo password. Use synthetic content only; this is still not a production login system.')+
  `<div class="panel"><div class="panel-header"><h2>Your case collection</h2>${badge(S.patients.length+' patients')}</div><div class="table-scroll"><table class="data-table"><thead><tr><th>PATIENT</th><th>CASE</th><th>STATUS</th><th>VERSION</th><th></th></tr></thead><tbody>${S.patients.map(p=>`<tr><td><div class="table-person">${portrait(p)}<div><strong>${esc(p.name)}</strong><div class="muted small">${p.age} years · ${esc(p.gender)}</div></div></div></td><td>${esc(p.summary)}</td><td>${badge(p.status==='published'?'Published':'Draft',p.status==='draft'?'warning':'')}</td><td class="muted">v${p.version}</td><td>${button('Edit case','navigate','studio/'+p.id,'btn-small','studio')}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 function newProfile(){return {name:'',age:30,gender:'Not specified',summary:'',background:'',persona:'Conversational and thoughtful',source_notes:'',version:0,status:'draft',facts:[{id:'f1',label:'Presenting case',record:'',patient_text:'',topic:'concern',keywords:['what brings','main concern','symptoms','medical history'],release:'initial',source:'Faculty-authored local sample'},{id:'f2',label:'Personal background',record:'',patient_text:'',topic:'background',keywords:['work','home','background','family','live'],release:'question',source:'Faculty-authored local sample'}],objectives:[{id:'o1',label:'Explore personal background',fact_ids:['f2'],suggestion:'Ask about the patient’s circumstances and clarify their response.'}],validation_notes:[]};}
 const field=(label,name,value,type='text',hint='')=>`<div class="field"><label for="${name}">${esc(label)}</label>${type==='textarea'?`<textarea id="${name}" name="${name}">${esc(value)}</textarea>`:`<input id="${name}" name="${name}" type="${type}" value="${esc(value)}" ${type==='number'?'min="0" max="120"':''}>`}${hint?`<small>${esc(hint)}</small>`:''}</div>`;
 function editorView(){const p=S.editor;const generated=/AI-generated|Static example of the plain-language generator/.test(p.provenance||'');
- return heading('FACULTY / CASE AUTHORING',p.id?p.name:'Create a new patient','Clinical facts stay under your control. Published encounters use a frozen case version.',button('Back to cases','navigate','studio','btn','back'))+
+ return heading('FACULTY / CASE AUTHORING',p.id?p.name:'Create a new patient','Clinical facts stay under your control. Published encounters use a frozen case version.',`<div class="button-row">${p.id?button('Delete patient profile','delete-case',p.id,'btn-danger','trash'):''}${button('Back to cases','navigate','studio','btn','back')}</div>`)+
  (generated?notice(`<strong>Generated draft.</strong> ${esc(p.provenance)} Check every fact, especially those marked “AI-added detail” in Source, and the review flags below. Then check structure, approve and publish.`,'warning'):'')+
  `<div class="editor-layout"><form class="editor-main" id="case-form">
  <section class="panel"><div class="panel-header"><h2>Patient identity</h2>${badge(p.status==='published'?'Published v'+p.version:'Working draft',p.status==='draft'?'warning':'')}</div><div class="panel-content">${p.image?`<div class="editor-portrait">${portrait(p)}</div>`:''}<div class="form-grid">${field('Full name','name',p.name)}${field('Age','age',p.age,'number')}${field('Gender','gender',p.gender)}${field('Conversational style','persona',p.persona)}<div class="field full"><label for="summary">Case summary</label><textarea id="summary" name="summary">${esc(p.summary)}</textarea><small>Visible in the practice library. Avoid hidden learning answers.</small></div><div class="field full"><label for="background">Background</label><textarea id="background" name="background">${esc(p.background)}</textarea></div></div></div></section>
@@ -303,6 +304,12 @@ document.addEventListener('click',async event=>{
    S.encounter=await api('/encounters/'+S.encounter.id+'/rating','POST',{kind:id,stars,comment:$('#'+id+'-comment').value,reviewer:$('#reviewer-name')?.value});delete S.stars[id];const y=window.scrollY;main.innerHTML=reportView();window.scrollTo(0,y);toast('Thanks, your rating was saved.');return;}
   if(action==='report-status'){const [rid,status]=id.split(':');await api('/reports/'+rid,'PUT',{status});await route();toast(status==='resolved'?'Report marked resolved.':'Report reopened.');return;}
   if(action==='save-case'||action==='publish-case'){el.disabled=true;await saveCase(action==='publish-case');return;}
+  if(action==='delete-case'){dialog(`<h2>Delete patient profile?</h2><p>Delete <strong>${esc(S.editor.name)}</strong> from Patient Studio and the practice library? This cannot be undone. Existing encounters and their records will remain available.</p><div class="dialog-actions">${button('Cancel','close-dialog','','btn')}${button('Delete patient profile','confirm-delete-case',id,'btn-danger','trash')}</div>`);return;}
+  if(action==='confirm-delete-case'){
+   el.disabled=true;await api('/patients/'+encodeURIComponent(id),'DELETE');
+   $('#confirm-dialog').close();S.dirty=false;S.editor=null;S.attachments=[];S.validation=null;
+   location.hash='studio';toast('Patient profile deleted.');return;
+  }
   if(action==='validate-case'){S.editor=collectEditor();S.validation=await api('/validate','POST',{profile:S.editor});$('#validation-result').innerHTML=validationView();toast(S.validation.errors.length?'Resolve the highlighted issues.':'Structural checks complete. Clinical review is still required.',!!S.validation.errors.length);return;}
   if(['add-fact','remove-fact','add-objective','remove-objective'].includes(action)){
    S.editor=collectEditor();S.dirty=true;

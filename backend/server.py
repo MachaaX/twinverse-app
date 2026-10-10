@@ -156,6 +156,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):self.handle_request('GET')
     def do_POST(self):self.handle_request('POST')
     def do_PUT(self):self.handle_request('PUT')
+    def do_DELETE(self):self.handle_request('DELETE')
 
     def handle_request(self,method):
         try:
@@ -316,7 +317,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def case(self,id):
         c=self.store.get('cases',id)
-        if not c:raise APIError(404,'Patient not found.')
+        if not c or c.get('deleted_at'):raise APIError(404,'Patient not found.')
         return c
 
     def encounter(self,id):
@@ -372,6 +373,7 @@ class Handler(BaseHTTPRequestHandler):
         if parts==['patients'] and method=='GET':
             patients=[]
             for c in self.store.all('cases'):
+                if c.get('deleted_at'):continue
                 p=c['draft'] if self.role=='faculty' else c.get('published')
                 if p:patients.append({**brief(p),'has_published_version':bool(c.get('published')),'published_card':brief(c['published']) if c.get('published') else None})
             return self.send({'patients':patients})
@@ -384,6 +386,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({'profile':p,'attachments':[],'validation':v},201)
         if len(parts)>=2 and parts[0]=='patients':
             self.faculty();c=self.case(parts[1])
+            if len(parts)==2 and method=='DELETE':
+                # Keep a tombstone so an empty collection is not reseeded on restart.
+                # Encounter snapshots and their attachment downloads remain available.
+                self.store.put('cases',parts[1],{'deleted_at':now()})
+                return self.send({'deleted':True,'id':parts[1]})
             if len(parts)==2 and method=='GET':return self.send({'profile':c['draft'],'attachments':self.attachments(parts[1]),'validation':validate_profile(c['draft'])})
             if len(parts)==2 and method=='PUT':
                 p=b.get('profile',{});v=validate_profile(p)

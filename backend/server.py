@@ -23,12 +23,26 @@ from . import generator, dialogue
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
 MAX_BODY=8*1024*1024
+REPORT_CATEGORIES={'patient_answer':'Patient said something wrong or made something up','scoring':'Score or feedback looks wrong','bug':'Something broke or did not load','content':'Clinical content looks inaccurate','other':'Other'}
+MAX_REPORTS_PER_HOUR=20
 MAX_LOGIN_FAILURES=5
 LOCKOUT_SECONDS=60
 
 # Shared demo password for the faculty view. Change it here, or start the app with
 # TWINVERSE_FACULTY_PASSWORD="..." python3 run.py to override it without editing code.
 DEFAULT_FACULTY_PASSWORD='twinverse-faculty'
+
+# Separate password for the developer data view (ratings and reports).
+DEFAULT_DEVELOPER_PASSWORD='twinverse-dev'
+
+def load_developer_password():
+    return os.environ.get('TWINVERSE_DEVELOPER_PASSWORD','').strip() or DEFAULT_DEVELOPER_PASSWORD
+
+def csv_text(rows,fields):
+    import csv,io
+    out=io.StringIO();w=csv.DictWriter(out,fieldnames=fields,extrasaction='ignore');w.writeheader()
+    for r in rows:w.writerow({k:('' if r.get(k) is None else r.get(k)) for k in fields})
+    return out.getvalue()
 
 def load_faculty_password():
     env=os.environ.get('TWINVERSE_FACULTY_PASSWORD','').strip()
@@ -108,8 +122,18 @@ def feedback_for(e,role):
     if released:return {**released,'update_pending':not f.get('released')}
     return pending_feedback(f)
 
+def ratings_for(e,role):
+    r=e.get('ratings') or {}
+    return r if role=='faculty' else {k:v for k,v in r.items() if k=='student'}
+
+def clean_rating(b):
+    stars=b.get('stars');comment=b.get('comment','')
+    if type(stars)!=int or not 1<=stars<=5:raise APIError(422,'Choose 1 to 5 stars.')
+    if not isinstance(comment,str) or len(comment)>2000:raise APIError(422,'Keep the comment under 2000 characters.')
+    return {'stars':stars,'comment':comment.strip(),'at':now()}
+
 def public_encounter(e,role='student'):
-    return {'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'ended_at':e.get('ended_at'),'messages':e['messages'],'events':e['events'],'records':[f for f in e['profile']['facts'] if f['id'] in e['disclosed'] and f.get('release')!='faculty_only'],'artifacts':[a for a in e.get('attachments',[]) if a['id'] in e['released_artifacts'] and a['kind']=='artifact'],'feedback':feedback_for(e,role),'engine_version':ENGINE_VERSION}
+    return {'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'clock_started_at':e['clock_started_at'] if 'clock_started_at' in e else e['started_at'],'ended_at':e.get('ended_at'),'messages':e['messages'],'events':e['events'],'records':[f for f in e['profile']['facts'] if f['id'] in e['disclosed'] and f.get('release')!='faculty_only'],'artifacts':[a for a in e.get('attachments',[]) if a['id'] in e['released_artifacts'] and a['kind']=='artifact'],'feedback':feedback_for(e,role),'ratings':ratings_for(e,role),'engine_version':ENGINE_VERSION}
 
 class Handler(BaseHTTPRequestHandler):
     server_version='TwinVerseLocal/1.0'
@@ -182,15 +206,37 @@ class Handler(BaseHTTPRequestHandler):
         else:self.role=row['role']
         self.token=token
 
-    def check_faculty_password(self,supplied):
-        failures=self.server.login_failures
-        count,locked_until=failures.get(self.token,(0,0))
+    def check_faculty_password(self,supplied,expected=None,key=None):
+        failures=self.server.login_failures;key=key or self.token;expected=expected or self.server.faculty_password
+        count,locked_until=failures.get(key,(0,0))
         if locked_until>time.time():raise APIError(429,f'Too many incorrect passwords. Try again in {int(locked_until-time.time())+1} seconds.')
-        if not isinstance(supplied,str) or not secrets.compare_digest(supplied.strip().encode(),self.server.faculty_password.encode()):
+        if not isinstance(supplied,str) or not secrets.compare_digest(supplied.strip().encode(),expected.encode()):
             count+=1
-            failures[self.token]=(0,time.time()+LOCKOUT_SECONDS) if count>=MAX_LOGIN_FAILURES else (count,0)
-            raise APIError(403,'Incorrect faculty password.')
-        failures.pop(self.token,None)
+            failures[key]=(0,time.time()+LOCKOUT_SECONDS) if count>=MAX_LOGIN_FAILURES else (count,0)
+            raise APIError(403,'Incorrect developer password.' if key.startswith('dev:') else 'Incorrect faculty password.')
+        failures.pop(key,None)
+
+    def developer(self):
+        if self.token not in self.server.dev_sessions:raise APIError(403,'Unlock the Developer tab with the developer password.')
+
+    def developer_data(self):
+        reports=sorted(self.store.all('reports'),key=lambda r:r['created_at'],reverse=True)
+        ratings=[]
+        for e in self.store.all('encounters'):
+            f=e.get('feedback') or {}
+            for kind,r in (e.get('ratings') or {}).items():
+                ratings.append({'encounter_id':e['id'],'patient':e['profile']['name'],'kind':kind,'stars':r['stars'],'comment':r.get('comment',''),
+                                'at':r['at'],'by':r.get('by',''),'auto_total':r.get('auto_total',(f.get('auto_score') or {}).get('total')),
+                                'final_total':f.get('total'),'released':bool(e.get('released_feedback')),'turns':sum(m['role']=='student' for m in e['messages'])})
+        ratings.sort(key=lambda r:r['at'],reverse=True)
+        def stats(kind):
+            xs=[r['stars'] for r in ratings if r['kind']==kind]
+            return {'count':len(xs),'average':round(sum(xs)/len(xs),2) if xs else None,'distribution':{str(n):xs.count(n) for n in range(1,6)}}
+        count=lambda key:{k:sum(r[key]==k for r in reports) for k in dict.fromkeys(r[key] for r in reports)}
+        return {'generated_at':now(),'ratings':ratings,'reports':reports,
+                'summary':{'conversation':stats('student'),'auto_score':stats('auto_score'),
+                           'reports_by_category':count('category_label'),'reports_by_status':count('status'),'reports_by_role':count('role'),
+                           'encounters':len(self.store.all('encounters'))}}
 
     def slow_generator_call(self,b):
         """Bedrock calls can take a minute, so they run without holding the store lock."""
@@ -239,7 +285,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
             if e.get('pending_turn'):raise APIError(409,'The patient is still answering the previous question.')
             text=text.strip();tid='t'+str(len(e['messages']))
-            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['pending_turn']=tid
+            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp'];e['pending_turn']=tid
             event(e,'student_turn',turn_id=tid);self.save_encounter(e)
             profile=e['profile'];history=copy.deepcopy(e['messages'][:-1])
             key=dialogue.cache_key(profile,text,e['disclosed'],dialogue.rapport_established(e['messages']))
@@ -293,7 +339,23 @@ class Handler(BaseHTTPRequestHandler):
                 if b.get('role') not in ['student','faculty']:raise APIError(400,'Choose Student or Faculty.')
                 if b['role']=='faculty' and self.role!='faculty':self.check_faculty_password(b.get('password'))
                 self.role=b['role'];self.store.db.execute('UPDATE sessions SET role=? WHERE token=?',(self.role,self.token));self.store.db.commit()
-            return self.send({'role':self.role,'mode':'local-demo','faculty_login':'password','authentication':'Faculty view requires the shared demo password.'})
+            return self.send({'role':self.role,'developer':self.token in self.server.dev_sessions,'mode':'local-demo','faculty_login':'password','authentication':'Faculty view requires the shared demo password.'})
+        if parts==['developer','login'] and method=='POST':
+            self.check_faculty_password(b.get('password'),self.server.developer_password,'dev:'+self.token)
+            self.server.dev_sessions.add(self.token);return self.send({'developer':True})
+        if parts==['developer','logout'] and method=='POST':
+            self.server.dev_sessions.discard(self.token);return self.send({'developer':False})
+        if parts==['developer','data'] and method=='GET':
+            self.developer();return self.send(self.developer_data())
+        if len(parts)==3 and parts[:2]==['developer','export'] and method=='GET':
+            self.developer();d=self.developer_data()
+            if parts[2]=='data.json':return self.send(json.dumps(d,indent=2,ensure_ascii=False).encode(),headers={'Content-Disposition':'attachment; filename="twinverse-feedback-data.json"'})
+            if parts[2]=='ratings.csv':
+                return self.send(csv_text(d['ratings'],['at','kind','stars','comment','patient','encounter_id','by','auto_total','final_total','released','turns']).encode(),content_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="twinverse-ratings.csv"'})
+            if parts[2]=='reports.csv':
+                rows=[{**r,**{'context_'+k:v for k,v in r['context'].items()}} for r in d['reports']]
+                return self.send(csv_text(rows,['created_at','status','role','category_label','message','context_route','context_patient','context_encounter_id','context_turn_id','context_user_agent','id']).encode(),content_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="twinverse-reports.csv"'})
+            raise APIError(404,'Unknown export.')
         if parts==['rubric'] and method=='GET':return self.send(RUBRIC)
         if parts and parts[0]=='generator':
             self.faculty()
@@ -379,7 +441,7 @@ class Handler(BaseHTTPRequestHandler):
             p=copy.deepcopy(p)
             a=[x for x in self.attachments(p['id']) if x['id'] in p.get('attachment_ids',[]) and x['kind']=='artifact']
             e={'id':uid(),'owner':self.token,'profile':p,'rubric':copy.deepcopy(RUBRIC),'status':'active','started_at':now(),'messages':[],'events':[],'disclosed':[f['id'] for f in p['facts'] if f['release']=='initial'],'attachments':a,'released_artifacts':[x['id'] for x in a if x['release']=='initial'],'requests':[],'feedback':None,'review_history':[]}
-            e['messages'].append({'id':'t0','role':'patient','text':f"Hello, I’m {p['name'].split()[0]}. What would you like to talk about?",'timestamp':now(),'fact_ids':[],'kind':'opening'})
+            e['clock_started_at']=None  # the student opens the conversation; the timer starts then
             event(e,'encounter_started',profile_version=p['version'])
             for fid in e['disclosed']:event(e,'fact_available',fact_id=fid,reason='baseline')
             for aid in e['released_artifacts']:event(e,'artifact_released',artifact_id=aid,reason='baseline')
@@ -395,7 +457,7 @@ class Handler(BaseHTTPRequestHandler):
                 if rid in e['requests']:return self.send(public_encounter(e,self.role))
                 if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
                 text=text.strip();tid='t'+str(len(e['messages']))
-                e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()})
+                e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp']
                 event(e,'student_turn',turn_id=tid)
                 r=reply(e['profile'],text)
                 e['messages'].append({'id':'t'+str(len(e['messages'])),'role':'patient','text':r['text'],'timestamp':now(),'fact_ids':r['fact_ids'],'kind':r['kind'],'reply_to':tid})
@@ -429,12 +491,45 @@ class Handler(BaseHTTPRequestHandler):
                 e['released_feedback']=student_feedback(e['feedback'])
                 event(e,'feedback_released',reviewer=reviewer,review_version=e['feedback']['review_version'])
                 self.save_encounter(e);return self.send(public_encounter(e,self.role))
+            if parts[2:]==['rating'] and method=='POST':
+                kind=b.get('kind')
+                if kind=='student':
+                    if self.role=='faculty' and e['owner']!=self.token:raise APIError(403,'Only the student who ran this encounter can rate the conversation.')
+                    if e['status']!='completed':raise APIError(409,'Finish the encounter before rating it.')
+                    rating=clean_rating(b)
+                elif kind=='auto_score':
+                    self.faculty()
+                    if not e.get('feedback'):raise APIError(409,'Finish the encounter before rating the automatic score.')
+                    rating={**clean_rating(b),'by':str(b.get('reviewer') or e['feedback'].get('reviewer') or 'Faculty').strip()[:80],'auto_total':(e['feedback'].get('auto_score') or {}).get('total')}
+                else:raise APIError(422,'Rate the conversation or the automatic score.')
+                e.setdefault('ratings',{})[kind]=rating;event(e,'rating_saved',rating_kind=kind,stars=rating['stars'])
+                self.save_encounter(e);return self.send(public_encounter(e,self.role))
             if parts[2:]==['export'] and method=='GET':
                 return self.send(public_encounter(e,self.role),headers={'Content-Disposition':f'attachment; filename="encounter-{e["id"]}.json"'})
             if len(parts)==4 and parts[2]=='artifacts' and method=='GET':
                 if parts[3] not in e['released_artifacts']:raise APIError(403,'This record has not been released in this encounter.')
                 event(e,'artifact_opened',artifact_id=parts[3]);self.save_encounter(e)
                 return self.download_attachment(parts[3])
+        if parts==['reports'] and method=='POST':
+            category=b.get('category');message=b.get('message','');context=b.get('context') or {}
+            if category not in REPORT_CATEGORIES:raise APIError(422,'Choose what kind of problem this is.')
+            if not isinstance(message,str) or not 5<=len(message.strip())<=2000:raise APIError(422,'Describe the problem in 5 to 2000 characters.')
+            if not isinstance(context,dict):raise APIError(422,'Invalid context.')
+            recent=[t for t in self.server.report_times.get(self.token,[]) if t>time.time()-3600]
+            if len(recent)>=MAX_REPORTS_PER_HOUR:raise APIError(429,'Too many reports from this browser. Try again later.')
+            self.server.report_times[self.token]=recent+[time.time()]
+            ctx={k:str(context.get(k,''))[:200] for k in ['route','encounter_id','turn_id','patient','user_agent'] if context.get(k)}
+            r={'id':uid(),'category':category,'category_label':REPORT_CATEGORIES[category],'message':message.strip(),'role':self.role,'context':ctx,'status':'open','created_at':now()}
+            self.store.put('reports',r['id'],r);return self.send({'id':r['id'],'status':'open'},201)
+        if parts==['reports'] and method=='GET':
+            self.faculty();return self.send({'reports':sorted(self.store.all('reports'),key=lambda r:r['created_at'],reverse=True),'categories':REPORT_CATEGORIES})
+        if len(parts)==2 and parts[0]=='reports' and method=='PUT':
+            self.faculty();r=self.store.get('reports',parts[1])
+            if not r:raise APIError(404,'Report not found.')
+            if b.get('status') not in ('open','resolved'):raise APIError(422,'Status must be open or resolved.')
+            r.update(status=b['status'],updated_at=now());self.store.put('reports',r['id'],r);return self.send(r)
+        if parts==['ratings','summary'] and method=='GET':
+            self.faculty();return self.send(self.ratings_summary())
         if parts==['resources'] and method=='GET':
             self.faculty()
             return self.send({'resources':[{'id':str(i),'name':p.name,'size':p.stat().st_size} for i,p in enumerate(self.resources())]})
@@ -444,6 +539,21 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError,IndexError):raise APIError(404,'Resource not found.')
             return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream',headers={'Content-Disposition':'attachment; filename="'+p.name.encode('ascii','ignore').decode().replace('"','')+'"'})
         raise APIError(404,'Endpoint not found.')
+
+    def ratings_summary(self):
+        convo,auto,by_patient=[],[],{}
+        for e in self.store.all('encounters'):
+            r=e.get('ratings') or {}
+            name=e['profile']['name']
+            if 'student' in r:
+                convo.append({**r['student'],'patient':name,'encounter_id':e['id']})
+                by_patient.setdefault(name,[]).append(r['student']['stars'])
+            if 'auto_score' in r:auto.append({**r['auto_score'],'patient':name,'encounter_id':e['id']})
+        avg=lambda xs:round(sum(xs)/len(xs),2) if xs else None
+        recent=lambda xs:[x for x in sorted(xs,key=lambda x:x['at'],reverse=True) if x['comment']][:10]
+        return {'conversation':{'average':avg([x['stars'] for x in convo]),'count':len(convo),'recent_comments':recent(convo)},
+                'auto_score':{'average':avg([x['stars'] for x in auto]),'count':len(auto),'recent_comments':recent(auto)},
+                'by_patient':sorted([{'patient':k,'average':avg(v),'count':len(v)} for k,v in by_patient.items()],key=lambda x:x['patient'])}
 
     def resources(self):return sorted(p for p in (ROOT/'samples').rglob('*') if p.is_file() and p.suffix.lower() not in ['.png','.jpg'])
 
@@ -464,7 +574,8 @@ def make_server(port=8000,db_path=None,verbose=True,faculty_password=None):
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
     s.store=Store(db_path or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
     s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()
-    s.login_failures={}
+    s.login_failures={};s.report_times={};s.dev_sessions=set()  # developer access never survives a restart
+    s.developer_password=load_developer_password()
     # Faculty access never survives a restart: every browser must enter the password again.
     s.store.db.execute("UPDATE sessions SET role='student'");s.store.db.commit()
     return s

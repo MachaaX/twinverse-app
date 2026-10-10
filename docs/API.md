@@ -22,6 +22,12 @@ All mutation requests use `Content-Type: application/json`. The frontend and API
 | POST | `/api/encounters/{id}/release` | Faculty releases the saved review to the student `{reviewer, review_version}`; requires all seven domains rated or N/A |
 | GET | `/api/encounters/{id}/artifacts/{artifact_id}` | Authorized released artifact download; logs open event |
 | GET | `/api/encounters/{id}/export` | Student-safe JSON export, excluding unreleased case facts |
+| GET | `/api/generator/status` | Faculty: whether live generation is available, model and region |
+| POST | `/api/generator/check` | Faculty: `{request}` → requirement `errors` and `warnings`, no generation |
+| POST | `/api/generator/generate` | Faculty: `{request}` → creates a draft case, reports, portrait and sources with Claude and Stable Image Core on Bedrock; 422 if the request fails the check, 502 for Bedrock errors |
+| POST | `/api/generator/example` | Faculty: creates the static pediatric example draft without a network call |
+| POST | `/api/generator/test` | Faculty: tiny Bedrock request to confirm the key and model work |
+| GET | `/api/portraits/{id}` | Generated patient portrait (any role) |
 | GET | `/api/resources` | Faculty list of original source documents |
 | GET | `/api/resources/{index}` | Faculty source download |
 
@@ -88,3 +94,14 @@ Optional `summary` on `/review`:
 ```
 
 Students never receive auto-suggestions. Before release they get `status: "awaiting_release"` with checkpoints only. `/release` stores a student snapshot; later faculty edits stay hidden (`update_pending: true`) until released again.
+
+## Generator request
+
+```json
+{"text": "Plain-language description, 80+ characters", "temperament": 2, "openness": 4,
+ "files": [{"name": "labs.pdf", "content": "BASE64"}]}
+```
+
+`temperament` and `openness` are whole numbers 1–5. Up to 4 files (PDF, PNG, JPG, TXT, MD; 5 MB each). Generated profiles add `difficulty`, `dialogue_mode` (`generative` or `scripted`), `behavior`, per-fact `sensitivity` (`routine` or `sensitive`), `scoring_criteria` (with `source`), `vitals`, and `image_prompt`. Reports are saved as text artifacts, uploads as faculty-only sources, and the portrait at `GET /api/portraits/{id}`. Profiles always start as unpublished drafts.
+
+Turns on a `generative` case return patient messages with `kind` `generative` (AI, checked) or `scripted_fallback` (approved wording), and `guardrail_blocked` events record each replacement.

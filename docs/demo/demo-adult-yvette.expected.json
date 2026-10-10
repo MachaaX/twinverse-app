@@ -1,0 +1,974 @@
+{
+ "case_id": "demo-adult-yvette",
+ "patient": "Yvette Armstrong",
+ "steps": [
+  {
+   "step": 1,
+   "phase": "Opening",
+   "clinician": "Hello Ms. Armstrong, I'm a student clinician on your care team. Today I'd like to go over your recent diagnosis with you. What brings you in today?",
+   "turn_id": "t1",
+   "patient_reply": "My doctor told me I have high blood pressure, hypertension she called it. Honestly, I left more confused than when I walked in.",
+   "reply_kind": "profile",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-CLOSE-3",
+    "U-OPEN-1",
+    "U-OPEN-3",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 2,
+   "phase": "Opening",
+   "clinician": "What would you like me to call you?",
+   "turn_id": "t3",
+   "patient_reply": "Yvette is fine. Yvette Armstrong.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-OPEN-2"
+   ]
+  },
+  {
+   "step": 3,
+   "phase": "History",
+   "clinician": "Can you tell me about your work and home life?",
+   "turn_id": "t5",
+   "patient_reply": "I work full time for the state. I have an associate's degree in political science, so I like to understand things - but medical words just lose me.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Work and home"
+   ],
+   "criteria_met": [
+    "U-INFO-1",
+    "U-INFO-5",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 4,
+   "phase": "History",
+   "clinician": "What did your doctor tell you about your diagnosis?",
+   "turn_id": "t7",
+   "patient_reply": "My doctor told me, but I just didn't understand what she said. She used a lot of words I didn't know, and I was too embarrassed to ask.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Understanding of diagnosis"
+   ],
+   "criteria_met": [
+    "YA-E2"
+   ]
+  },
+  {
+   "step": 5,
+   "phase": "Empathy",
+   "clinician": "That sounds really frustrating, and it makes sense that it was confusing. How do you feel about all of this?",
+   "turn_id": "t9",
+   "patient_reply": "Overwhelmed, mostly. Everyone keeps telling me to change everything at once, and I don't know where to start.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Feelings about diagnosis"
+   ],
+   "criteria_met": [
+    "U-CUE-2",
+    "U-RAPP-1"
+   ]
+  },
+  {
+   "step": 6,
+   "phase": "History",
+   "clinician": "Let's look at your numbers. Can you tell me your blood pressure reading and your BMI?",
+   "turn_id": "t11",
+   "patient_reply": "At my last visit my blood pressure was 155 over 110, and they told me my BMI is 34.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Blood pressure and BMI"
+   ],
+   "criteria_met": [
+    "U-VITAL-1",
+    "YA-E1"
+   ]
+  },
+  {
+   "step": 7,
+   "phase": "History",
+   "clinician": "Tell me about what you usually eat in a typical day.",
+   "turn_id": "t13",
+   "patient_reply": "Most days I grab lunch in the cafeteria at work. At night I'm tired, so it's usually a canned soup or a frozen dinner.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Typical meals"
+   ],
+   "criteria_met": [
+    "U-INFO-1",
+    "YA-E3"
+   ]
+  },
+  {
+   "step": 8,
+   "phase": "Cues",
+   "clinician": "You mentioned canned soup. What do you know about salt and sodium?",
+   "turn_id": "t15",
+   "patient_reply": "That's the part that confuses me. Is sodium the same thing as salt? I hardly ever use the salt shaker, so I figured salt wasn't my problem.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Sodium vs salt confusion"
+   ],
+   "criteria_met": [
+    "U-CUE-1",
+    "YA-E2",
+    "YA-E3"
+   ]
+  },
+  {
+   "step": 9,
+   "phase": "Grounding check",
+   "clinician": "Have you had any headaches, vision changes, chest pain, or dizziness?",
+   "note": "Not in the approved profile. The patient says so instead of inventing an answer - point this out to judges.",
+   "turn_id": "t17",
+   "patient_reply": "That detail is not provided in my sample case. You can ask about another part of my history.",
+   "reply_kind": "not_provided",
+   "chart_adds": [],
+   "criteria_met": [
+    "YA-E4",
+    "YA-S1"
+   ]
+  },
+  {
+   "step": 10,
+   "phase": "History",
+   "clinician": "Are you taking any medications right now, and do you have any allergies?",
+   "note": "Also not in the profile - second grounding moment.",
+   "turn_id": "t19",
+   "patient_reply": "That detail is not provided in my sample case. You can ask about another part of my history.",
+   "reply_kind": "not_provided",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-INFO-2",
+    "U-INFO-3",
+    "YA-E5"
+   ]
+  },
+  {
+   "step": 11,
+   "phase": "Summary",
+   "clinician": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better.",
+   "turn_id": "t21",
+   "patient_reply": "Yes, that's right. That's exactly where I am.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-REAS-1",
+    "U-SEQ-1",
+    "U-VITAL-1",
+    "YA-E1",
+    "YA-E3",
+    "YA-I1"
+   ]
+  },
+  {
+   "step": 12,
+   "phase": "Education",
+   "clinician": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder.",
+   "turn_id": "t23",
+   "patient_reply": "Oh, so it's like too much pressure pushing on the pipes. Why didn't anyone say it like that before?",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-INFO-5",
+    "U-VITAL-1",
+    "YA-D1",
+    "YA-E1"
+   ]
+  },
+  {
+   "step": 13,
+   "phase": "Education",
+   "clinician": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high.",
+   "turn_id": "t25",
+   "patient_reply": "So salt has sodium in it, and the canned stuff is full of it even if I never touch the shaker. I had no idea.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-VITAL-1",
+    "YA-D2",
+    "YA-E1",
+    "YA-E3",
+    "YA-I2"
+   ]
+  },
+  {
+   "step": 14,
+   "phase": "Education",
+   "clinician": "Checking the nutrition facts label is the easiest way to spot sodium, and fresh foods with herbs and spices are great swaps.",
+   "turn_id": "t27",
+   "patient_reply": "I can do that. I'll look at the soup cans this weekend.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "YA-D3"
+   ]
+  },
+  {
+   "step": 15,
+   "phase": "Shared decision",
+   "clinician": "What feels realistic for you to start with?",
+   "turn_id": "t29",
+   "patient_reply": "I think I could start by checking labels on the soups I buy, and maybe walking at lunch. One or two things at a time.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Readiness and preferences"
+   ],
+   "criteria_met": [
+    "U-EXPL-2"
+   ]
+  },
+  {
+   "step": 16,
+   "phase": "Teach-back",
+   "clinician": "Just to make sure I explained it well, can you tell me back in your own words what we talked about?",
+   "turn_id": "t31",
+   "patient_reply": "Okay. My blood pressure is too high, so my heart has to work harder. Salt has sodium in it, and I should keep sodium under 2,300 milligrams a day by reading labels. And canned soup is a big one.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-CLOSE-1",
+    "U-EXPL-1",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 17,
+   "phase": "Closing",
+   "clinician": "Is there anything else you'd like to ask?",
+   "turn_id": "t33",
+   "patient_reply": "No, I think that covers it. This is the first time it actually made sense.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-ELSE-1"
+   ]
+  },
+  {
+   "step": 18,
+   "phase": "Closing",
+   "clinician": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor.",
+   "turn_id": "t35",
+   "patient_reply": "Okay. Home cuff, labels, and call if it's over 180 or I get chest pain. Thank you - really.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-CLOSE-1",
+    "U-CLOSE-2",
+    "U-CLOSE-3",
+    "YA-E4",
+    "YA-S1"
+   ]
+  }
+ ],
+ "facts_disclosed": [
+  "f1",
+  "f2",
+  "f5",
+  "f6",
+  "f3",
+  "f7",
+  "f4",
+  "f8"
+ ],
+ "facts_not_disclosed": [],
+ "score": {
+  "encounter_id": "demo",
+  "patient_id": "6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8",
+  "patient_name": "Yvette Armstrong",
+  "criteria_version": "0.2.0-draft",
+  "status": "auto_scored_pending_faculty_review",
+  "domains": [
+   {
+    "id": 1,
+    "key": "opening_and_purpose",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-OPEN-1",
+     "U-OPEN-2",
+     "U-OPEN-3"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 2,
+    "key": "rapport_respect_empathy",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-RAPP-1",
+     "U-RAPP-2"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 3,
+    "key": "information_gathering",
+    "score": 4,
+    "coverage": 0.96,
+    "met": [
+     "U-INFO-1",
+     "U-INFO-2",
+     "U-INFO-3",
+     "U-INFO-5",
+     "U-VITAL-1",
+     "YA-E1",
+     "YA-E2",
+     "YA-E3",
+     "YA-E4",
+     "YA-E5",
+     "U-SEQ-1"
+    ],
+    "missed": [
+     "U-INFO-4"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 4,
+    "key": "listening_and_response_to_cues",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-CUE-1",
+     "U-CUE-2",
+     "U-ELSE-1"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 5,
+    "key": "explanation_and_shared_decisions",
+    "score": 4,
+    "coverage": 0.87,
+    "met": [
+     "U-EXPL-1",
+     "U-EXPL-2",
+     "YA-D1",
+     "YA-D2",
+     "YA-D3"
+    ],
+    "missed": [
+     "YA-D4"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 6,
+    "key": "clinical_reasoning_and_synthesis",
+    "score": 3,
+    "coverage": 0.8,
+    "met": [
+     "U-REAS-1",
+     "YA-I1",
+     "YA-I2"
+    ],
+    "missed": [
+     "U-REAS-2"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 7,
+    "key": "professionalism_safety_closure",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-CLOSE-1",
+     "U-CLOSE-2",
+     "U-CLOSE-3",
+     "YA-S1"
+    ],
+    "missed": [],
+    "capped_by": []
+   }
+  ],
+  "criteria_results": [
+   {
+    "id": "U-OPEN-1",
+    "criterion": "Introduces self by name and role",
+    "domain": 1,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hello Ms. Armstrong, I'm a student clinician on your care team. Today I'd like to go over your recent diagnosis with you. What brings you in today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-2",
+    "criterion": "Confirms patient identity (name) respectfully",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t3",
+      "quote": "What would you like me to call you?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-3",
+    "criterion": "States purpose/agenda and elicits the patient's main concern with an open question",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hello Ms. Armstrong, I'm a student clinician on your care team. Today I'd like to go over your recent diagnosis with you. What brings you in today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-1",
+    "criterion": "Acknowledges emotion or difficulty with an empathic statement",
+    "domain": 2,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "That sounds really frustrating, and it makes sense that it was confusing. How do you feel about all of this?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-2",
+    "criterion": "Uses non-judgemental language about lifestyle, weight, adherence or substance use (absence of blaming language)",
+    "domain": 2,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no stigmatising/unsafe phrasing detected"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-1",
+    "criterion": "Uses open-ended questions before closed questions",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t5",
+      "quote": "Can you tell me about your work and home life?"
+     },
+     {
+      "turn_id": "t13",
+      "quote": "Tell me about what you usually eat in a typical day."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-2",
+    "criterion": "Asks about current medications and adherence",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "Are you taking any medications right now, and do you have any allergies?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-3",
+    "criterion": "Asks about allergies",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "Are you taking any medications right now, and do you have any allergies?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-4",
+    "criterion": "Asks about relevant past medical and family history",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": false,
+    "evidence": [],
+    "feedback": "Explore past medical and family history relevant to the presenting problem."
+   },
+   {
+    "id": "U-INFO-5",
+    "criterion": "Asks about social context (living situation, work, support, substances)",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t5",
+      "quote": "Can you tell me about your work and home life?"
+     },
+     {
+      "turn_id": "t23",
+      "quote": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-VITAL-1",
+    "criterion": "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t11",
+      "quote": "Let's look at your numbers. Can you tell me your blood pressure reading and your BMI?"
+     },
+     {
+      "turn_id": "t21",
+      "quote": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+     },
+     {
+      "turn_id": "t23",
+      "quote": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder."
+     },
+     {
+      "turn_id": "t25",
+      "quote": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CUE-1",
+    "criterion": "Follows up on something the patient said (reflects/clarifies)",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "You mentioned canned soup. What do you know about salt and sodium?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CUE-2",
+    "criterion": "Asks for the patient's ideas, concerns or expectations",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "That sounds really frustrating, and it makes sense that it was confusing. How do you feel about all of this?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-1",
+    "criterion": "Checks understanding (teach-back or explicit check)",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t31",
+      "quote": "Just to make sure I explained it well, can you tell me back in your own words what we talked about?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-2",
+    "criterion": "Involves the patient in decisions / explores readiness and preferences",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t29",
+      "quote": "What feels realistic for you to start with?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-REAS-1",
+    "criterion": "Summarises key findings back to the patient",
+    "domain": 6,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t21",
+      "quote": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-REAS-2",
+    "criterion": "Acknowledges uncertainty or missing data rather than guessing",
+    "domain": 6,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Name what is still unknown and what would be needed to find out."
+   },
+   {
+    "id": "U-CLOSE-1",
+    "criterion": "Closes with a clear next step / follow-up plan",
+    "domain": 7,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t31",
+      "quote": "Just to make sure I explained it well, can you tell me back in your own words what we talked about?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-2",
+    "criterion": "Safety-nets: tells patient which symptoms need urgent care",
+    "domain": 7,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t35",
+      "quote": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-3",
+    "criterion": "States limits of own role / defers to supervising clinician where appropriate",
+    "domain": 7,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hello Ms. Armstrong, I'm a student clinician on your care team. Today I'd like to go over your recent diagnosis with you. What brings you in today?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-ELSE-1",
+    "criterion": "Asks 'anything else?' before closing",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t33",
+      "quote": "Is there anything else you'd like to ask?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-E1",
+    "criterion": "Obtains/reviews BP reading and BMI",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t11",
+      "quote": "(disclosed fact f3)"
+     },
+     {
+      "turn_id": "t21",
+      "quote": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+     },
+     {
+      "turn_id": "t23",
+      "quote": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder."
+     },
+     {
+      "turn_id": "t25",
+      "quote": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-E2",
+    "criterion": "Asks what she already understands about her diagnosis",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "(disclosed fact f5)"
+     },
+     {
+      "turn_id": "t15",
+      "quote": "You mentioned canned soup. What do you know about salt and sodium?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-E3",
+    "criterion": "Explores current diet / salt use / food sources (processed food, eating out)",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "(disclosed fact f4)"
+     },
+     {
+      "turn_id": "t13",
+      "quote": "Tell me about what you usually eat in a typical day."
+     },
+     {
+      "turn_id": "t21",
+      "quote": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+     },
+     {
+      "turn_id": "t25",
+      "quote": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-E4",
+    "criterion": "Asks about BP-related symptoms (headache, vision change, chest pain, shortness of breath)",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t17",
+      "quote": "Have you had any headaches, vision changes, chest pain, or dizziness?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-E5",
+    "criterion": "Asks about other CV risk factors (diabetes, kidney disease, smoking, family history) and medications",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "Are you taking any medications right now, and do you have any allergies?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-I1",
+    "criterion": "Correctly identifies 155/110 as Stage 2 (high) hypertension",
+    "domain": 6,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t21",
+      "quote": "To summarize what I heard: your blood pressure is 155 over 110, which is stage 2 high blood pressure, and you'd like to understand salt and sodium better."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-I2",
+    "criterion": "Links excess weight and sodium to blood pressure",
+    "domain": 6,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t25",
+      "quote": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-D1",
+    "criterion": "Explains hypertension in plain language (no jargon)",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t23",
+      "quote": "Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-D2",
+    "criterion": "Clarifies sodium vs salt and gives a numeric limit (<2,300 mg/day; ideally ~1,500 mg)",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t25",
+      "quote": "Salt contains sodium, and sodium raises blood pressure because your body holds on to extra water. Try to keep sodium under 2,300 mg a day - canned soups and frozen dinners are often very high."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-D3",
+    "criterion": "Teaches food-label reading or practical swaps (DASH-style)",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t27",
+      "quote": "Checking the nutrition facts label is the easiest way to spot sodium, and fresh foods with herbs and spices are great swaps."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "YA-D4",
+    "criterion": "Explains benefit of modest weight loss (5-10%)",
+    "domain": 5,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Explain that even modest (5-10%) weight loss lowers blood pressure."
+   },
+   {
+    "id": "YA-S1",
+    "criterion": "Safety-nets for severe BP / symptoms (>=180/120, chest pain, neuro or vision change) and suggests home BP monitoring",
+    "domain": 7,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t17",
+      "quote": "Have you had any headaches, vision changes, chest pain, or dizziness?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "Our next step is to check your blood pressure at home with a cuff, and we'll follow up in two weeks. If you see a reading over 180, or have chest pain or vision changes, call 911 or go to the emergency room. I'll discuss this plan with my supervisor."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-SEQ-1",
+    "criterion": "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "phase 1 first seen"
+     },
+     {
+      "turn_id": "t5",
+      "quote": "phase 2 first seen"
+     },
+     {
+      "turn_id": "t21",
+      "quote": "phase 3 first seen"
+     },
+     {
+      "turn_id": "t31",
+      "quote": "phase 4 first seen"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-SAFE-MED-1",
+    "criterion": "Asks about medications and allergies before suggesting any treatment",
+    "domain": 7,
+    "tier": "important",
+    "met": null,
+    "evidence": [],
+    "feedback": "Check medications and allergies before suggesting any treatment."
+   }
+  ],
+  "vitals": {
+   "abnormalities": [],
+   "news2": null
+  },
+  "unsafe_actions": [],
+  "total": 27,
+  "available_points": 28,
+  "na_domains": 0,
+  "review_required": false,
+  "strengths": [
+   "Introduces self by name and role (t1)",
+   "Acknowledges emotion or difficulty with an empathic statement (t9)",
+   "Checks understanding (teach-back or explicit check) (t31)",
+   "Summarises key findings back to the patient (t21)",
+   "Closes with a clear next step / follow-up plan (t31)"
+  ],
+  "gaps": [
+   "Acknowledges uncertainty or missing data rather than guessing",
+   "Explains benefit of modest weight loss (5-10%)",
+   "Asks about relevant past medical and family history"
+  ],
+  "next_attempt_suggestions": [
+   "Name what is still unknown and what would be needed to find out.",
+   "Explain that even modest (5-10%) weight loss lowers blood pressure.",
+   "Explore past medical and family history relevant to the presenting problem."
+  ],
+  "profile_gaps_to_acknowledge": [
+   "No HR, other vitals, labs (kidney function, glucose, lipids) or medication list in profile"
+  ]
+ },
+ "point_sections": []
+}

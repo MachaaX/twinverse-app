@@ -1,0 +1,992 @@
+{
+ "case_id": "demo-child-sofia",
+ "patient": "Sofia Reyes",
+ "steps": [
+  {
+   "step": 1,
+   "phase": "Introduction",
+   "clinician": "Hi Sofia, hi Mom, it's nice to meet you both. I'm a student speech-language pathologist.",
+   "turn_id": "t1",
+   "patient_reply": "Sofia: Hi. Mom: Thank you for seeing us.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-I1",
+    "U-OPEN-1",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 2,
+   "phase": "Introduction",
+   "clinician": "Sofia, what would you like me to call you?",
+   "turn_id": "t3",
+   "patient_reply": "Sofia: Sofia. Mom: And I'm Elena, her mom.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-I1",
+    "U-OPEN-2"
+   ]
+  },
+  {
+   "step": 3,
+   "phase": "Introduction",
+   "clinician": "What brings you in today?",
+   "turn_id": "t5",
+   "patient_reply": "Mom: Her audiologist said working with a speech-language pathologist could help her follow along better at school. Sofia: My teacher says I'm not listening, but I am.",
+   "reply_kind": "profile",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-OPEN-3"
+   ]
+  },
+  {
+   "step": 4,
+   "phase": "Needs assessment",
+   "clinician": "When did you find out about Sofia's hearing loss?",
+   "turn_id": "t7",
+   "patient_reply": "Mom: We found out when she was 3. She wasn't talking as much as other kids, so her pediatrician sent us for a hearing test.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Age at diagnosis"
+   ],
+   "criteria_met": [
+    "PED-I1",
+    "PED-N1"
+   ]
+  },
+  {
+   "step": 5,
+   "phase": "Needs assessment",
+   "clinician": "Sofia, tell me about your hearing aids. When do you wear them?",
+   "turn_id": "t9",
+   "patient_reply": "Sofia: I wear them at school, but I take them off at recess because they whistle when I run. Mom: She wears them most of the day, just not for sports.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Hearing device use"
+   ],
+   "criteria_met": [
+    "PED-I1",
+    "PED-N2",
+    "U-INFO-1",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 6,
+   "phase": "Needs assessment",
+   "clinician": "Do your ears ever ring or buzz, or do loud sounds bother you?",
+   "turn_id": "t11",
+   "patient_reply": "Sofia: Sometimes at night my ears ring, like a buzzing sound. Loud noises don't bother me, though.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Other auditory complaints"
+   ],
+   "criteria_met": [
+    "PED-N3"
+   ]
+  },
+  {
+   "step": 7,
+   "phase": "Needs assessment",
+   "clinician": "You mentioned your teacher, Sofia. How are things going at school?",
+   "turn_id": "t13",
+   "patient_reply": "Mom: She has an IEP, so she sits up front, but there's no microphone system for the teacher yet. Group work is the hardest for her.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Educational needs"
+   ],
+   "criteria_met": [
+    "PED-N4",
+    "U-CUE-1"
+   ]
+  },
+  {
+   "step": 8,
+   "phase": "Needs assessment",
+   "clinician": "Sofia, what's the hardest part about listening for you right now?",
+   "turn_id": "t15",
+   "patient_reply": "Sofia: When everyone talks at once I can't follow, and my friends get annoyed when I keep saying 'what?'",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Main communication challenge"
+   ],
+   "criteria_met": [
+    "PED-N5"
+   ]
+  },
+  {
+   "step": 9,
+   "phase": "Feelings",
+   "clinician": "How do you feel about all of this?",
+   "turn_id": "t17",
+   "patient_reply": "Sofia: Sometimes I feel dumb when I miss stuff. Mom: I just don't want her to fall behind or feel left out.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Feelings"
+   ],
+   "criteria_met": [
+    "U-CUE-2"
+   ]
+  },
+  {
+   "step": 10,
+   "phase": "Empathy",
+   "clinician": "That must be hard, and you're not dumb at all - your ears just have to work extra hard.",
+   "turn_id": "t19",
+   "patient_reply": "Sofia: Yeah... thanks. Mom: That means a lot to her.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-X4",
+    "U-INFO-5",
+    "U-RAPP-1"
+   ]
+  },
+  {
+   "step": 11,
+   "phase": "Audiogram",
+   "clinician": "Mom, could we look at her audiogram together?",
+   "turn_id": "t21",
+   "patient_reply": "Mom: I brought her last hearing test. To be honest, I've never understood the graph.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Audiogram"
+   ],
+   "criteria_met": [
+    "PED-A1"
+   ]
+  },
+  {
+   "step": 12,
+   "phase": "Audiogram",
+   "clinician": "This shows a moderate-to-severe hearing loss in both ears, mostly for soft, high-pitched sounds.",
+   "turn_id": "t23",
+   "patient_reply": "Mom: So that's why she hears my voice but misses some words. That finally makes sense.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-A2"
+   ]
+  },
+  {
+   "step": 13,
+   "phase": "Audiogram",
+   "clinician": "This curved area is the speech banana. With your hearing aids, most speech sounds land inside it, but soft sounds like 's' and 'f' are still hard to catch without them.",
+   "turn_id": "t25",
+   "patient_reply": "Sofia: So with my hearing aids I hear most words, but the quiet 's' and 'f' sounds still sneak past? Mom: That explains so much.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-A2",
+    "PED-A3",
+    "PED-N2"
+   ]
+  },
+  {
+   "step": 14,
+   "phase": "Expectations",
+   "clinician": "What are you hoping we can work on together?",
+   "turn_id": "t27",
+   "patient_reply": "Mom: Honestly, I'm hoping therapy will fix her hearing. And I'm not sure how what you do is different from her audiologist.",
+   "reply_kind": "profile",
+   "chart_adds": [
+    "Family expectations and questions"
+   ],
+   "criteria_met": [
+    "U-CUE-2",
+    "U-INFO-5"
+   ]
+  },
+  {
+   "step": 15,
+   "phase": "Expectations",
+   "clinician": "Your audiologist tests your hearing and adjusts your hearing aids. As a speech-language pathologist, I help you get the most out of what you hear.",
+   "turn_id": "t29",
+   "patient_reply": "Mom: Okay, so the audiologist handles the testing and the hearing aids, and you help her use what she hears.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-N2",
+    "PED-X1"
+   ]
+  },
+  {
+   "step": 16,
+   "phase": "Expectations",
+   "clinician": "Aural rehab is listening practice - games and strategies to help you follow conversations in noisy places. To be realistic, it won't fix your hearing, but it can make school and friends a lot easier.",
+   "turn_id": "t31",
+   "patient_reply": "Sofia: So like listening games? That sounds kind of fun.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-N4",
+    "PED-X2",
+    "PED-X3"
+   ]
+  },
+  {
+   "step": 17,
+   "phase": "Teach-back",
+   "clinician": "Mom, can you tell me back in your own words what we talked about?",
+   "turn_id": "t33",
+   "patient_reply": "Mom: Her hearing loss is moderate to severe, mostly for high, soft sounds. The hearing aids help, but she still misses sounds like 's' and 'f'. Your job is to help her listen better, not to fix her hearing.",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "U-EXPL-1",
+    "U-SEQ-1"
+   ]
+  },
+  {
+   "step": 18,
+   "phase": "Questions",
+   "clinician": "What questions do you have for me?",
+   "turn_id": "t35",
+   "patient_reply": "Mom: Could a microphone for the teacher help? Sofia: Can I still play soccer?",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-X5",
+    "U-EXPL-1"
+   ]
+  },
+  {
+   "step": 19,
+   "phase": "Closing",
+   "clinician": "Great questions. Our next step is to meet weekly, and I'll talk with your audiologist and school about a microphone for your teacher. See you next session, Sofia!",
+   "turn_id": "t37",
+   "patient_reply": "Mom: That sounds like a good plan. See you next week. Sofia: Bye!",
+   "reply_kind": "reaction",
+   "chart_adds": [],
+   "criteria_met": [
+    "PED-N4",
+    "PED-X1",
+    "U-CLOSE-1",
+    "U-SEQ-1"
+   ]
+  }
+ ],
+ "facts_disclosed": [
+  "f1",
+  "f2",
+  "f3",
+  "f4",
+  "f5",
+  "f6",
+  "f8",
+  "f7",
+  "f9"
+ ],
+ "facts_not_disclosed": [],
+ "score": {
+  "encounter_id": "demo",
+  "patient_id": "c7a1d2e4-5f60-4b7a-9c3d-1e2f3a4b5c6d",
+  "patient_name": "Sofia Reyes",
+  "criteria_version": "0.2.0-draft",
+  "status": "auto_scored_pending_faculty_review",
+  "domains": [
+   {
+    "id": 1,
+    "key": "opening_and_purpose",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-OPEN-1",
+     "U-OPEN-2",
+     "U-OPEN-3"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 2,
+    "key": "rapport_respect_empathy",
+    "score": 4,
+    "coverage": 1.0,
+    "met": [
+     "U-RAPP-1",
+     "U-RAPP-2",
+     "PED-I1",
+     "PED-X4"
+    ],
+    "missed": [],
+    "capped_by": []
+   },
+   {
+    "id": 3,
+    "key": "information_gathering",
+    "score": 4,
+    "coverage": 0.95,
+    "met": [
+     "U-INFO-1",
+     "U-INFO-5",
+     "PED-N1",
+     "PED-N2",
+     "PED-N3",
+     "PED-N4",
+     "PED-N5",
+     "PED-A1",
+     "U-SEQ-1"
+    ],
+    "missed": [
+     "U-INFO-4"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 4,
+    "key": "listening_and_response_to_cues",
+    "score": 3,
+    "coverage": 0.75,
+    "met": [
+     "U-CUE-1",
+     "U-CUE-2",
+     "PED-X5"
+    ],
+    "missed": [
+     "U-ELSE-1"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 5,
+    "key": "explanation_and_shared_decisions",
+    "score": 3,
+    "coverage": 0.85,
+    "met": [
+     "U-EXPL-1",
+     "PED-A3",
+     "PED-X1",
+     "PED-X2"
+    ],
+    "missed": [
+     "U-EXPL-2"
+    ],
+    "capped_by": []
+   },
+   {
+    "id": 6,
+    "key": "clinical_reasoning_and_synthesis",
+    "score": 2,
+    "coverage": 0.5,
+    "met": [
+     "PED-A2",
+     "PED-X3"
+    ],
+    "missed": [
+     "U-REAS-1",
+     "U-REAS-2"
+    ],
+    "capped_by": [
+     "U-REAS-1"
+    ]
+   },
+   {
+    "id": 7,
+    "key": "professionalism_safety_closure",
+    "score": 2,
+    "coverage": 0.5,
+    "met": [
+     "U-CLOSE-1"
+    ],
+    "missed": [
+     "U-CLOSE-2",
+     "U-CLOSE-3"
+    ],
+    "capped_by": []
+   }
+  ],
+  "criteria_results": [
+   {
+    "id": "U-OPEN-1",
+    "criterion": "Introduces self by name and role",
+    "domain": 1,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hi Sofia, hi Mom, it's nice to meet you both. I'm a student speech-language pathologist."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-2",
+    "criterion": "Confirms patient identity (name) respectfully",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t3",
+      "quote": "Sofia, what would you like me to call you?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-OPEN-3",
+    "criterion": "States purpose/agenda and elicits the patient's main concern with an open question",
+    "domain": 1,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t5",
+      "quote": "What brings you in today?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-1",
+    "criterion": "Acknowledges emotion or difficulty with an empathic statement",
+    "domain": 2,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "That must be hard, and you're not dumb at all - your ears just have to work extra hard."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-RAPP-2",
+    "criterion": "Uses non-judgemental language about lifestyle, weight, adherence or substance use (absence of blaming language)",
+    "domain": 2,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no stigmatising/unsafe phrasing detected"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-1",
+    "criterion": "Uses open-ended questions before closed questions",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "Sofia, tell me about your hearing aids. When do you wear them?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-INFO-4",
+    "criterion": "Asks about relevant past medical and family history",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": false,
+    "evidence": [],
+    "feedback": "Explore past medical and family history relevant to the presenting problem."
+   },
+   {
+    "id": "U-INFO-5",
+    "criterion": "Asks about social context (living situation, work, support, substances)",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "That must be hard, and you're not dumb at all - your ears just have to work extra hard."
+     },
+     {
+      "turn_id": "t27",
+      "quote": "What are you hoping we can work on together?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CUE-1",
+    "criterion": "Follows up on something the patient said (reflects/clarifies)",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t13",
+      "quote": "You mentioned your teacher, Sofia. How are things going at school?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CUE-2",
+    "criterion": "Asks for the patient's ideas, concerns or expectations",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t17",
+      "quote": "How do you feel about all of this?"
+     },
+     {
+      "turn_id": "t27",
+      "quote": "What are you hoping we can work on together?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-1",
+    "criterion": "Checks understanding (teach-back or explicit check)",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t33",
+      "quote": "Mom, can you tell me back in your own words what we talked about?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "What questions do you have for me?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-EXPL-2",
+    "criterion": "Involves the patient in decisions / explores readiness and preferences",
+    "domain": 5,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Offer options and ask what feels realistic, rather than prescribing a single plan."
+   },
+   {
+    "id": "U-REAS-1",
+    "criterion": "Summarises key findings back to the patient",
+    "domain": 6,
+    "tier": "critical",
+    "met": false,
+    "evidence": [],
+    "feedback": "Summarise the key findings before moving to explanation or plan."
+   },
+   {
+    "id": "U-REAS-2",
+    "criterion": "Acknowledges uncertainty or missing data rather than guessing",
+    "domain": 6,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Name what is still unknown and what would be needed to find out."
+   },
+   {
+    "id": "U-CLOSE-1",
+    "criterion": "Closes with a clear next step / follow-up plan",
+    "domain": 7,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t37",
+      "quote": "Great questions. Our next step is to meet weekly, and I'll talk with your audiologist and school about a microphone for your teacher. See you next session, Sofia!"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-CLOSE-2",
+    "criterion": "Safety-nets: tells patient which symptoms need urgent care",
+    "domain": 7,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Safety-net: tell the patient which warning signs should prompt urgent care."
+   },
+   {
+    "id": "U-CLOSE-3",
+    "criterion": "States limits of own role / defers to supervising clinician where appropriate",
+    "domain": 7,
+    "tier": "supplementary",
+    "met": false,
+    "evidence": [],
+    "feedback": "Be clear about your role's limits and who will make final decisions."
+   },
+   {
+    "id": "U-ELSE-1",
+    "criterion": "Asks 'anything else?' before closing",
+    "domain": 4,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Before closing, ask 'Is there anything else you wanted to discuss?'"
+   },
+   {
+    "id": "PED-I1",
+    "criterion": "Speaks directly to the child by name, not only to the parent",
+    "domain": 2,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "Hi Sofia, hi Mom, it's nice to meet you both. I'm a student speech-language pathologist."
+     },
+     {
+      "turn_id": "t3",
+      "quote": "Sofia, what would you like me to call you?"
+     },
+     {
+      "turn_id": "t7",
+      "quote": "When did you find out about Sofia's hearing loss?"
+     },
+     {
+      "turn_id": "t9",
+      "quote": "Sofia, tell me about your hearing aids. When do you wear them?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-N1",
+    "criterion": "Asks age at diagnosis of hearing loss",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "(disclosed fact f2)"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-N2",
+    "criterion": "Asks about device use (hearing aids/cochlear implant)",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t9",
+      "quote": "(disclosed fact f3)"
+     },
+     {
+      "turn_id": "t25",
+      "quote": "This curved area is the speech banana. With your hearing aids, most speech sounds land inside it, but soft sounds like 's' and 'f' are still hard to catch without them."
+     },
+     {
+      "turn_id": "t29",
+      "quote": "Your audiologist tests your hearing and adjusts your hearing aids. As a speech-language pathologist, I help you get the most out of what you hear."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-N3",
+    "criterion": "Asks about other auditory complaints (tinnitus, hyperacusis)",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t11",
+      "quote": "(disclosed fact f4)"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-N4",
+    "criterion": "Asks about educational needs",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t13",
+      "quote": "(disclosed fact f5)"
+     },
+     {
+      "turn_id": "t31",
+      "quote": "Aural rehab is listening practice - games and strategies to help you follow conversations in noisy places. To be realistic, it won't fix your hearing, but it can make school and friends a lot easier."
+     },
+     {
+      "turn_id": "t37",
+      "quote": "Great questions. Our next step is to meet weekly, and I'll talk with your audiologist and school about a microphone for your teacher. See you next session, Sofia!"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-N5",
+    "criterion": "Asks the most important communication challenge today",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "(disclosed fact f6)"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-A1",
+    "criterion": "Reviews the audiogram with the family",
+    "domain": 3,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t21",
+      "quote": "(disclosed fact f7)"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-A2",
+    "criterion": "Explains severity of the hearing loss sensitively",
+    "domain": 6,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t23",
+      "quote": "This shows a moderate-to-severe hearing loss in both ears, mostly for soft, high-pitched sounds."
+     },
+     {
+      "turn_id": "t25",
+      "quote": "This curved area is the speech banana. With your hearing aids, most speech sounds land inside it, but soft sounds like 's' and 'f' are still hard to catch without them."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-A3",
+    "criterion": "Uses the speech banana to explain what she hears with and without hearing aids",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t25",
+      "quote": "This curved area is the speech banana. With your hearing aids, most speech sounds land inside it, but soft sounds like 's' and 'f' are still hard to catch without them."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-X1",
+    "criterion": "Explains the difference between an audiologist and an SLP",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t29",
+      "quote": "Your audiologist tests your hearing and adjusts your hearing aids. As a speech-language pathologist, I help you get the most out of what you hear."
+     },
+     {
+      "turn_id": "t37",
+      "quote": "Great questions. Our next step is to meet weekly, and I'll talk with your audiologist and school about a microphone for your teacher. See you next session, Sofia!"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-X2",
+    "criterion": "Explains what aural rehabilitation is and how it helps",
+    "domain": 5,
+    "tier": "critical",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t31",
+      "quote": "Aural rehab is listening practice - games and strategies to help you follow conversations in noisy places. To be realistic, it won't fix your hearing, but it can make school and friends a lot easier."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-X3",
+    "criterion": "Sets realistic expectations (therapy improves listening, does not restore hearing)",
+    "domain": 6,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t31",
+      "quote": "Aural rehab is listening practice - games and strategies to help you follow conversations in noisy places. To be realistic, it won't fix your hearing, but it can make school and friends a lot easier."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-X4",
+    "criterion": "Expresses empathy for the challenges the child faces",
+    "domain": 2,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t19",
+      "quote": "That must be hard, and you're not dumb at all - your ears just have to work extra hard."
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "PED-X5",
+    "criterion": "Invites and answers the family's questions",
+    "domain": 4,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t35",
+      "quote": "What questions do you have for me?"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "U-SEQ-1",
+    "criterion": "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
+    "domain": 3,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "phase 1 first seen"
+     },
+     {
+      "turn_id": "t9",
+      "quote": "phase 2 first seen"
+     },
+     {
+      "turn_id": "t33",
+      "quote": "phase 3 first seen"
+     },
+     {
+      "turn_id": "t37",
+      "quote": "phase 4 first seen"
+     }
+    ],
+    "feedback": null
+   }
+  ],
+  "vitals": {
+   "abnormalities": [],
+   "news2": null
+  },
+  "unsafe_actions": [],
+  "total": 22,
+  "available_points": 28,
+  "na_domains": 0,
+  "review_required": false,
+  "strengths": [
+   "Introduces self by name and role (t1)",
+   "Acknowledges emotion or difficulty with an empathic statement (t19)",
+   "Checks understanding (teach-back or explicit check) (t33)",
+   "Closes with a clear next step / follow-up plan (t37)",
+   "Asks age at diagnosis of hearing loss (t7)"
+  ],
+  "gaps": [
+   "Summarises key findings back to the patient",
+   "Involves the patient in decisions / explores readiness and preferences",
+   "Acknowledges uncertainty or missing data rather than guessing",
+   "Safety-nets: tells patient which symptoms need urgent care",
+   "Asks 'anything else?' before closing"
+  ],
+  "next_attempt_suggestions": [
+   "Summarise the key findings before moving to explanation or plan.",
+   "Offer options and ask what feels realistic, rather than prescribing a single plan.",
+   "Name what is still unknown and what would be needed to find out."
+  ],
+  "profile_gaps_to_acknowledge": [
+   "No speech-perception test scores, language assessment, or teacher report in the case."
+  ]
+ },
+ "point_sections": [
+  {
+   "section": "Introduce yourself to the client",
+   "points": 10,
+   "criteria": [
+    "U-OPEN-1",
+    "PED-I1",
+    "U-RAPP-2"
+   ],
+   "met": [
+    "U-OPEN-1",
+    "PED-I1",
+    "U-RAPP-2"
+   ],
+   "earned": 10
+  },
+  {
+   "section": "Needs assessment",
+   "points": 30,
+   "criteria": [
+    "PED-N1",
+    "PED-N2",
+    "PED-N3",
+    "PED-N4",
+    "PED-N5"
+   ],
+   "met": [
+    "PED-N1",
+    "PED-N2",
+    "PED-N3",
+    "PED-N4",
+    "PED-N5"
+   ],
+   "earned": 30
+  },
+  {
+   "section": "Review the audiogram",
+   "points": 30,
+   "criteria": [
+    "PED-A1",
+    "PED-A2",
+    "PED-A3"
+   ],
+   "met": [
+    "PED-A1",
+    "PED-A2",
+    "PED-A3"
+   ],
+   "earned": 30
+  },
+  {
+   "section": "Realistic expectations for aural rehab",
+   "points": 30,
+   "criteria": [
+    "PED-X1",
+    "PED-X2",
+    "PED-X3",
+    "PED-X4",
+    "PED-X5"
+   ],
+   "met": [
+    "PED-X1",
+    "PED-X2",
+    "PED-X3",
+    "PED-X4",
+    "PED-X5"
+   ],
+   "earned": 30
+  }
+ ]
+}

@@ -1,0 +1,699 @@
+{
+  "case_file_version": 1,
+  "case_id": "demo-child-sofia",
+  "mode": "static_demo",
+  "role_in_demo": "Backup demo (pediatric). Built on the organizer's Pediatric Hearing Treatment rubric; a parent is present and answers alongside the child.",
+  "status": "DRAFT - synthetic pediatric case authored by the TwinVerse team to match the organizer pediatric rubric; faculty must review before use for grading",
+  "provenance": {
+    "organizer_source": "evaluation rubrics/Rubric for Pediatric Treatment.docx (SPLP 6510 Pediatric Hearing Treatment Clinical Simulation, Session #1)",
+    "team_authored": "All patient facts are synthetic and demo-authored; the organizer dataset has no pediatric patient.",
+    "behaviour_reference": "https://huggingface.co/datasets/Postzeun/Patient-Doctor (clinician behaviour benchmark, see data/hf/rubric_reference.json)"
+  },
+  "profile": {
+    "id": "c7a1d2e4-5f60-4b7a-9c3d-1e2f3a4b5c6d",
+    "name": "Sofia Reyes",
+    "age": 9,
+    "gender": "female",
+    "summary": "Pediatric hearing loss - aural rehabilitation intake (with parent)",
+    "background": "4th grader in a general-education classroom. Lives with her mother Elena and younger brother. Loves drawing and soccer.",
+    "persona": "Sofia: shy at first, warms up when spoken to directly, a little embarrassed about her hearing aids. Elena (mother): caring, organized, anxious about school, has many questions. Replies are labeled 'Sofia:' or 'Mom:'.",
+    "source_notes": "Synthetic pediatric case for the SPLP 6510 Pediatric Hearing Treatment rubric: introduction, needs assessment (age at diagnosis, device use, other auditory complaints, educational needs, main communication challenge), audiogram review (severity, speech banana), realistic expectations (audiologist vs SLP, aural rehab, empathy, questions).",
+    "image": "",
+    "version": 1,
+    "status": "published",
+    "provenance": "Demo case file data/cases/child-sofia-reyes.json (synthetic)",
+    "source_refs": [
+      "Rubric for Pediatric Treatment.docx"
+    ],
+    "facts": [
+      {
+        "id": "f1",
+        "topic": "concern",
+        "label": "Reason for visit",
+        "record": "9-year-old with bilateral hearing loss referred by her audiologist for aural rehabilitation (listening and communication therapy).",
+        "patient_text": "Mom: Her audiologist said working with a speech-language pathologist could help her follow along better at school. Sofia: My teacher says I'm not listening, but I am.",
+        "keywords": [
+          "what brings",
+          "brought you",
+          "main concern",
+          "how can i help",
+          "here today",
+          "reason for"
+        ],
+        "release": "initial",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f2",
+        "topic": "history",
+        "label": "Age at diagnosis",
+        "record": "Hearing loss identified at age 3 after concerns about delayed speech. Fitted with hearing aids shortly after.",
+        "patient_text": "Mom: We found out when she was 3. She wasn't talking as much as other kids, so her pediatrician sent us for a hearing test.",
+        "keywords": [
+          "diagnosed",
+          "when did you find out",
+          "how old was she",
+          "how old were you",
+          "first noticed",
+          "find out"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f3",
+        "topic": "device",
+        "label": "Hearing device use",
+        "record": "Bilateral behind-the-ear hearing aids since age 3. Wears them on school days but removes them at recess and soccer (feedback whistling, worried they'll fall out).",
+        "patient_text": "Sofia: I wear them at school, but I take them off at recess because they whistle when I run. Mom: She wears them most of the day, just not for sports.",
+        "keywords": [
+          "hearing aids",
+          "device",
+          "hearing technology",
+          "wear them",
+          "how often",
+          "cochlear"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f4",
+        "topic": "auditory",
+        "label": "Other auditory complaints",
+        "record": "Intermittent ringing in both ears at night (tinnitus). No sound sensitivity (hyperacusis) reported.",
+        "patient_text": "Sofia: Sometimes at night my ears ring, like a buzzing sound. Loud noises don't bother me, though.",
+        "keywords": [
+          "ringing",
+          "buzzing",
+          "tinnitus",
+          "loud sounds",
+          "sensitive to sound",
+          "hyperacusis",
+          "other ear"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f5",
+        "topic": "education",
+        "label": "Educational needs",
+        "record": "4th grade, general-education classroom. IEP with preferential seating; no remote microphone (FM) system yet. Struggles most in group work and the cafeteria.",
+        "patient_text": "Mom: She has an IEP, so she sits up front, but there's no microphone system for the teacher yet. Group work is the hardest for her.",
+        "keywords": [
+          "school",
+          "class",
+          "teacher",
+          "grade",
+          "educational",
+          "iep",
+          "classroom"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f6",
+        "topic": "communication",
+        "label": "Main communication challenge",
+        "record": "Biggest challenge: following conversation in noise (classroom groups, cafeteria, with friends). Misses directions; feels left out.",
+        "patient_text": "Sofia: When everyone talks at once I can't follow, and my friends get annoyed when I keep saying 'what?'",
+        "keywords": [
+          "hardest",
+          "most important",
+          "biggest challenge",
+          "most difficult",
+          "hard for you",
+          "most help with"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f7",
+        "topic": "audiogram",
+        "label": "Audiogram",
+        "record": "Audiogram (most recent): bilateral sloping moderate-to-severe sensorineural hearing loss, worse in the high frequencies. With hearing aids, most speech sounds fall inside the speech banana; soft high-pitched consonants (s, f, th) remain hard to hear.",
+        "patient_text": "Mom: I brought her last hearing test. To be honest, I've never understood the graph.",
+        "keywords": [
+          "audiogram",
+          "hearing test",
+          "test results",
+          "her results",
+          "your results"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f8",
+        "topic": "perspective",
+        "label": "Feelings",
+        "record": "Sofia feels embarrassed when she misses things; mother worries about her falling behind and feeling left out.",
+        "patient_text": "Sofia: Sometimes I feel dumb when I miss stuff. Mom: I just don't want her to fall behind or feel left out.",
+        "keywords": [
+          "how do you feel",
+          "feel about",
+          "worried",
+          "worries",
+          "frustrat"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      },
+      {
+        "id": "f9",
+        "topic": "expectations",
+        "label": "Family expectations and questions",
+        "record": "Mother hopes therapy will 'fix' hearing; unsure how an SLP differs from the audiologist.",
+        "patient_text": "Mom: Honestly, I'm hoping therapy will fix her hearing. And I'm not sure how what you do is different from her audiologist.",
+        "keywords": [
+          "hoping",
+          "expect",
+          "goals",
+          "what are you hoping"
+        ],
+        "release": "question",
+        "source": "Synthetic - demo-authored"
+      }
+    ],
+    "reactions": [
+      {
+        "id": "r-greet",
+        "keywords": [
+          "nice to meet you"
+        ],
+        "patient_text": "Sofia: Hi. Mom: Thank you for seeing us."
+      },
+      {
+        "id": "r-call",
+        "keywords": [
+          "like me to call",
+          "prefer to be called"
+        ],
+        "patient_text": "Sofia: Sofia. Mom: And I'm Elena, her mom."
+      },
+      {
+        "id": "r-close",
+        "keywords": [
+          "next step",
+          "follow up",
+          "next session"
+        ],
+        "patient_text": "Mom: That sounds like a good plan. See you next week. Sofia: Bye!"
+      },
+      {
+        "id": "r-empathy",
+        "keywords": [
+          "not dumb",
+          "must be hard",
+          "sounds frustrating",
+          "really tough"
+        ],
+        "patient_text": "Sofia: Yeah... thanks. Mom: That means a lot to her."
+      },
+      {
+        "id": "r-banana",
+        "keywords": [
+          "speech banana"
+        ],
+        "patient_text": "Sofia: So with my hearing aids I hear most words, but the quiet 's' and 'f' sounds still sneak past? Mom: That explains so much."
+      },
+      {
+        "id": "r-severity",
+        "keywords": [
+          "moderate to severe",
+          "moderate-to-severe",
+          "high-pitched",
+          "speech banana"
+        ],
+        "patient_text": "Mom: So that's why she hears my voice but misses some words. That finally makes sense."
+      },
+      {
+        "id": "r-roles",
+        "keywords": [
+          "audiologist"
+        ],
+        "patient_text": "Mom: Okay, so the audiologist handles the testing and the hearing aids, and you help her use what she hears."
+      },
+      {
+        "id": "r-rehab",
+        "keywords": [
+          "aural rehab",
+          "listening practice",
+          "listening skills"
+        ],
+        "patient_text": "Sofia: So like listening games? That sounds kind of fun."
+      },
+      {
+        "id": "r-expect",
+        "keywords": [
+          "won't cure",
+          "won't fix",
+          "not fix",
+          "realistic"
+        ],
+        "patient_text": "Mom: I appreciate you being honest. Better is still a lot."
+      },
+      {
+        "id": "r-summary",
+        "keywords": [
+          "to summarize",
+          "what i heard"
+        ],
+        "patient_text": "Mom: Yes, that's exactly it."
+      },
+      {
+        "id": "r-teachback",
+        "keywords": [
+          "in your own words",
+          "tell me back"
+        ],
+        "patient_text": "Mom: Her hearing loss is moderate to severe, mostly for high, soft sounds. The hearing aids help, but she still misses sounds like 's' and 'f'. Your job is to help her listen better, not to fix her hearing."
+      },
+      {
+        "id": "r-questions",
+        "keywords": [
+          "what questions do you have",
+          "any questions"
+        ],
+        "patient_text": "Mom: Could a microphone for the teacher help? Sofia: Can I still play soccer?"
+      }
+    ],
+    "objectives": [
+      {
+        "id": "o1",
+        "label": "Age at diagnosis",
+        "fact_ids": [
+          "f2"
+        ],
+        "suggestion": "Ask when the hearing loss was diagnosed."
+      },
+      {
+        "id": "o2",
+        "label": "Device use",
+        "fact_ids": [
+          "f3"
+        ],
+        "suggestion": "Ask about hearing aid use - when, how long, and when she takes them off."
+      },
+      {
+        "id": "o3",
+        "label": "Other auditory complaints",
+        "fact_ids": [
+          "f4"
+        ],
+        "suggestion": "Ask about tinnitus and sound sensitivity."
+      },
+      {
+        "id": "o4",
+        "label": "Educational needs",
+        "fact_ids": [
+          "f5"
+        ],
+        "suggestion": "Ask about school supports (IEP, seating, microphone systems)."
+      },
+      {
+        "id": "o5",
+        "label": "Main communication challenge",
+        "fact_ids": [
+          "f6"
+        ],
+        "suggestion": "Ask Sofia directly what is hardest for her."
+      },
+      {
+        "id": "o6",
+        "label": "Review the audiogram",
+        "fact_ids": [
+          "f7"
+        ],
+        "suggestion": "Ask for and review the audiogram with the family."
+      }
+    ],
+    "validation_notes": [
+      "Synthetic pediatric case: every fact is demo-authored to match the organizer's pediatric hearing rubric. Faculty review required before grading use.",
+      "No portrait supplied; the app shows initials (static avatar)."
+    ]
+  },
+  "scoring": {
+    "name": "Sofia Reyes",
+    "age": 9,
+    "sex": "female",
+    "summary": "Pediatric aural rehabilitation intake with parent present.",
+    "exclude_universal": [
+      "U-INFO-2",
+      "U-INFO-3",
+      "U-VITAL-1",
+      "U-SAFE-MED-1"
+    ],
+    "profile_gaps_to_acknowledge": [
+      "No speech-perception test scores, language assessment, or teacher report in the case."
+    ],
+    "criteria": [
+      {
+        "id": "PED-I1",
+        "layer": "communication",
+        "domain": 2,
+        "tier": "important",
+        "criterion": "Speaks directly to the child by name, not only to the parent",
+        "cues": [
+          "sofia"
+        ],
+        "feedback_if_missed": "Talk to Sofia directly and use her name - she is the client, not just her mom."
+      },
+      {
+        "id": "PED-N1",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "critical",
+        "seed_fact_ids": [
+          "f2"
+        ],
+        "criterion": "Asks age at diagnosis of hearing loss",
+        "cues": [
+          "diagnosed",
+          "find out"
+        ],
+        "feedback_if_missed": "Ask when the hearing loss was first diagnosed."
+      },
+      {
+        "id": "PED-N2",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "critical",
+        "seed_fact_ids": [
+          "f3"
+        ],
+        "criterion": "Asks about device use (hearing aids/cochlear implant)",
+        "cues": [
+          "hearing aids",
+          "device"
+        ],
+        "feedback_if_missed": "Ask how and when she uses her hearing aids."
+      },
+      {
+        "id": "PED-N3",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "important",
+        "seed_fact_ids": [
+          "f4"
+        ],
+        "criterion": "Asks about other auditory complaints (tinnitus, hyperacusis)",
+        "cues": [
+          "ringing",
+          "tinnitus",
+          "loud sounds"
+        ],
+        "feedback_if_missed": "Ask about ringing (tinnitus) and sensitivity to loud sounds."
+      },
+      {
+        "id": "PED-N4",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "important",
+        "seed_fact_ids": [
+          "f5"
+        ],
+        "criterion": "Asks about educational needs",
+        "cues": [
+          "school",
+          "iep",
+          "classroom"
+        ],
+        "feedback_if_missed": "Ask about school and supports such as an IEP or a remote microphone."
+      },
+      {
+        "id": "PED-N5",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "critical",
+        "seed_fact_ids": [
+          "f6"
+        ],
+        "criterion": "Asks the most important communication challenge today",
+        "cues": [
+          "hardest",
+          "biggest challenge",
+          "most difficult"
+        ],
+        "feedback_if_missed": "Ask Sofia what is hardest for her right now - it sets the therapy goal."
+      },
+      {
+        "id": "PED-A1",
+        "layer": "elicit",
+        "domain": 3,
+        "tier": "critical",
+        "seed_fact_ids": [
+          "f7"
+        ],
+        "criterion": "Reviews the audiogram with the family",
+        "cues": [
+          "audiogram",
+          "hearing test"
+        ],
+        "feedback_if_missed": "Go through the audiogram with Sofia and her mom."
+      },
+      {
+        "id": "PED-A2",
+        "layer": "interpret",
+        "domain": 6,
+        "tier": "critical",
+        "criterion": "Explains severity of the hearing loss sensitively",
+        "cues": [
+          "moderate to severe",
+          "moderate-to-severe",
+          "high-pitched",
+          "soft sounds"
+        ],
+        "feedback_if_missed": "Explain the severity (moderate-to-severe, mostly high pitches) in gentle, plain words."
+      },
+      {
+        "id": "PED-A3",
+        "layer": "educate",
+        "domain": 5,
+        "tier": "critical",
+        "criterion": "Uses the speech banana to explain what she hears with and without hearing aids",
+        "cues": [
+          "speech banana",
+          "with your hearing aids",
+          "without your hearing aids",
+          "without them"
+        ],
+        "feedback_if_missed": "Use the speech banana to show what she hears with and without her hearing aids."
+      },
+      {
+        "id": "PED-X1",
+        "layer": "educate",
+        "domain": 5,
+        "tier": "important",
+        "criterion": "Explains the difference between an audiologist and an SLP",
+        "cues": [
+          "audiologist"
+        ],
+        "feedback_if_missed": "Explain how your role (SLP) differs from the audiologist's."
+      },
+      {
+        "id": "PED-X2",
+        "layer": "educate",
+        "domain": 5,
+        "tier": "critical",
+        "criterion": "Explains what aural rehabilitation is and how it helps",
+        "cues": [
+          "aural rehab",
+          "listening practice",
+          "listening skills"
+        ],
+        "feedback_if_missed": "Explain what aural rehab is and how it can help Sofia at school and with friends."
+      },
+      {
+        "id": "PED-X3",
+        "layer": "educate",
+        "domain": 6,
+        "tier": "important",
+        "criterion": "Sets realistic expectations (therapy improves listening, does not restore hearing)",
+        "cues": [
+          "won't cure",
+          "won't fix",
+          "not fix",
+          "realistic"
+        ],
+        "feedback_if_missed": "Gently correct the hope that therapy will 'fix' her hearing."
+      },
+      {
+        "id": "PED-X4",
+        "layer": "communication",
+        "domain": 2,
+        "tier": "important",
+        "criterion": "Expresses empathy for the challenges the child faces",
+        "cues": [
+          "not dumb",
+          "must be hard",
+          "sounds frustrating",
+          "really tough"
+        ],
+        "feedback_if_missed": "Acknowledge how hard it is for Sofia to miss things with friends."
+      },
+      {
+        "id": "PED-X5",
+        "layer": "communication",
+        "domain": 4,
+        "tier": "important",
+        "criterion": "Invites and answers the family's questions",
+        "cues": [
+          "what questions do you have",
+          "any questions"
+        ],
+        "feedback_if_missed": "Ask Sofia and her mom what questions they have."
+      }
+    ]
+  },
+  "case_rubric": {
+    "universal_domains": "All 7 organizer domains and the universal U-* criteria apply, except medication, allergy, and vital-sign items (U-INFO-2, U-INFO-3, U-VITAL-1, U-SAFE-MED-1), which are not part of an SLP intake.",
+    "point_sections": [
+      {
+        "section": "Introduce yourself to the client",
+        "points": 10,
+        "criteria": [
+          "U-OPEN-1",
+          "PED-I1",
+          "U-RAPP-2"
+        ]
+      },
+      {
+        "section": "Needs assessment",
+        "points": 30,
+        "criteria": [
+          "PED-N1",
+          "PED-N2",
+          "PED-N3",
+          "PED-N4",
+          "PED-N5"
+        ]
+      },
+      {
+        "section": "Review the audiogram",
+        "points": 30,
+        "criteria": [
+          "PED-A1",
+          "PED-A2",
+          "PED-A3"
+        ]
+      },
+      {
+        "section": "Realistic expectations for aural rehab",
+        "points": 30,
+        "criteria": [
+          "PED-X1",
+          "PED-X2",
+          "PED-X3",
+          "PED-X4",
+          "PED-X5"
+        ]
+      }
+    ],
+    "point_rule": "Section points = section points x (criteria met / criteria in section), rounded. Total out of 100, alongside the 7-domain 1-4 rubric."
+  },
+  "demo_script": [
+    {
+      "step": 1,
+      "phase": "Introduction",
+      "clinician": "Hi Sofia, hi Mom, it's nice to meet you both. I'm a student speech-language pathologist."
+    },
+    {
+      "step": 2,
+      "phase": "Introduction",
+      "clinician": "Sofia, what would you like me to call you?"
+    },
+    {
+      "step": 3,
+      "phase": "Introduction",
+      "clinician": "What brings you in today?"
+    },
+    {
+      "step": 4,
+      "phase": "Needs assessment",
+      "clinician": "When did you find out about Sofia's hearing loss?"
+    },
+    {
+      "step": 5,
+      "phase": "Needs assessment",
+      "clinician": "Sofia, tell me about your hearing aids. When do you wear them?"
+    },
+    {
+      "step": 6,
+      "phase": "Needs assessment",
+      "clinician": "Do your ears ever ring or buzz, or do loud sounds bother you?"
+    },
+    {
+      "step": 7,
+      "phase": "Needs assessment",
+      "clinician": "You mentioned your teacher, Sofia. How are things going at school?"
+    },
+    {
+      "step": 8,
+      "phase": "Needs assessment",
+      "clinician": "Sofia, what's the hardest part about listening for you right now?"
+    },
+    {
+      "step": 9,
+      "phase": "Feelings",
+      "clinician": "How do you feel about all of this?"
+    },
+    {
+      "step": 10,
+      "phase": "Empathy",
+      "clinician": "That must be hard, and you're not dumb at all - your ears just have to work extra hard."
+    },
+    {
+      "step": 11,
+      "phase": "Audiogram",
+      "clinician": "Mom, could we look at her audiogram together?"
+    },
+    {
+      "step": 12,
+      "phase": "Audiogram",
+      "clinician": "This shows a moderate-to-severe hearing loss in both ears, mostly for soft, high-pitched sounds."
+    },
+    {
+      "step": 13,
+      "phase": "Audiogram",
+      "clinician": "This curved area is the speech banana. With your hearing aids, most speech sounds land inside it, but soft sounds like 's' and 'f' are still hard to catch without them."
+    },
+    {
+      "step": 14,
+      "phase": "Expectations",
+      "clinician": "What are you hoping we can work on together?"
+    },
+    {
+      "step": 15,
+      "phase": "Expectations",
+      "clinician": "Your audiologist tests your hearing and adjusts your hearing aids. As a speech-language pathologist, I help you get the most out of what you hear."
+    },
+    {
+      "step": 16,
+      "phase": "Expectations",
+      "clinician": "Aural rehab is listening practice - games and strategies to help you follow conversations in noisy places. To be realistic, it won't fix your hearing, but it can make school and friends a lot easier."
+    },
+    {
+      "step": 17,
+      "phase": "Teach-back",
+      "clinician": "Mom, can you tell me back in your own words what we talked about?"
+    },
+    {
+      "step": 18,
+      "phase": "Questions",
+      "clinician": "What questions do you have for me?"
+    },
+    {
+      "step": 19,
+      "phase": "Closing",
+      "clinician": "Great questions. Our next step is to meet weekly, and I'll talk with your audiologist and school about a microphone for your teacher. See you next session, Sofia!"
+    }
+  ],
+  "intentional_gaps": [
+    "Does not summarize findings back to the family (U-REAS-1) - shows up as a gap.",
+    "Does not safety-net (when to contact the audiologist sooner, e.g. sudden hearing change) - shows up as a gap."
+  ]
+}

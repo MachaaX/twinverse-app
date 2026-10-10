@@ -16,60 +16,194 @@
 @media(max-width:1150px){.page-heading:has(>.button-row){flex-wrap:wrap}.page-heading>.button-row{justify-content:flex-start}}
 
 .rating-editor .full{grid-column:1/-1}
-.criteria-block{margin:14px 0 4px;border:1px solid var(--line);border-radius:12px;background:#fbfcf9}
-.criteria-block summary{padding:10px 14px;cursor:pointer;font-weight:600;font-size:13px}
-.criteria-list{list-style:none;margin:0;padding:0 14px 10px;display:grid;gap:8px}
-.criterion{display:flex;gap:9px;align-items:flex-start;font-size:13px}
-.criterion .badge{margin:0 4px}
-.criterion p{margin-top:3px;color:var(--muted);font-size:12px}
-.criterion.met .icon{color:var(--green)}
-.criterion.missed .icon{color:var(--orange)}
-.auto-panel{margin-bottom:22px}
-.auto-panel .panel-header .score-number{font-size:34px}
-.auto-panel .panel-content p{margin-top:6px}
-.summary-editor{border-top:1px solid var(--line)}
-.summary-editor .form-grid{margin-top:14px}
-.summary-view{margin-bottom:22px}
-.summary-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-top:14px}
-.summary-columns ul{margin:8px 0 0;padding-left:18px}
-.summary-columns li{margin-bottom:6px}
-.auto-panel .panel-header{flex-wrap:wrap;gap:12px}
-.auto-panel .panel-header .score-number{white-space:nowrap}
-.pending-actions{margin-bottom:30px}
-#faculty-login .field{margin-bottom:12px}
-#faculty-login .login-error{color:var(--red);margin:0 0 14px}
-.gen-status{margin-bottom:22px}
-.gen-status-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.validation-list .gen-error{color:var(--red)}
-.slider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
-.slider-field input[type=range]{width:100%;accent-color:var(--green)}
-.slider-scale{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--muted)}
-.slider-scale strong{color:var(--ink);text-align:center}
-.editor-portrait{margin-bottom:16px}
-.editor-portrait img,.editor-portrait .placeholder-portrait{width:96px;height:96px;border-radius:50%;object-fit:cover}
-.transcript-start{display:flex;gap:12px;align-items:flex-start;margin:auto 0;padding:18px;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}
-.transcript-start strong{color:var(--ink)}
-.transcript-start p{margin-top:4px;font-size:13px}
-.quality-panel{margin-bottom:22px}
-.quality-panel .stats-row{margin-bottom:14px}
-.tone-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
-.tone-chip{border:0;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
-.tone-warm{background:#e3efdc;color:var(--green)}
-.tone-neutral{background:#f0f2ef;color:#7b857d}
-.tone-cold{background:#f8e8e2;color:var(--red)}
-.criterion.forgiven .icon{color:#9aa39c}
-.criterion.forgiven strong{color:var(--muted)}
-.topbar-actions{gap:10px}
-.report-btn{white-space:nowrap}
-@media (max-width:760px){.report-btn span{display:none}}
-.rating-panel{margin-bottom:22px}
-.rating-widget textarea{width:100%;margin:8px 0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit}
-.stars{display:flex;gap:4px;margin-top:6px}
-.star{border:0;background:none;font-size:26px;line-height:1;color:#d5dbd3;padding:2px}
-.star.on{color:#d9a43a}
-.star:hover{color:#e6b95a}
-.rating-split{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-.feedback-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.comment-list{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:10px}
-.comment-list p{margin-top:2px;font-size:13px}
-.dev-login{max-width:460px}
+
+/* Avatar Component Styles */
+.avatar-wrapper{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;transition:transform .3s ease}
+.avatar-wrapper.speaking{animation:subtle-pulse 2s ease-in-out infinite}
+@keyframes subtle-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+
+.avatar-container{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+
+/* Image-based avatar with overlay */
+.avatar-image-layer{position:relative;width:100%;height:100%}
+.avatar-base-image{width:100%;height:100%;object-fit:cover;object-position:50% 20%;display:block;border-radius:10px}
+
+.avatar-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:15%}
+
+/* Mouth overlay for lip-sync on photos */
+.avatar-mouth-overlay{width:20%;height:15%;position:relative}
+
+.mouth-shape{width:100%;height:100%;border-radius:50%;transition:transform .05s ease,height .05s ease}
+
+.mouth-shape[data-shape="closed"]{transform:scaleY(.3);background:radial-gradient(ellipse,#2a1a1a 0%,transparent 70%);opacity:.6}
+
+.mouth-shape[data-shape="open"]{transform:scaleY(.9);background:radial-gradient(ellipse,#1a0a0a 0%,#3a2a2a 40%,transparent 70%);opacity:.7;height:110%}
+
+.mouth-shape[data-shape="wide"]{transform:scaleY(.7) scaleX(1.3);background:radial-gradient(ellipse,#2a1a1a 0%,transparent 70%);opacity:.65}
+
+.mouth-shape[data-shape="smile"]{transform:scaleY(.5) scaleX(1.1);background:radial-gradient(ellipse,#2a1a1a 0%,transparent 70%);opacity:.55;border-radius:50% 50% 60% 60%}
+
+/* Emotion-based adjustments */
+.avatar-wrapper[data-emotion="empathetic"] .avatar-container{filter:brightness(1.02) saturate(1.05)}
+.avatar-wrapper[data-emotion="concerned"] .avatar-container{filter:brightness(.98) contrast(1.03)}
+.avatar-wrapper[data-emotion="cheerful"] .avatar-container{filter:brightness(1.05) saturate(1.1)}
+
+/* Simple SVG/CSS avatar (fallback) */
+.avatar-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8eddf 0%,#d4ddc7 100%)}
+
+.avatar-head{position:relative;width:60%;height:70%;background:#f0e6d2;border-radius:50% 50% 48% 48%;display:flex;align-items:center;justify-content:center;animation:gentle-breathe 4s ease-in-out infinite}
+
+@keyframes gentle-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.01)}}
+
+.avatar-face{position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:15%}
+
+.avatar-eyes{display:flex;gap:28%;width:100%;justify-content:center;margin-bottom:8%}
+
+.avatar-eye{width:14px;height:18px;background:radial-gradient(circle,#2a3832 35%,#4a5852 100%);border-radius:50%;position:relative;overflow:hidden}
+
+.avatar-pupil{width:8px;height:8px;background:#0a1210;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+
+.avatar-eye.blinking{animation:blink .15s ease}
+@keyframes blink{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.1)}}
+
+.avatar-mouth{width:40%;height:20%;position:relative;margin-top:5%}
+
+.avatar-mouth-shape{width:100%;height:30%;background:#c27b6a;border-radius:0 0 50% 50%;transition:transform .05s ease,height .05s ease}
+
+.speaking .avatar-mouth-shape{animation:basic-talk .12s ease-in-out infinite alternate}
+@keyframes basic-talk{from{transform:scaleY(.4)}to{transform:scaleY(1.2);height:40%}}
+
+/* Speaking indicator */
+.avatar-status{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:10}
+
+.speaking-indicator{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.95);padding:5px 10px;border-radius:20px;font-size:9px;color:var(--green);border:1px solid rgba(30,88,75,.2)}
+
+.pulse-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse-animation 1.5s ease-in-out infinite}
+
+@keyframes pulse-animation{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+
+.status-text{font-weight:600;letter-spacing:.3px}
+
+/* Compact avatar for patient banner */
+.patient-banner .avatar-wrapper{height:75px;width:65px;border-radius:10px;overflow:hidden}
+
+.patient-banner .avatar-container{border-radius:10px}
+
+.patient-banner .speaking-indicator{bottom:4px;padding:3px 7px;font-size:8px}
+
+.patient-banner .pulse-dot{width:5px;height:5px}
+
+/* Avatar controls */
+.avatar-controls{display:flex;gap:8px;align-items:center;margin-top:10px}
+
+.avatar-toggle{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+
+.avatar-toggle input{accent-color:var(--green)}
+
+.avatar-loading{display:flex;align-items:center;justify-content:center;padding:20px;color:var(--muted);font-size:11px}
+
+.avatar-error{padding:15px;background:#f8e8e2;color:var(--red);border-radius:8px;font-size:11px;text-align:center}
+
+/* 3D Avatar System Styles */
+.avatar-3d-wrapper{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f5f7f2 0%,#eaf0df 100%);border-radius:16px;overflow:hidden;transition:transform .3s ease}
+
+.avatar-3d-wrapper.speaking{animation:gentle-scale-pulse 2.5s ease-in-out infinite}
+
+@keyframes gentle-scale-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.01)}}
+
+.avatar-canvas-3d{width:100%;height:100%;display:block;min-height:500px}
+
+/* Subtitle Overlay */
+.avatar-subtitle-overlay{position:absolute;bottom:0;left:0;right:0;padding:30px 40px;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.4) 50%,transparent 100%);pointer-events:none;z-index:10}
+
+.avatar-subtitle{background:rgba(255,255,255,.95);color:var(--ink);padding:16px 24px;border-radius:12px;font-size:15px;line-height:1.75;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transform:translateY(20px);transition:opacity .3s ease,transform .3s ease;max-width:90%;margin:0 auto;backdrop-filter:blur(8px)}
+
+.avatar-subtitle.active{opacity:1;transform:translateY(0)}
+
+/* Speaking Indicator for 3D Avatar */
+.avatar-status-3d{position:absolute;top:20px;right:20px;z-index:10}
+
+.speaking-indicator-3d{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.95);padding:8px 14px;border-radius:24px;font-size:10px;color:var(--green);border:1px solid rgba(30,88,75,.15);box-shadow:0 2px 12px rgba(0,0,0,.1);backdrop-filter:blur(8px)}
+
+.speaking-indicator-3d .pulse-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse-dot-animation 1.5s ease-in-out infinite}
+
+@keyframes pulse-dot-animation{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+.speaking-indicator-3d .status-text{font-weight:600;letter-spacing:.4px}
+
+/* Loading State for 3D Avatar */
+.avatar-loading-3d{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(245,247,242,.95);gap:12px;z-index:5}
+
+.avatar-loading-3d .spinner{width:32px;height:32px;border:3px solid #dce4d6;border-top-color:var(--green);border-radius:50%;animation:spin .9s linear infinite}
+
+.avatar-loading-3d span:last-child{font-size:12px;color:var(--muted)}
+
+/* Fallback Avatar Styles */
+.avatar-fallback{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;background:linear-gradient(135deg,#e8eddf 0%,#d4ddc7 100%)}
+
+.avatar-fallback-image{width:180px;height:220px;object-fit:cover;object-position:50% 20%;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+
+.avatar-fallback-placeholder{width:140px;height:140px;border-radius:50%;background:var(--green);color:white;display:grid;place-items:center;font-size:48px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+
+.avatar-fallback-message{margin-top:20px;font-size:11px;color:var(--muted);text-align:center}
+
+/* Enhanced Encounter Layout for Large Avatar */
+.encounter-layout-3d{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.6fr);gap:24px;align-items:start}
+
+.avatar-main-panel{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;min-height:650px;display:flex;flex-direction:column}
+
+.avatar-display-area{flex:1;position:relative;min-height:500px;background:linear-gradient(135deg,#f5f7f2 0%,#eaf0df 100%);display:flex;flex-direction:column}
+
+#avatar-container{flex:1;min-height:500px}
+
+.avatar-controls-bar{padding:18px 24px;border-top:1px solid var(--line);background:#fafcf6;display:flex;gap:12px;align-items:center;justify-content:space-between}
+
+.avatar-patient-info{display:flex;align-items:center;gap:12px}
+
+.avatar-patient-info h3{font-size:16px;margin:0}
+
+.avatar-patient-info p{font-size:11px;color:var(--muted);margin:4px 0 0}
+
+.avatar-input-section{flex:1;display:flex;gap:10px;align-items:flex-end}
+
+.avatar-input-section textarea{flex:1;resize:none;border:1px solid #dce4d7;border-radius:9px;min-height:48px;max-height:120px;padding:10px 14px;color:var(--ink);font-size:12px;background:#fff}
+
+.avatar-send-btn{padding:12px 18px;background:var(--green);color:white;border:0;border-radius:9px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;transition:background .2s}
+
+.avatar-send-btn:hover{background:var(--deep)}
+
+.avatar-send-btn .icon{width:16px;height:16px}
+
+/* Compact Medical Record Panel */
+.compact-chart-panel{min-height:auto;max-height:650px;display:flex;flex-direction:column}
+
+.compact-chart-body{flex:1;overflow:auto}
+
+/* Emotion-based visual adjustments */
+.avatar-3d-wrapper[data-emotion="empathetic"]{filter:brightness(1.02) saturate(1.03)}
+
+.avatar-3d-wrapper[data-emotion="concerned"]{filter:brightness(.98) contrast(1.02)}
+
+.avatar-3d-wrapper[data-emotion="cheerful"]{filter:brightness(1.04) saturate(1.08)}
+
+/* Responsive adjustments for 3D avatar */
+@media(max-width:1150px){
+  .encounter-layout-3d{grid-template-columns:minmax(0,1fr) minmax(260px,.7fr)}
+  .avatar-canvas-3d{min-height:450px}
+  .avatar-subtitle-overlay{padding:20px 30px}
+}
+
+@media(max-width:900px){
+  .encounter-layout-3d{grid-template-columns:1fr}
+  .avatar-display-area{min-height:500px}
+  .avatar-controls-bar{flex-direction:column;align-items:stretch}
+  .avatar-input-section{width:100%}
+}
+
+@media(max-width:600px){
+  .avatar-canvas-3d{min-height:400px}
+  .avatar-subtitle-overlay{padding:15px 20px}
+  .avatar-subtitle{font-size:13px;padding:12px 18px}
+  .avatar-display-area{min-height:420px}
+  .avatar-controls-bar{padding:14px 16px}
+}

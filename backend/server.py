@@ -15,6 +15,13 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+
+# Optional: boto3 for Amazon Polly TTS
+try:
+    import boto3
+    POLLY_AVAILABLE = True
+except ImportError:
+    POLLY_AVAILABLE = False
 from .store import Store
 from .seed import ROOT
 from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
@@ -149,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','same-origin')
-        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         if getattr(self,'new_token',None):self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict')
         for k,v in (headers or {}).items():self.send_header(k,v)
         self.end_headers();self.wfile.write(data)
@@ -379,7 +386,87 @@ class Handler(BaseHTTPRequestHandler):
 
     def route(self,method,b):
         parts=self.path_only.strip('/').split('/')[1:]
+        print(f'[DEBUG] Route: method={method}, parts={parts}', flush=True)
         if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False})
+        if parts==['tts'] and method=='POST':
+            # Amazon Polly TTS with word timing for lip-sync
+            text=b.get('text') or b.get('input') or ''
+            voice=b.get('voice','Joanna')
+            if not text or len(text)>3000:raise APIError(422,'Text required (max 3000 chars)')
+
+            print(f'[TTS] POLLY_AVAILABLE={POLLY_AVAILABLE}', flush=True)
+            if not POLLY_AVAILABLE:
+                # Fallback: return minimal response
+                print('[TTS] boto3 not available, returning empty', flush=True)
+                return self.send({'audioContent':'','timepoints':[],'audioDuration':0})
+
+            try:
+                print(f'[TTS] Creating Polly client with region: {os.getenv("AWS_REGION","us-west-2")}', flush=True)
+                # Disable SSL verification if needed (common issue on Windows)
+                import warnings
+                from botocore.config import Config
+                config = Config(signature_version='v4')
+                polly=boto3.client('polly',
+                    region_name=os.getenv('AWS_REGION','us-west-2'),
+                    config=config,
+                    verify=False  # Disable SSL cert verification
+                )
+                warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+
+                print(f'[TTS] Requesting audio for: "{text[:50]}..."', flush=True)
+                # Get audio
+                audio_response=polly.synthesize_speech(
+                    Text=text,
+                    OutputFormat='mp3',
+                    VoiceId=voice if voice in ['Joanna','Ruth','Kendra','Matthew','Stephen','Joey'] else 'Joanna',
+                    Engine='neural'
+                )
+                audio_bytes=audio_response['AudioStream'].read()
+                audio_b64=base64.b64encode(audio_bytes).decode('utf-8')
+                print(f'[TTS] Got audio: {len(audio_bytes)} bytes')
+
+                # Get speech marks for timing
+                print('[TTS] Requesting speech marks...')
+                marks_response=polly.synthesize_speech(
+                    Text=text,
+                    OutputFormat='json',
+                    VoiceId=voice if voice in ['Joanna','Ruth','Kendra','Matthew','Stephen','Joey'] else 'Joanna',
+                    Engine='neural',
+                    SpeechMarkTypes=['word']
+                )
+                marks_data=marks_response['AudioStream'].read().decode('utf-8')
+                marks=[json.loads(line) for line in marks_data.strip().split('\n') if line.strip()]
+                print(f'[TTS] Got {len(marks)} speech marks')
+
+                # Format for TalkingHead speakAudio: separate arrays
+                words=[]
+                wtimes=[]
+                wdurations=[]
+
+                for i, m in enumerate(marks):
+                    if m.get('type')=='word':
+                        words.append(m['value'])
+                        wtimes.append(m['time'])
+                        # Calculate duration: time until next word, or 300ms for last word
+                        if i+1<len(marks):
+                            wdurations.append(marks[i+1]['time']-m['time'])
+                        else:
+                            wdurations.append(300)  # Default 300ms for last word
+
+                print(f'[TTS] SUCCESS: Returning {len(audio_b64)} chars audio, {len(words)} words')
+                return self.send({
+                    'audioContent':audio_b64,
+                    'words':words,
+                    'wtimes':wtimes,
+                    'wdurations':wdurations,
+                    'audioDuration':len(audio_bytes)/16000*1000  # Rough estimate
+                })
+            except Exception as e:
+                # Fallback on error
+                print(f'[TTS] ERROR: {type(e).__name__}: {e}')
+                import traceback
+                traceback.print_exc()
+                return self.send({'audioContent':'','timepoints':[],'audioDuration':0})
         if parts==['session']:
             if method=='POST':
                 if b.get('role') not in ['student','faculty']:raise APIError(400,'Choose Student or Faculty.')

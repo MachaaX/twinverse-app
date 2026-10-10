@@ -2,7 +2,7 @@
 
 _Main live demo (adult). Deterministic: the scripted clinician lines always produce the same replies, chart updates and scores. Showcases empathy, plain-language explanation, honest uncertainty, and grounding._
 
-**Case file:** `data/cases/adult-nisha-patel.json` · **Generated:** 2026-10-10 16:49 by `tools/run_demo_script.py`
+**Case file:** `data/cases/adult-nisha-patel.json` · **Generated:** 2026-10-10 17:25 by `tools/run_demo_script.py`
 
 > Type each clinician line exactly as written. Replies, chart updates and scores below were produced by running this script through the app's engine and scorer.
 
@@ -13,7 +13,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 
 **Patient replies:** They just told me I have MS. I've never been in a hospital before, and honestly I don't know what's happening.
 
-- Scores: S-OPEN, U-CLOSE-3, U-OPEN-1, U-OPEN-3, U-SEQ-1
+- Scores: S-OPEN, U-CLOSE-3, U-OPEN-1, U-OPEN-3
 
 ### 2. Opening
 **Clinician types:** What would you like me to call you?
@@ -44,7 +44,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 **Patient replies:** I work in IT - I'm used to systems that make sense. My husband, Raj, has been here with me the whole time.
 
 - Chart adds: Work and home
-- Scores: NP-E4, U-INFO-1, U-INFO-5, U-SEQ-1
+- Scores: NP-E4, U-INFO-1, U-INFO-5
 
 ### 6. History
 **Clinician types:** Is this your first time being in the hospital?
@@ -62,11 +62,11 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 - Scores: NP-E4, U-CUE-1, U-CUE-2
 
 ### 8. Grounding check
-**Clinician types:** Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?
+**Clinician types:** Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?
 
 **Patient replies:** That detail is not provided in my sample case. You can ask about another part of my history.
 
-- Scores: NP-E2
+- Scores: NP-D2, NP-E2, U-CLOSE-1
 - Say to judges: Symptoms are not in the approved profile. The patient says so instead of inventing them - point this out to judges.
 - Grounding: patient declines to invent a fact
 
@@ -100,7 +100,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 
 **Patient replies:** Yes. That's exactly it.
 
-- Scores: NP-I1, U-REAS-1, U-SEQ-1
+- Scores: NP-I1, U-REAS-1
 
 ### 13. Education
 **Clinician types:** MS is a condition where your immune system attacks the protective coating, called myelin, around your nerves. That can disrupt the signals between your brain and your body.
@@ -138,11 +138,11 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 - Scores: U-EXPL-1
 
 ### 18. Questions
-**Clinician types:** What questions do you have for me?
+**Clinician types:** That's exactly right, you explained it really well. What questions do you have for me?
 
 **Patient replies:** Just one. Can I still have kids? That's the thing I keep coming back to.
 
-- Scores: NP-D1, NP-E3, U-EXPL-1
+- Scores: NP-D1, NP-E3, U-CLOSE-1, U-EXPL-1
 
 ### 19. Questions
 **Clinician types:** That's such an important question. Many people with MS do go on to start a family, and planning a pregnancy is something your neurologist can talk through with you in detail.
@@ -163,7 +163,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 
 **Patient replies:** Okay. Neurology next, write my questions down, and tell someone if anything changes. Thank you - really.
 
-- Scores: NP-D2, NP-E2, NP-S2, U-CLOSE-1, U-CLOSE-2, U-CLOSE-3, U-SEQ-1
+- Scores: NP-D2, NP-E2, NP-S2, U-CLOSE-1, U-CLOSE-2, U-CLOSE-3
 
 ## Expected automatic score
 
@@ -171,7 +171,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 |---|---|---|---|---|
 | 1 | Opening and purpose | 4 | 100% | - |
 | 2 | Rapport, respect, and empathy | 3 | 71% | S-TONE |
-| 3 | Information gathering | 4 | 95% | U-INFO-4, U-VITAL-1 |
+| 3 | Information gathering | 4 | 89% | U-INFO-4, U-VITAL-1, U-SEQ-1 |
 | 4 | Listening and response to cues | 4 | 100% | - |
 | 5 | Explanation and shared decisions | 4 | 100% | - |
 | 6 | Clinical reasoning and synthesis | 3 | 78% | SYN-1 |
@@ -184,18 +184,19 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 - Acknowledges emotion or difficulty with an empathic statement (t7)
 - Checks understanding (teach-back or explicit check) (t33)
 - Summarises key findings back to the patient (t23)
-- Closes with a clear next step / follow-up plan (t41)
+- Closes with a clear next step / follow-up plan (t15)
 
 **Gaps:**
 - Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)
+- Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure
 - Puts the picture together: states a fitting assessment linked to key findings
 - Keeps a warm, respectful tone throughout
 - Asks about relevant past medical and family history
 
 **Next-attempt suggestions:**
 - Review the available vital signs and measurements in the chart before forming a plan.
+- Follow a clear structure: open, explore, gather history, summarise/explain, then close.
 - Before closing, say what you think is going on and connect it to the key findings you gathered.
-- Use more validating language: acknowledge, thank, and reflect what the patient says.
 
 ## Intentional gaps
 

@@ -14,8 +14,7 @@
     "S-OPEN",
     "U-CLOSE-3",
     "U-OPEN-1",
-    "U-OPEN-3",
-    "U-SEQ-1"
+    "U-OPEN-3"
    ]
   },
   {
@@ -76,8 +75,7 @@
    "criteria_met": [
     "NP-E4",
     "U-INFO-1",
-    "U-INFO-5",
-    "U-SEQ-1"
+    "U-INFO-5"
    ]
   },
   {
@@ -111,14 +109,16 @@
   {
    "step": 8,
    "phase": "Grounding check",
-   "clinician": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
+   "clinician": "Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
    "note": "Symptoms are not in the approved profile. The patient says so instead of inventing them - point this out to judges.",
    "turn_id": "t15",
    "patient_reply": "That detail is not provided in my sample case. You can ask about another part of my history.",
    "reply_kind": "not_provided",
    "chart_adds": [],
    "criteria_met": [
-    "NP-E2"
+    "NP-D2",
+    "NP-E2",
+    "U-CLOSE-1"
    ]
   },
   {
@@ -174,8 +174,7 @@
    "chart_adds": [],
    "criteria_met": [
     "NP-I1",
-    "U-REAS-1",
-    "U-SEQ-1"
+    "U-REAS-1"
    ]
   },
   {
@@ -245,7 +244,7 @@
   {
    "step": 18,
    "phase": "Questions",
-   "clinician": "What questions do you have for me?",
+   "clinician": "That's exactly right, you explained it really well. What questions do you have for me?",
    "turn_id": "t35",
    "patient_reply": "Just one. Can I still have kids? That's the thing I keep coming back to.",
    "reply_kind": "reaction",
@@ -253,6 +252,7 @@
    "criteria_met": [
     "NP-D1",
     "NP-E3",
+    "U-CLOSE-1",
     "U-EXPL-1"
    ]
   },
@@ -294,8 +294,7 @@
     "NP-S2",
     "U-CLOSE-1",
     "U-CLOSE-2",
-    "U-CLOSE-3",
-    "U-SEQ-1"
+    "U-CLOSE-3"
    ]
   }
  ],
@@ -348,7 +347,7 @@
     "id": 3,
     "key": "information_gathering",
     "score": 4,
-    "coverage": 0.95,
+    "coverage": 0.89,
     "met": [
      "U-INFO-1",
      "U-INFO-2",
@@ -358,12 +357,12 @@
      "NP-E2",
      "NP-E3",
      "NP-E4",
-     "U-SEQ-1",
      "S-OPEN"
     ],
     "missed": [
      "U-INFO-4",
-     "U-VITAL-1"
+     "U-VITAL-1",
+     "U-SEQ-1"
     ],
     "capped_by": []
    },
@@ -627,7 +626,7 @@
      },
      {
       "turn_id": "t35",
-      "quote": "What questions do you have for me?"
+      "quote": "That's exactly right, you explained it really well. What questions do you have for me?"
      }
     ],
     "feedback": null
@@ -681,6 +680,14 @@
     "tier": "critical",
     "met": true,
     "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?"
+     },
+     {
+      "turn_id": "t35",
+      "quote": "That's exactly right, you explained it really well. What questions do you have for me?"
+     },
      {
       "turn_id": "t41",
       "quote": "Our next step is for neurology to go over treatment with you, and I'll discuss your questions with my supervisor. If you notice new symptoms or anything getting worse, let us know right away."
@@ -757,7 +764,7 @@
     "evidence": [
      {
       "turn_id": "t15",
-      "quote": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?"
+      "quote": "Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?"
      },
      {
       "turn_id": "t41",
@@ -779,7 +786,7 @@
      },
      {
       "turn_id": "t35",
-      "quote": "What questions do you have for me?"
+      "quote": "That's exactly right, you explained it really well. What questions do you have for me?"
      }
     ],
     "feedback": null
@@ -841,7 +848,7 @@
      },
      {
       "turn_id": "t35",
-      "quote": "What questions do you have for me?"
+      "quote": "That's exactly right, you explained it really well. What questions do you have for me?"
      }
     ],
     "feedback": null
@@ -853,6 +860,10 @@
     "tier": "important",
     "met": true,
     "evidence": [
+     {
+      "turn_id": "t15",
+      "quote": "Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?"
+     },
      {
       "turn_id": "t27",
       "quote": "There are medications that slow MS down, and your neurologist will go over the treatment options with you."
@@ -909,7 +920,7 @@
     "criterion": "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
     "domain": 3,
     "tier": "important",
-    "met": true,
+    "met": false,
     "evidence": [
      {
       "turn_id": "t1",
@@ -924,11 +935,12 @@
       "quote": "phase 3 first seen"
      },
      {
-      "turn_id": "t41",
+      "turn_id": "t15",
       "quote": "phase 4 first seen"
      }
     ],
-    "feedback": null
+    "feedback": "Follow a clear structure: open, explore, gather history, summarise/explain, then close.",
+    "forgiven": "half"
    },
    {
     "id": "U-SAFE-MED-1",
@@ -1032,7 +1044,8 @@
    "synthesis": false,
    "forgiven": [
     "U-INFO-4",
-    "U-VITAL-1"
+    "U-VITAL-1",
+    "U-SEQ-1"
    ],
    "note": "All critical history gathered: missed minor items are not counted and other missed items count half."
   },
@@ -1415,18 +1428,19 @@
    "Acknowledges emotion or difficulty with an empathic statement (t7)",
    "Checks understanding (teach-back or explicit check) (t33)",
    "Summarises key findings back to the patient (t23)",
-   "Closes with a clear next step / follow-up plan (t41)"
+   "Closes with a clear next step / follow-up plan (t15)"
   ],
   "gaps": [
    "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+   "Logical sequence: opening -> concern/HPI -> history (meds/allergies/social) -> summary/explanation -> closure",
    "Puts the picture together: states a fitting assessment linked to key findings",
    "Keeps a warm, respectful tone throughout",
    "Asks about relevant past medical and family history"
   ],
   "next_attempt_suggestions": [
    "Review the available vital signs and measurements in the chart before forming a plan.",
-   "Before closing, say what you think is going on and connect it to the key findings you gathered.",
-   "Use more validating language: acknowledge, thank, and reflect what the patient says."
+   "Follow a clear structure: open, explore, gather history, summarise/explain, then close.",
+   "Before closing, say what you think is going on and connect it to the key findings you gathered."
   ],
   "profile_gaps_to_acknowledge": [
    "No symptoms, exam findings, MRI/CSF results, vitals or medications in profile - student should not invent them"

@@ -420,7 +420,7 @@
     {
       "step": 8,
       "phase": "Grounding check",
-      "clinician": "Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
+      "clinician": "Those are really important worries, and we'll make sure your neurologist hears them. Have you noticed any symptoms like vision changes, numbness, weakness, or trouble with balance?",
       "note": "Symptoms are not in the approved profile. The patient says so instead of inventing them - point this out to judges."
     },
     {
@@ -472,7 +472,7 @@
     {
       "step": 18,
       "phase": "Questions",
-      "clinician": "What questions do you have for me?"
+      "clinician": "That's exactly right, you explained it really well. What questions do you have for me?"
     },
     {
       "step": 19,

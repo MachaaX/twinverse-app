@@ -102,6 +102,18 @@
   an EC2 role with S3 and `rds-db:connect` access for unattended AWS storage. Once
   that role is attached, remove the three static temporary credentials and any
   `AWS_PROFILE` setting from the server environment, then restart.
+- Live patient generation reads `AWS_BEARER_TOKEN_BEDROCK` from the same private
+  server configuration. The supplied Bedrock key was installed on EC2 with your
+  explicit authorization; it is outside Git and application releases. The hosted
+  connection test succeeded with Claude Sonnet 5 through Bedrock Runtime in
+  `us-west-2`. A live generation test also created a valid patient draft and
+  portrait; that synthetic draft was removed without publishing it. To replace
+  an expired key, edit just `AWS_BEARER_TOKEN_BEDROCK` with
+  `sudoedit /etc/twinverse/app.env`, then `sudo systemctl restart twinverse`.
+  Sign in as Faculty, open **Generate patient with AI**, and use **Test connection**
+  before generating a patient draft. Short-term keys expire after at most 12 hours
+  or when the underlying session expires, whichever is earlier.
+  [AWS Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)
 - Drafts, encounters, sources, portraits, feedback and reports live in
   `/var/lib/twinverse/twinverse.sqlite3`. Approved profiles also go to PostgreSQL
   and files to S3. Releases do not erase this workspace. The pre-existing EC2

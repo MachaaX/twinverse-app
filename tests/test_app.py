@@ -13,6 +13,8 @@ from backend.server import make_server, RUBRIC, validate_profile
 from backend.engine import reply, assess
 from backend.seed import seed_profiles
 
+TOKEN='test-faculty-token'
+
 class Client:
     def __init__(self,base):
         self.base=base
@@ -29,7 +31,7 @@ class AppTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp=tempfile.TemporaryDirectory()
-        cls.server=make_server(0,Path(cls.temp.name)/'test.sqlite3',verbose=False)
+        cls.server=make_server(0,Path(cls.temp.name)/'test.sqlite3',verbose=False,faculty_password=TOKEN)
         cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
         cls.base=f'http://127.0.0.1:{cls.server.server_port}'
         cls.omar=next(p for p in seed_profiles() if p['name']=='Omar Sinclair')
@@ -37,7 +39,7 @@ class AppTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown();cls.server.server_close();cls.thread.join();cls.server.store.db.close();cls.temp.cleanup()
     def setUp(self):self.client=Client(self.base)
-    def faculty(self):self.assertEqual(self.client.call('/api/session','POST',{'role':'faculty'})[0],200)
+    def faculty(self):self.assertEqual(self.client.call('/api/session','POST',{'role':'faculty','password':TOKEN})[0],200)
     def new_case(self):
         self.faculty();p=copy.deepcopy(self.omar);p['name']='Test Patient';p['summary']='Test summary'
         status,r=self.client.call('/api/patients','POST',{'profile':p});self.assertEqual(status,201,r)
@@ -125,7 +127,7 @@ class AppTests(unittest.TestCase):
         status,raw=self.client.call('/api/encounters/'+e['id']+'/artifacts/'+a['id']);self.assertEqual(status,200);self.assertEqual(raw,b'SYNTHETIC ATTACHMENT')
         self.assertEqual(self.client.call('/api/encounters/'+e['id']+'/artifacts/'+source['id'])[0],403)
     def test_18_cross_origin_blocked(self):
-        self.assertEqual(self.client.call('/api/session','POST',{'role':'faculty'},headers={'Origin':'https://evil.invalid'})[0],403)
+        self.assertEqual(self.client.call('/api/session','POST',{'role':'faculty','password':TOKEN},headers={'Origin':'https://evil.invalid'})[0],403)
     def test_19_no_static_path_escape(self):
         self.assertEqual(self.client.call('/%2e%2e/data/rubric.json')[0],404)
         self.assertEqual(self.client.call('/data/raw_patients.json')[0],404)
@@ -140,6 +142,72 @@ class AppTests(unittest.TestCase):
     def test_23_export_is_student_safe(self):
         e=self.start();status,r=self.client.call('/api/encounters/'+e['id']+'/export')
         self.assertEqual(status,200);self.assertNotIn('195',json.dumps(r));self.assertNotIn('source_notes',json.dumps(r))
+    def ratings(self,e,score=3,note='Reviewed against the complete saved transcript.'):
+        return [{'key':d['key'],'score':score,'review_note':note,'evidence_ids':[]} for d in e['feedback']['domains']]
+    def test_25_auto_score_is_faculty_only_until_release(self):
+        e=self.start();self.turn(e,"Hello, my name is Alex, I'm a student clinician. What brings you in today?",'a');self.turn(e,'What are your cholesterol results?','b')
+        student=self.finish(e)['feedback']
+        self.assertEqual(student['status'],'awaiting_release');self.assertFalse(student['released'])
+        self.assertNotIn('auto_score',student);self.assertNotIn('suggested_score',json.dumps(student));self.assertNotIn('summary',student)
+        self.faculty();f=self.client.call('/api/encounters/'+e['id'])[1]['feedback']
+        self.assertIn('total',f['auto_score']);self.assertTrue(all('suggested_score' in d and 'criteria' in d for d in f['domains']))
+        self.assertTrue(any(r['id']=='OS-E1' and r['met'] for d in f['domains'] for r in d['criteria']))
+        self.assertTrue(f['summary']['next_steps'])
+    def test_26_release_requires_complete_review(self):
+        e=self.finish(self.start());self.faculty();path='/api/encounters/'+e['id']
+        status,_=self.client.call(path+'/release','POST',{'reviewer':'Dr Test','review_version':0});self.assertEqual(status,422)
+    def test_27_faculty_edits_then_releases_to_student(self):
+        student=self.client;e=self.finish(self.start())
+        fac=Client(self.base);fac.call('/api/session','POST',{'role':'faculty','password':TOKEN});path='/api/encounters/'+e['id']
+        summary={'comments':'Good rapport.','strengths':['Introduced yourself'],'improvements':['Check understanding'],'next_steps':['Use teach-back']}
+        status,r=fac.call(path+'/review','POST',{'reviewer':'Dr Test','review_version':0,'ratings':self.ratings(e),'summary':summary});self.assertEqual(status,200,r)
+        self.assertEqual(student.call(path)[1]['feedback']['status'],'awaiting_release')
+        status,r=fac.call(path+'/release','POST',{'reviewer':'Dr Test','review_version':1});self.assertEqual(status,200,r)
+        self.assertTrue(r['feedback']['released'])
+        seen=student.call(path)[1]['feedback']
+        self.assertTrue(seen['released']);self.assertEqual(seen['total'],21);self.assertEqual(seen['summary'],summary)
+        self.assertNotIn('auto_score',seen);self.assertNotIn('suggested_note',json.dumps(seen))
+        status,r=fac.call(path+'/review','POST',{'reviewer':'Dr Test','review_version':1,'ratings':self.ratings(e,4)});self.assertEqual(status,200,r)
+        seen=student.call(path)[1]['feedback'];self.assertEqual(seen['total'],21);self.assertTrue(seen['update_pending'])
+        fac.call(path+'/release','POST',{'reviewer':'Dr Test','review_version':2})
+        seen=student.call(path)[1]['feedback'];self.assertEqual(seen['total'],28);self.assertFalse(seen['update_pending'])
+        self.assertEqual(student.call(path+'/release','POST',{'review_version':3})[0],403)
+    def test_28_new_faculty_case_gets_checkpoint_criteria(self):
+        p=self.new_case();self.client.call('/api/patients/'+p['id']+'/publish','POST',{'approved':True})
+        e=self.finish(self.start(p['id']));f=self.client.call('/api/encounters/'+e['id'])[1]['feedback']
+        ids=[r['id'] for d in f['domains'] for r in d['criteria']]
+        self.assertTrue(any(i.startswith('CASE-') for i in ids));self.assertIn('U-OPEN-1',ids)
+    def test_29_faculty_requires_token(self):
+        c=Client(self.base)
+        self.assertEqual(c.call('/api/session','POST',{'role':'faculty'})[0],403)
+        self.assertEqual(c.call('/api/session','POST',{'role':'faculty','password':'wrong'})[0],403)
+        self.assertEqual(c.call('/api/session')[1]['role'],'student')
+        self.assertEqual(c.call('/api/patients/'+self.omar['id'])[0],403)
+        status,r=c.call('/api/session','POST',{'role':'faculty','password':TOKEN});self.assertEqual((status,r['role']),(200,'faculty'))
+        self.assertEqual(c.call('/api/patients/'+self.omar['id'])[0],200)
+        self.assertEqual(c.call('/api/session','POST',{'role':'student'})[1]['role'],'student')
+        self.assertEqual(c.call('/api/patients/'+self.omar['id'])[0],403)
+    def test_30_repeated_wrong_tokens_lock_out(self):
+        c=Client(self.base)
+        for _ in range(5):self.assertEqual(c.call('/api/session','POST',{'role':'faculty','password':'guess'})[0],403)
+        self.assertEqual(c.call('/api/session','POST',{'role':'faculty','password':TOKEN})[0],429)
+        self.assertEqual(Client(self.base).call('/api/session','POST',{'role':'faculty','password':TOKEN})[0],200)
+    def test_31_restart_signs_out_faculty(self):
+        c=Client(self.base);c.call('/api/session','POST',{'role':'faculty','password':TOKEN})
+        restarted=make_server(0,Path(self.temp.name)/'test.sqlite3',verbose=False,faculty_password=TOKEN)
+        try:
+            row=restarted.store.db.execute("SELECT COUNT(*) FROM sessions WHERE role='faculty'").fetchone()[0];self.assertEqual(row,0)
+        finally:restarted.server_close();restarted.store.db.close()
+    def test_32_default_password_and_override(self):
+        from backend.server import load_faculty_password as faculty_password,DEFAULT_FACULTY_PASSWORD
+        import os
+        old=os.environ.pop('TWINVERSE_FACULTY_PASSWORD',None)
+        try:
+            self.assertEqual(faculty_password(),(DEFAULT_FACULTY_PASSWORD,'default'))
+            os.environ['TWINVERSE_FACULTY_PASSWORD']='team-secret';self.assertEqual(faculty_password()[0],'team-secret')
+        finally:
+            os.environ.pop('TWINVERSE_FACULTY_PASSWORD',None)
+            if old is not None:os.environ['TWINVERSE_FACULTY_PASSWORD']=old
     def test_24_seed_import_has_all_eight_images(self):
         from backend.seed import ROOT
         patients=seed_profiles();self.assertEqual(len(patients),8)

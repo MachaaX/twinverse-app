@@ -13,3 +13,25 @@
 @media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
 
 .rating-editor .full{grid-column:1/-1}
+.criteria-block{margin:14px 0 4px;border:1px solid var(--line);border-radius:12px;background:#fbfcf9}
+.criteria-block summary{padding:10px 14px;cursor:pointer;font-weight:600;font-size:13px}
+.criteria-list{list-style:none;margin:0;padding:0 14px 10px;display:grid;gap:8px}
+.criterion{display:flex;gap:9px;align-items:flex-start;font-size:13px}
+.criterion .badge{margin:0 4px}
+.criterion p{margin-top:3px;color:var(--muted);font-size:12px}
+.criterion.met .icon{color:var(--green)}
+.criterion.missed .icon{color:var(--orange)}
+.auto-panel{margin-bottom:22px}
+.auto-panel .panel-header .score-number{font-size:34px}
+.auto-panel .panel-content p{margin-top:6px}
+.summary-editor{border-top:1px solid var(--line)}
+.summary-editor .form-grid{margin-top:14px}
+.summary-view{margin-bottom:22px}
+.summary-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-top:14px}
+.summary-columns ul{margin:8px 0 0;padding-left:18px}
+.summary-columns li{margin-bottom:6px}
+.auto-panel .panel-header{flex-wrap:wrap;gap:12px}
+.auto-panel .panel-header .score-number{white-space:nowrap}
+.pending-actions{margin-bottom:30px}
+#faculty-login .field{margin-bottom:12px}
+#faculty-login .login-error{color:var(--red);margin:0 0 14px}

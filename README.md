@@ -49,7 +49,7 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 6. Ask: `How do you feel about taking medication?`
 7. Ask: `Do you have a penicillin allergy?` The adapter reports that the detail is not provided, rather than inventing a negative history.
 8. Finish the encounter. Inspect the checkpoint evidence and original transcript.
-9. Switch the top-right role to **Faculty**. The feedback page stays open. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
+9. Switch the top-right role to **Faculty** and enter the faculty password (`twinverse-faculty` by default). The feedback page stays open. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
 10. Give domain 6 or 7 a rating of 1 with an explanation to demonstrate the official review-trigger behavior.
 
 ## Create a patient through the UI
@@ -68,6 +68,16 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 9. Go to Practice library and start the new patient.
 
 Draft changes do not modify the last published version. Publish to make edits available to new encounters. Existing encounters always retain the profile, attachments, and rubric snapshots they started with.
+
+## Automatic scoring and faculty release
+
+1. When a student finishes, the app drafts a score from `data/clinical_scoring_criteria.json` (communication, vital-sign/NEWS2 and per-patient clinical criteria).
+2. The student sees **Submitted for faculty review**, with no scores.
+3. Faculty open the encounter from **Encounter history**. Each domain shows the suggested score, the criteria met and missed with transcript evidence, and a pre-filled rating and note. A **Feedback to the student** section pre-fills strengths, areas to improve and next steps.
+4. Faculty change anything, then **Save review** (draft) or **Save & release to student**.
+5. The student then sees the final score and the faculty feedback. Later edits stay hidden until released again.
+
+The clinical criteria are a draft and need faculty validation before real grading.
 
 ## Attachment behavior
 
@@ -160,7 +170,8 @@ If the frontend test's Python executable differs, set `PYTHON` to it. These test
 ## Local-only boundaries
 
 - The server binds to `127.0.0.1`, validates Host/Origin, serves only the frontend directory, and uses HttpOnly SameSite cookies.
-- Faculty/student role switching is explicitly a **demo convenience**, not authentication. Anyone with local browser access can choose Faculty.
+- **Faculty sign-in:** switching to Faculty requires the shared demo password, `twinverse-faculty` by default (also printed in the terminal at startup). Change `DEFAULT_FACULTY_PASSWORD` in `backend/server.py`, or start with `TWINVERSE_FACULTY_PASSWORD="..." python3 run.py`. Five wrong attempts lock that browser out for 60 seconds, and restarting the server signs every browser out of the faculty view. Switching back to Student signs out.
+- The default password is visible in this repository, so it only keeps casual users out of the faculty view during a demo. It is not per-user accounts. Add real authentication before any shared deployment.
 - Browser sessions have separate encounter ownership; Faculty can inspect local encounters for review.
 - Do not expose this server publicly or use real patient information. Add real authentication, authorization, TLS, secure deployment, upload scanning, retention policy, and proper operational controls before any real deployment.
 - Browser narration reads the same approved reply text; it does not evaluate speech, accents, facial expressions, or emotion.

@@ -79,6 +79,12 @@ the [step-by-step AWS storage setup](docs/AWS_STORAGE_SETUP.md), starting from
 use resources that their owner has provisioned and granted access to. Local mode
 remains available; drafts and encounters continue to use SQLite.
 
+### Host on EC2 with continuous deployment
+
+The [EC2 deployment walkthrough](docs/EC2_DEPLOYMENT.md) covers HTTPS hosting,
+GitHub Actions checks, automatic deployment of successful `main` commits,
+persistent application data, credential refresh, logs, and rollback.
+
 ## Automatic scoring and faculty release
 
 1. When a student finishes, the app drafts a score from `data/clinical_scoring_criteria.json` (communication, vital-sign/NEWS2 and per-patient clinical criteria).

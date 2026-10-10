@@ -1,0 +1,27 @@
+[Unit]
+Description=TwinVerse patient workspace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=twinverse
+Group=twinverse
+WorkingDirectory=/opt/twinverse/current
+EnvironmentFile=/etc/twinverse/app.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/twinverse/current/.venv/bin/python /opt/twinverse/current/run.py --port 8000
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGINT
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/twinverse
+
+[Install]
+WantedBy=multi-user.target

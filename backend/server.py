@@ -157,7 +157,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','same-origin')
         self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
-        if getattr(self,'new_token',None):self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict')
+        if getattr(self,'new_token',None):
+            secure='; Secure' if self.server.public_origin.startswith('https://') else ''
+            self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict{secure}')
         for k,v in (headers or {}).items():self.send_header(k,v)
         self.end_headers();self.wfile.write(data)
 
@@ -169,11 +171,14 @@ class Handler(BaseHTTPRequestHandler):
     def handle_request(self,method):
         try:
             self.new_token=None
-            # Loopback-only server; browser role switching is an explicit demo feature.
+            # Nginx forwards the original Host/Origin to this loopback-only backend.
             host=self.headers.get('Host','')
-            if host.split(':')[0] not in ['127.0.0.1','localhost']:raise APIError(403,'Use localhost or 127.0.0.1 to open this local demo.')
+            public=urlparse(self.server.public_origin)
+            local=host.split(':')[0] in ['127.0.0.1','localhost']
+            if not local and (not self.server.public_origin or host!=public.netloc):raise APIError(403,'This host is not configured for TwinVerse.')
             origin=self.headers.get('Origin')
-            if origin and origin!=f'http://{host}':raise APIError(403,'Cross-origin requests are not allowed.')
+            expected=f'http://{host}' if local else self.server.public_origin
+            if origin and origin!=expected:raise APIError(403,'Cross-origin requests are not allowed.')
             self.path_only=unquote(urlparse(self.path).path)
             if not self.path_only.startswith('/api/'):
                 if method!='GET':raise APIError(405,'Method not allowed.')
@@ -386,8 +391,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def route(self,method,b):
         parts=self.path_only.strip('/').split('/')[1:]
-        print(f'[DEBUG] Route: method={method}, parts={parts}', flush=True)
-        if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False})
+        if parts==['health'] and method=='GET':return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False,'release':self.server.release})
         if parts==['tts'] and method=='POST':
             # Amazon Polly TTS with word timing for lip-sync
             text=b.get('text') or b.get('input') or ''
@@ -402,16 +406,12 @@ class Handler(BaseHTTPRequestHandler):
 
             try:
                 print(f'[TTS] Creating Polly client with region: {os.getenv("AWS_REGION","us-west-2")}', flush=True)
-                # Disable SSL verification if needed (common issue on Windows)
-                import warnings
                 from botocore.config import Config
                 config = Config(signature_version='v4')
                 polly=boto3.client('polly',
                     region_name=os.getenv('AWS_REGION','us-west-2'),
-                    config=config,
-                    verify=False  # Disable SSL cert verification
+                    config=config
                 )
-                warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
                 print(f'[TTS] Requesting audio for: "{text[:50]}..."', flush=True)
                 # Get audio
@@ -699,9 +699,21 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
-def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None):
+def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None,public_origin=None):
+    public_origin=(public_origin if public_origin is not None else os.environ.get('TWINVERSE_PUBLIC_ORIGIN','')).rstrip('/')
+    if public_origin:
+        origin=urlparse(public_origin)
+        if (origin.scheme not in ('http','https') or not origin.netloc or origin.path
+            or origin.query or origin.fragment or origin.username or origin.password):
+            raise ValueError('TWINVERSE_PUBLIC_ORIGIN must be an http(s) origin, without a path or credentials.')
+        if ((faculty_password or load_faculty_password()[0])==DEFAULT_FACULTY_PASSWORD
+            or load_developer_password()==DEFAULT_DEVELOPER_PASSWORD):
+            raise ValueError('Set private TWINVERSE_FACULTY_PASSWORD and TWINVERSE_DEVELOPER_PASSWORD before hosting.')
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
-    s.store=Store(db_path or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
+    s.public_origin=public_origin
+    release_file=ROOT/'.release'
+    s.release=release_file.read_text().strip() if release_file.is_file() else 'local'
+    s.store=Store(db_path or os.environ.get('TWINVERSE_DB_PATH') or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
     s.cloud_storage=cloud_storage if cloud_storage is not None else CloudStorage()
     s.publishing_cases=set()
     s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()

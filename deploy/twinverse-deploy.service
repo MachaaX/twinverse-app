@@ -1,0 +1,10 @@
+[Unit]
+Description=Deploy the latest TwinVerse main commit after GitHub CI succeeds
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/twinverse/deploy.py
+TimeoutStartSec=20min
+UMask=0022

@@ -23,8 +23,9 @@ r['released_feedback']=student_feedback(r['feedback'])
 print(json.dumps({'profiles':seed_profiles(),'patients':[{**brief(p),'has_published_version':True,'published_card':brief(p)} for p in seed_profiles()],'rubric':RUBRIC,'encounter':public_encounter(e,'faculty'),'student_pending':public_encounter(e,'student'),'student_released':public_encounter(r,'student')}))
 `],{cwd:root,encoding:'utf8'}));
 const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
-const context=vm.createContext({fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
-const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/\nboot\(\);\s*$/,'');
+const avatarMocks={Avatar3D:class {},ttsService:{isAvailable:()=>false}};
+const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
+const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
 vm.runInContext('S.patients=fixture.patients;S.rubric=fixture.rubric;S.encounter=fixture.encounter;',context);
 const run=code=>vm.runInContext(code,context);
@@ -36,7 +37,7 @@ check('Studio table renders with AI generation before Create patient',()=>{const
 check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
 check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
 check('Approval storage status distinguishes local, configured, incomplete, and saved',()=>{run("S.storageStatus={enabled:false};");assert.ok(run('editorView()').includes('AWS storage is off'));run("S.storageStatus={enabled:true,configured:false};");assert.ok(run('editorView()').includes('Approval is blocked'));run("S.storageStatus={enabled:true,configured:true};S.editor={...fixture.profiles[4],status:'draft'};");assert.ok(run('editorView()').includes('Approval will save'));assert.ok(!run('editorView()').includes('No uploads are sent to an external service'));run("S.editor={...fixture.profiles[4],status:'published',cloud_storage:{version:fixture.profiles[4].version,file_count:2}};");assert.ok(run('editorView()').includes('Saved to AWS'));run('S.storageStatus=null;S.editor=fixture.profiles[4];');});
-check('Split-screen encounter renders',()=>{const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('patient-banner'));});
+check('Avatar encounter and medical record render',()=>{run("S.encounter={...fixture.encounter,status:'active'};");const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('avatar-container'));assert.ok(html.includes('id="chat-form"'));run('S.encounter=fixture.encounter;');});
 check('Student feedback contains no rating editor',()=>{run("S.role='student';");assert.ok(!run('reportView()').includes('class="rating-editor"'));});
 check('Faculty feedback renders seven rating editors',()=>{run("S.role='faculty';");assert.equal((run('reportView()').match(/class="rating-editor"/g)||[]).length,7);});
 check('Faculty sees auto-suggested score and pre-filled ratings',()=>{run("S.role='faculty';S.encounter=fixture.encounter;");const html=run('reportView()');assert.ok(html.includes('Auto-suggested score'));assert.ok(html.includes('scoring criteria met'));assert.ok(html.includes('Save &amp; release to student'));const d=fixture.encounter.feedback.domains[0];assert.ok(html.includes(`<option value="${d.suggested_score}" selected>`));});
@@ -63,7 +64,7 @@ console.log(`${count} frontend render checks passed.`);
  let fail=true;
  let pending=null;
  const stateNode={innerHTML:'',textContent:'',hidden:false,isConnected:true,addEventListener(){},querySelectorAll:()=>[],classList:{}};
- const sandbox=vm.createContext({fixture,
+ const sandbox=vm.createContext({...avatarMocks,fixture,
   document:{querySelector:s=>s==='#case-form'?null:s==='#approve-case'?{checked:true}:stateNode,querySelectorAll:()=>[],addEventListener(){}},
   window:{addEventListener(){}},location:{hash:'#studio/patient'},history:{replaceState(){}},
   setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON,

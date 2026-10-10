@@ -22,7 +22,7 @@ class CloudStorageError(Exception):
 
 def load_environment():
     """Existing environment variables take precedence over the local .env file."""
-    path = ROOT / '.env'
+    path = Path(os.environ.get('TWINVERSE_ENV_FILE') or ROOT / '.env')
     if not path.is_file():
         return
     try:

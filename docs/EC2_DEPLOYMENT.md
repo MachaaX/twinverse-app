@@ -64,17 +64,19 @@
 
 ## Credentials and application data
 
-- `/etc/twinverse/app.env` contains existing S3/RDS settings and private
-  faculty/developer passwords. Copying the temporary AWS credentials from your
-  computer to this file requires your explicit approval. Until that transfer is
-  approved/completed, the hosted approval flow cannot save to S3/PostgreSQL.
+- `/etc/twinverse/app.env` contains S3/RDS settings, private faculty/developer
+  passwords, and the three temporary AWS credentials transferred with your
+  explicit approval on October 10, 2026. A live hosted faculty approval saved a
+  synthetic profile to PostgreSQL and TXT/PDF files to S3; downloaded file bytes,
+  hashes, and MIME types matched. The test case and its cloud copies were removed.
   The file is readable only by root;
   systemd supplies the values to the app. It is outside all releases and Git.
 - Sign-in passwords are generated directly on EC2. View the two
   `TWINVERSE_FACULTY_PASSWORD` / `TWINVERSE_DEVELOPER_PASSWORD` values there with
-  `sudoedit /etc/twinverse/app.env`. Downloading them into a private local
-  `.env.hosted` (Git-ignored, mode `0600`) also requires your explicit approval.
-  The public deployment rejects the repository's default passwords.
+  `sudoedit /etc/twinverse/app.env`. As requested, these passwords stay on EC2;
+  they were not downloaded into a local `.env.hosted` file. Use the faculty
+  password when signing in as Faculty, or the developer password for developer
+  access. The public deployment rejects the repository's default passwords.
 - When workshop credentials expire, get a fresh matching access key, secret key,
   and session token. On EC2, edit only those three values and restart:
 
@@ -82,6 +84,17 @@
   sudoedit /etc/twinverse/app.env
   sudo systemctl restart twinverse
   ```
+
+- Verify the refreshed settings from the server without displaying credentials:
+
+  ```bash
+  cd /opt/twinverse/current
+  sudo env TWINVERSE_ENV_FILE=/etc/twinverse/app.env \
+    .venv/bin/python -m backend.cloud_storage check
+  ```
+
+  Expect `OK postgresql` and `OK s3`, then sign in again and approve a synthetic
+  patient with a small TXT/PDF attachment. Saved drafts stay local until approval.
 
 - IAM PostgreSQL tokens are generated anew for each connection. Expired workshop
   credentials also prevent S3 uploads and future database connections. The current

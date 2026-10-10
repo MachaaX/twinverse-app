@@ -144,10 +144,11 @@ def generate_reply(profile, messages, text):
     return fallback(profile, messages, text, reason)
 
 
-def fallback(profile, messages, text, reason):
-    """Approved scripted wording, still subject to the guarded-patient rule."""
+def fallback(profile, messages, text, reason, keep_kind=False):
+    """Approved scripted wording, still subject to the guarded-patient rule.
+    keep_kind: live AI is switched off, so label replies as ordinary scripted ones."""
     scripted = scripted_reply(profile, text)
     allowed_ids = {f['id'] for f in allowed_facts(profile, messages + [{'role': 'student', 'text': text}])[0]}
     if scripted['kind'] == 'profile' and not set(scripted['fact_ids']) <= allowed_ids:
-        return {'text': 'I’d rather not get into that right now.', 'fact_ids': [], 'kind': 'scripted_fallback', 'guardrail': reason}
-    return {**scripted, 'kind': 'scripted_fallback', 'guardrail': reason}
+        return {'text': 'I’d rather not get into that right now.', 'fact_ids': [], 'kind': 'not_provided' if keep_kind else 'scripted_fallback', 'guardrail': reason}
+    return {**scripted, 'kind': scripted['kind'] if keep_kind else 'scripted_fallback', 'guardrail': reason}

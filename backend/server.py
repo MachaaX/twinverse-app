@@ -291,7 +291,8 @@ class Handler(BaseHTTPRequestHandler):
         """AI replies run outside the store lock; the turn is recorded before and after."""
         with self.server.store.lock:
             self.session();e=self.encounter(eid)
-            if e['profile'].get('dialogue_mode')!='generative':return self.route('POST',b)
+            # AI with guardrails is the default; patients set to "scripted" use approved wording only.
+            if e['profile'].get('dialogue_mode','generative')!='generative':return self.route('POST',b)
             if e['status']!='active':raise APIError(409,'This encounter is finished. Start a new attempt.')
             text=b.get('text','');rid=b.get('request_id','')
             if not isinstance(text,str) or not text.strip() or len(text)>4000:raise APIError(422,'Enter a question of 1–4000 characters.')
@@ -305,7 +306,10 @@ class Handler(BaseHTTPRequestHandler):
             profile=e['profile'];history=copy.deepcopy(e['messages'][:-1])
             key=dialogue.cache_key(profile,text,e['disclosed'],dialogue.rapport_established(e['messages']))
             row=self.store.db.execute('SELECT value FROM reply_cache WHERE key=?',(key,)).fetchone()
-        try:r=json.loads(row['value']) if row else dialogue.generate_reply(profile,history,text)
+        try:
+            if row:r=json.loads(row['value'])
+            elif not generator.live_status()['live_available']:r=dialogue.fallback(profile,history,text,None,keep_kind=True)  # no key: scripted, still guarded
+            else:r=dialogue.generate_reply(profile,history,text)
         except Exception:
             import traceback;traceback.print_exc()
             r=dialogue.fallback(profile,history,text,'AI reply failed unexpectedly; scripted wording used.')

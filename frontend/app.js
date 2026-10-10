@@ -101,7 +101,7 @@ async function route(){
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
    else {location.hash='cases';return;}
    if(epoch!==S.epoch)return;main.innerHTML=view;
-   if(page==='encounter'){scrollChat();updateClock();}
+   if(page==='encounter'){scrollChat();updateClock();setTimeout(()=>initializeAvatar(),100);}
  }catch(err){if(epoch===S.epoch)main.innerHTML=notice(esc(err.message),'error')+button('Back to library','navigate','cases','btn-primary','back');}
 }
 function casesView(){
@@ -162,13 +162,30 @@ function chartView(){const e=S.encounter;
  if(S.chartTab==='timeline')return e.events.map(v=>{const f=e.records.find(f=>f.id===v.fact_id);const labels={encounter_started:'Encounter started',fact_available:'Baseline information available',student_turn:'Question recorded',fact_disclosed:'Clinical information disclosed',artifact_released:'Document released',artifact_opened:'Document opened',encounter_finished:'Encounter completed',assessment_created:'Observations generated',faculty_review_saved:'Faculty review saved',guardrail_blocked:'Approved wording used instead of an AI reply',rating_saved:'Rating saved',feedback_released:'Score released to student'};return `<div class="timeline-item"><div><strong>${esc(labels[v.type]||v.type)}</strong>${f?`<div>${esc(f.label)}</div>`:''}<small>${date(v.timestamp)}${v.turn_id?' · '+esc(v.turn_id):''}</small></div></div>`;}).join('');
  return `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
 }
-function scrollChat(){const el=$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
+function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
 setInterval(updateClock,1000);
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
- try{const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});if(S.route!=='encounter/'+activeId)return;S.encounter=r;$('#transcript').innerHTML=messagesView();$('#chart-body').innerHTML=chartView();input.value='';scrollChat();if(S.speak&&'speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(r.messages.at(-1).text));}}
- catch(err){toast(err.message,true);}finally{S.sending=false;submit.disabled=false;input.disabled=false;if(input.isConnected)input.focus();}
+ try{
+   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
+   if(S.route!=='encounter/'+activeId)return;
+   S.encounter=r;
+   // The avatar layout keeps the transcript in a dialog; the classic layout has #transcript.
+   const transcript=$('#transcript-view')||$('#transcript');
+   if(transcript)transcript.innerHTML=messagesView();
+   const chart=$('#chart-body');if(chart)chart.innerHTML=chartView();
+   input.value='';scrollChat();
+   const last=r.messages.at(-1);
+   if(last&&last.role==='patient'){
+     if(S.avatar&&S.avatarEnabled){
+       try{await S.avatar.speak(last.text,last.emotion||'neutral');}
+       catch(avatarErr){console.error('Avatar speech error:',avatarErr);if(ttsService.isAvailable())await ttsService.speak(last.text,{},last.emotion||'neutral');}
+     }else if(ttsService.isAvailable()){
+       await ttsService.speak(last.text,{},last.emotion||'neutral');
+     }
+   }
+ }catch(err){toast(err.message,true);}finally{S.sending=false;submit.disabled=false;input.disabled=false;if(input.isConnected)input.focus();}
 }
 function historyStatus(e){
  if(e.status==='active')return ['In progress','neutral'];

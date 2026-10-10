@@ -23,8 +23,9 @@ r['released_feedback']=student_feedback(r['feedback'])
 print(json.dumps({'profiles':seed_profiles(),'patients':[{**brief(p),'has_published_version':True,'published_card':brief(p)} for p in seed_profiles()],'rubric':RUBRIC,'encounter':public_encounter(e,'faculty'),'student_pending':public_encounter(e,'student'),'student_released':public_encounter(r,'student')}))
 `],{cwd:root,encoding:'utf8'}));
 const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
-const context=vm.createContext({fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
-const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/\nboot\(\);\s*$/,'');
+const context=vm.createContext({Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}},fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
+// app.js is an ES module (avatar imports); strip imports and provide stand-ins.
+const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*$/mg,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
 vm.runInContext('S.patients=fixture.patients;S.rubric=fixture.rubric;S.encounter=fixture.encounter;',context);
 const run=code=>vm.runInContext(code,context);
@@ -35,7 +36,7 @@ check('Library contains patient actions',()=>assert.ok(run('casesView()').includ
 check('Studio table renders with AI generation before Create patient',()=>{const html=run('studioView()');assert.ok(html.includes('Omar Sinclair'));assert.ok(html.includes('data-action="navigate" data-id="generate"'));assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));});
 check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
 check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
-check('Split-screen encounter renders',()=>{const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('patient-banner'));});
+check('Encounter renders avatar, chat box and medical record',()=>{const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('id="avatar-container"'));assert.ok(html.includes('id="transcript-view"'));});
 check('Student feedback contains no rating editor',()=>{run("S.role='student';");assert.ok(!run('reportView()').includes('class="rating-editor"'));});
 check('Faculty feedback renders seven rating editors',()=>{run("S.role='faculty';");assert.equal((run('reportView()').match(/class="rating-editor"/g)||[]).length,7);});
 check('Faculty sees auto-suggested score and pre-filled ratings',()=>{run("S.role='faculty';S.encounter=fixture.encounter;");const html=run('reportView()');assert.ok(html.includes('Auto-suggested score'));assert.ok(html.includes('scoring criteria met'));assert.ok(html.includes('Save &amp; release to student'));const d=fixture.encounter.feedback.domains[0];assert.ok(html.includes(`<option value="${d.suggested_score}" selected>`));});

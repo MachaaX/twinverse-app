@@ -121,7 +121,7 @@ CASE_TOOL = {
     'description': 'Save the complete synthetic virtual-patient case built from the faculty description.',
     'input_schema': {
         'type': 'object', 'additionalProperties': False,
-        'required': ['missing_required', 'age', 'sex', 'concern', 'learning_objectives', 'name', 'summary', 'background', 'persona',
+        'required': ['missing_required', 'age', 'sex', 'concern', 'assessment_terms', 'key_findings', 'learning_objectives', 'name', 'summary', 'background', 'persona',
                      'behavior', 'vitals', 'facts', 'objectives', 'scoring_criteria', 'reports', 'image_prompt'],
         'properties': {
             'missing_required': {'type': 'array', 'items': {'type': 'string', 'enum': ['age', 'sex', 'main concern', 'learning objectives']},
@@ -129,6 +129,10 @@ CASE_TOOL = {
             'age': {'type': ['integer', 'null']},
             'sex': {'type': 'string'},
             'concern': {'type': 'string', 'description': 'Main concern or diagnosis as stated.'},
+            'assessment_terms': {'type': 'array', 'items': {'type': 'string'},
+                                 'description': '2-6 accepted names for the working diagnosis or assessment a student should reach, including lay synonyms (e.g. "type 2 diabetes", "diabetes", "high blood sugar").'},
+            'key_findings': {'type': 'array', 'items': {'type': 'string'},
+                             'description': '3-8 short lowercase phrases a student would mention when tying the picture together (e.g. "a1c", "sweet tea", "family history").'},
             'learning_objectives': {'type': 'array', 'items': {'type': 'string'}, 'description': 'From the description; if none are stated, list missing_required "learning objectives".'},
             'name': {'type': 'string', 'description': 'Fictional full name. Never a real or famous person.'},
             'summary': {'type': 'string', 'description': 'One-line card summary. Do not reveal hidden answers.'},
@@ -438,7 +442,8 @@ def normalize(raw, req, provenance):
                'source_notes': 'Faculty description:\n' + str(req['text']).strip() + ('\n\nAttached files: ' + ', '.join(Path(f['name']).name for f in req.get('files') or []) if req.get('files') else ''),
                'facts': [f for _, f in facts], 'objectives': objectives, 'scoring_criteria': criteria, 'vitals': vitals,
                'difficulty': {'temperament': temperament, 'openness': openness}, 'dialogue_mode': 'generative',
-               'learning_objectives': objectives_text, 'image_prompt': str(raw.get('image_prompt', '')).strip(), 'version': 0, 'status': 'draft'}
+               'learning_objectives': objectives_text, 'assessment_terms': _phrases(raw.get('assessment_terms'), 8),
+               'key_findings': _phrases(raw.get('key_findings'), 10), 'image_prompt': str(raw.get('image_prompt', '')).strip(), 'version': 0, 'status': 'draft'}
     notes += consistency_notes(profile, reports, req)
     profile['validation_notes'] = list(dict.fromkeys(notes))
     return profile, reports

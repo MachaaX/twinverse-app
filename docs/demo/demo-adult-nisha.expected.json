@@ -11,6 +11,7 @@
    "reply_kind": "profile",
    "chart_adds": [],
    "criteria_met": [
+    "S-OPEN",
     "U-CLOSE-3",
     "U-OPEN-1",
     "U-OPEN-3",
@@ -27,6 +28,7 @@
    "chart_adds": [],
    "criteria_met": [
     "NP-S2",
+    "S-OPEN",
     "U-OPEN-2"
    ]
   },
@@ -41,7 +43,8 @@
     "What she has been told"
    ],
    "criteria_met": [
-    "NP-E1"
+    "NP-E1",
+    "S-OPEN"
    ]
   },
   {
@@ -56,6 +59,7 @@
    ],
    "criteria_met": [
     "NP-E3",
+    "S-OPEN",
     "U-RAPP-1"
    ]
   },
@@ -310,7 +314,7 @@
   "encounter_id": "demo",
   "patient_id": "e162495c-81de-4cb5-9110-8d69b538dcb2",
   "patient_name": "Nisha Patel",
-  "criteria_version": "0.2.0-draft",
+  "criteria_version": "0.3.0-draft",
   "status": "auto_scored_pending_faculty_review",
   "domains": [
    {
@@ -329,20 +333,22 @@
    {
     "id": 2,
     "key": "rapport_respect_empathy",
-    "score": 4,
-    "coverage": 1.0,
+    "score": 3,
+    "coverage": 0.71,
     "met": [
      "U-RAPP-1",
      "U-RAPP-2"
     ],
-    "missed": [],
+    "missed": [
+     "S-TONE"
+    ],
     "capped_by": []
    },
    {
     "id": 3,
     "key": "information_gathering",
     "score": 4,
-    "coverage": 0.85,
+    "coverage": 0.95,
     "met": [
      "U-INFO-1",
      "U-INFO-2",
@@ -352,7 +358,8 @@
      "NP-E2",
      "NP-E3",
      "NP-E4",
-     "U-SEQ-1"
+     "U-SEQ-1",
+     "S-OPEN"
     ],
     "missed": [
      "U-INFO-4",
@@ -368,7 +375,8 @@
     "met": [
      "U-CUE-1",
      "U-CUE-2",
-     "U-ELSE-1"
+     "U-ELSE-1",
+     "S-TRUST"
     ],
     "missed": [],
     "capped_by": []
@@ -382,7 +390,8 @@
      "U-EXPL-1",
      "U-EXPL-2",
      "NP-D1",
-     "NP-D2"
+     "NP-D2",
+     "S-JARGON"
     ],
     "missed": [],
     "capped_by": []
@@ -390,14 +399,16 @@
    {
     "id": 6,
     "key": "clinical_reasoning_and_synthesis",
-    "score": 4,
-    "coverage": 1.0,
+    "score": 3,
+    "coverage": 0.78,
     "met": [
      "U-REAS-1",
      "U-REAS-2",
      "NP-I1"
     ],
-    "missed": [],
+    "missed": [
+     "SYN-1"
+    ],
     "capped_by": []
    },
    {
@@ -544,7 +555,8 @@
     "tier": "supplementary",
     "met": false,
     "evidence": [],
-    "feedback": "Explore past medical and family history relevant to the presenting problem."
+    "feedback": "Explore past medical and family history relevant to the presenting problem.",
+    "forgiven": "dropped"
    },
    {
     "id": "U-INFO-5",
@@ -571,7 +583,8 @@
     "tier": "important",
     "met": false,
     "evidence": [],
-    "feedback": "Review the available vital signs and measurements in the chart before forming a plan."
+    "feedback": "Review the available vital signs and measurements in the chart before forming a plan.",
+    "forgiven": "half"
    },
    {
     "id": "U-CUE-1",
@@ -925,6 +938,87 @@
     "met": null,
     "evidence": [],
     "feedback": "Check medications and allergies before suggesting any treatment."
+   },
+   {
+    "id": "SYN-1",
+    "criterion": "Puts the picture together: states a fitting assessment linked to key findings",
+    "domain": 6,
+    "tier": "important",
+    "met": false,
+    "evidence": [],
+    "feedback": "Before closing, say what you think is going on and connect it to the key findings you gathered."
+   },
+   {
+    "id": "S-TONE",
+    "criterion": "Keeps a warm, respectful tone throughout",
+    "domain": 2,
+    "tier": "important",
+    "met": false,
+    "evidence": [
+     {
+      "turn_id": "t7",
+      "quote": "warm tone"
+     },
+     {
+      "turn_id": "t13",
+      "quote": "warm tone"
+     }
+    ],
+    "feedback": "Use more validating language: acknowledge, thank, and reflect what the patient says."
+   },
+   {
+    "id": "S-OPEN",
+    "criterion": "Balances open and closed questions",
+    "domain": 3,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t1",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t3",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t5",
+      "quote": "open question"
+     },
+     {
+      "turn_id": "t7",
+      "quote": "open question"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "S-JARGON",
+    "criterion": "Explains medical terms instead of using unexplained jargon",
+    "domain": 5,
+    "tier": "important",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "-",
+      "quote": "no unexplained jargon"
+     }
+    ],
+    "feedback": null
+   },
+   {
+    "id": "S-TRUST",
+    "criterion": "Patient opens up as the conversation goes on",
+    "domain": 4,
+    "tier": "supplementary",
+    "met": true,
+    "evidence": [
+     {
+      "turn_id": "t42",
+      "quote": "patient steady"
+     }
+    ],
+    "feedback": null
    }
   ],
   "vitals": {
@@ -932,7 +1026,387 @@
    "news2": null
   },
   "unsafe_actions": [],
-  "total": 28,
+  "difficulty": null,
+  "gathering": {
+   "critical_ok": true,
+   "synthesis": false,
+   "forgiven": [
+    "U-INFO-4",
+    "U-VITAL-1"
+   ],
+   "note": "All critical history gathered: missed minor items are not counted and other missed items count half."
+  },
+  "sentiment": {
+   "student": {
+    "turns": 21,
+    "warm": 2,
+    "neutral": 19,
+    "cold": 0,
+    "empathy_statements": 2,
+    "questions": 15,
+    "open_questions": 9,
+    "closed_questions": 6,
+    "open_ratio": 0.6,
+    "unexplained_jargon": []
+   },
+   "patient": {
+    "replies": 21,
+    "trajectory": "steady",
+    "start": 1.4,
+    "end": 1.0909090909090908,
+    "guarded_replies": [
+     "t2",
+     "t32"
+    ],
+    "sensitive_total": 0,
+    "sensitive_disclosed": 0,
+    "turns": [
+     {
+      "turn_id": "t2",
+      "openness": 0,
+      "guarded": [
+       "i don't know"
+      ]
+     },
+     {
+      "turn_id": "t4",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t6",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t8",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t10",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t12",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t14",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t16",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t18",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t20",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t22",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t24",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t26",
+      "openness": 3,
+      "guarded": []
+     },
+     {
+      "turn_id": "t28",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t30",
+      "openness": 2,
+      "guarded": []
+     },
+     {
+      "turn_id": "t32",
+      "openness": -1,
+      "guarded": [
+       "i don't know"
+      ]
+     },
+     {
+      "turn_id": "t34",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t36",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t38",
+      "openness": 1,
+      "guarded": []
+     },
+     {
+      "turn_id": "t40",
+      "openness": 0,
+      "guarded": []
+     },
+     {
+      "turn_id": "t42",
+      "openness": 3,
+      "guarded": []
+     }
+    ]
+   },
+   "turns": [
+    {
+     "turn_id": "t1",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t3",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t5",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t7",
+     "tone": "warm",
+     "warm": [
+      "that sounds",
+      "makes sense"
+     ],
+     "cold": [],
+     "empathy": true,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t9",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t11",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t13",
+     "tone": "warm",
+     "warm": [
+      "it sounds",
+      "sounds like"
+     ],
+     "cold": [],
+     "empathy": true,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t15",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t17",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t19",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t21",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t23",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t25",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t27",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t29",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t31",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t33",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t35",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "open"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t37",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    },
+    {
+     "turn_id": "t39",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [
+      "closed"
+     ],
+     "jargon": []
+    },
+    {
+     "turn_id": "t41",
+     "tone": "neutral",
+     "warm": [],
+     "cold": [],
+     "empathy": false,
+     "questions": [],
+     "jargon": []
+    }
+   ],
+   "duration_seconds": 0,
+   "summary": [
+    "Tone: 2 warm, 19 neutral, 0 cold of 21 messages; 2 empathy statements.",
+    "Questions: 9 open, 6 closed.",
+    "Patient steady over the conversation."
+   ]
+  },
+  "total": 26,
   "available_points": 28,
   "na_domains": 0,
   "review_required": false,
@@ -945,11 +1419,14 @@
   ],
   "gaps": [
    "Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)",
+   "Puts the picture together: states a fitting assessment linked to key findings",
+   "Keeps a warm, respectful tone throughout",
    "Asks about relevant past medical and family history"
   ],
   "next_attempt_suggestions": [
    "Review the available vital signs and measurements in the chart before forming a plan.",
-   "Explore past medical and family history relevant to the presenting problem."
+   "Before closing, say what you think is going on and connect it to the key findings you gathered.",
+   "Use more validating language: acknowledge, thank, and reflect what the patient says."
   ],
   "profile_gaps_to_acknowledge": [
    "No symptoms, exam findings, MRI/CSF results, vitals or medications in profile - student should not invent them"

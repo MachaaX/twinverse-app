@@ -11,6 +11,23 @@
     "age": 10,
     "sex": "Female",
     "concern": "Bilateral moderately-severe sensorineural hearing loss; first aural rehabilitation session with a speech-language pathologist",
+    "assessment_terms": [
+      "hearing loss",
+      "sensorineural",
+      "moderately severe",
+      "moderately-severe"
+    ],
+    "key_findings": [
+      "audiogram",
+      "hearing test",
+      "hearing aids",
+      "ringing",
+      "tinnitus",
+      "cafeteria",
+      "lunch",
+      "school",
+      "iep"
+    ],
     "learning_objectives": [
       "Introduce yourself and your role in a professional, empathetic way",
       "Complete a needs assessment: age at diagnosis, device use, other auditory complaints, educational needs, and the most important communication challenge today",

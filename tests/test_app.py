@@ -99,7 +99,7 @@ class AppTests(unittest.TestCase):
         _,r=self.client.call('/api/rubric');self.assertEqual(r,RUBRIC);self.assertEqual(r['scoring']['max_total'],28)
     def test_13_faculty_scoring_and_safety_trigger(self):
         e=self.finish(self.start());self.faculty()
-        ratings=[{'key':d['key'],'score':1 if d['id']==6 else 3,'review_note':'Reviewed against the complete saved transcript.','evidence_ids':['t0']} for d in e['feedback']['domains']]
+        ratings=[{'key':d['key'],'score':1 if d['id']==6 else 3,'review_note':'Reviewed against the complete saved transcript.','evidence_ids':[]} for d in e['feedback']['domains']]
         status,r=self.client.call('/api/encounters/'+e['id']+'/review','POST',{'reviewer':'Test Faculty','review_version':0,'ratings':ratings})
         self.assertEqual(status,200,r);self.assertEqual(r['feedback']['total'],19);self.assertEqual(r['feedback']['available_points'],28)
         self.assertTrue(r['feedback']['review_required']);self.assertEqual(r['feedback']['status'],'reviewed')
@@ -208,7 +208,66 @@ class AppTests(unittest.TestCase):
         finally:
             os.environ.pop('TWINVERSE_FACULTY_PASSWORD',None)
             if old is not None:os.environ['TWINVERSE_FACULTY_PASSWORD']=old
-    def test_33_delete_patient_requires_faculty_and_removes_draft(self):
+    def test_33_student_opens_and_starts_the_clock(self):
+        e=self.start();self.assertEqual(e['messages'],[]);self.assertIsNone(e['clock_started_at'])
+        _,r=self.turn(e,'Hello, my name is Alex. What brings you in today?')
+        self.assertEqual(r['messages'][0]['role'],'student');self.assertEqual(r['messages'][0]['id'],'t0')
+        self.assertEqual(r['clock_started_at'],r['messages'][0]['timestamp'])
+    def test_34_problem_reports(self):
+        student=Client(self.base)
+        bad=student.call('/api/reports','POST',{'category':'nope','message':'x'});self.assertEqual(bad[0],422)
+        status,r=student.call('/api/reports','POST',{'category':'patient_answer','message':'Patient invented a medication at t5.','context':{'route':'encounter/1','turn_id':'t5','secret':'x'}})
+        self.assertEqual(status,201)
+        self.assertEqual(student.call('/api/reports')[0],403)
+        self.faculty();_,listing=self.client.call('/api/reports')
+        mine=next(x for x in listing['reports'] if x['id']==r['id'])
+        self.assertEqual((mine['role'],mine['status'],mine['context']),('student','open',{'route':'encounter/1','turn_id':'t5'}))
+        _,updated=self.client.call('/api/reports/'+r['id'],'PUT',{'status':'resolved'});self.assertEqual(updated['status'],'resolved')
+        self.assertEqual(student.call('/api/reports/'+r['id'],'PUT',{'status':'open'})[0],403)
+    def test_35_report_rate_limit(self):
+        c=Client(self.base)
+        for _ in range(20):self.assertEqual(c.call('/api/reports','POST',{'category':'bug','message':'Page did not load.'})[0],201)
+        self.assertEqual(c.call('/api/reports','POST',{'category':'bug','message':'Page did not load.'})[0],429)
+    def test_36_ratings_by_role(self):
+        student=self.client;e=self.start();path='/api/encounters/'+e['id']
+        self.assertEqual(student.call(path+'/rating','POST',{'kind':'student','stars':4})[0],409)
+        self.finish(e)
+        self.assertEqual(student.call(path+'/rating','POST',{'kind':'student','stars':9})[0],422)
+        status,r=student.call(path+'/rating','POST',{'kind':'student','stars':4,'comment':'Felt realistic.'})
+        self.assertEqual(status,200);self.assertEqual(r['ratings']['student']['stars'],4)
+        self.assertEqual(student.call(path+'/rating','POST',{'kind':'auto_score','stars':2})[0],403)
+        fac=Client(self.base);fac.call('/api/session','POST',{'role':'faculty','password':TOKEN})
+        self.assertEqual(fac.call(path+'/rating','POST',{'kind':'student','stars':1})[0],403)
+        status,r=fac.call(path+'/rating','POST',{'kind':'auto_score','stars':2,'comment':'Missed the empathy at t3.','reviewer':'Dr Test'})
+        self.assertEqual(status,200);self.assertEqual(r['ratings']['auto_score']['by'],'Dr Test')
+        seen=student.call(path)[1];self.assertNotIn('auto_score',seen['ratings']);self.assertEqual(seen['ratings']['student']['stars'],4)
+        _,summary=fac.call('/api/ratings/summary')
+        self.assertGreaterEqual(summary['conversation']['count'],1);self.assertGreaterEqual(summary['auto_score']['count'],1)
+        self.assertTrue(any(c['comment']=='Felt realistic.' for c in summary['conversation']['recent_comments']))
+        self.assertEqual(student.call('/api/ratings/summary')[0],403)
+    def test_37_developer_tab_is_password_protected(self):
+        from backend.server import DEFAULT_DEVELOPER_PASSWORD
+        c=Client(self.base)
+        self.assertEqual(c.call('/api/developer/data')[0],403)
+        self.assertEqual(c.call('/api/developer/export/ratings.csv')[0],403)
+        self.assertEqual(c.call('/api/developer/login','POST',{'password':TOKEN})[0],403)
+        self.assertEqual(c.call('/api/developer/login','POST',{'password':DEFAULT_DEVELOPER_PASSWORD})[0],200)
+        self.assertTrue(c.call('/api/session')[1]['developer']);self.assertEqual(c.call('/api/session')[1]['role'],'student')
+        e=self.start();self.finish(e);c.call('/api/reports','POST',{'category':'other','message':'Developer test report.'})
+        self.client.call('/api/encounters/'+e['id']+'/rating','POST',{'kind':'student','stars':5,'comment':'Great, "quoted", comma'})
+        status,d=c.call('/api/developer/data');self.assertEqual(status,200)
+        self.assertTrue(any(r['comment']=='Great, "quoted", comma' for r in d['ratings']))
+        self.assertGreaterEqual(d['summary']['conversation']['distribution']['5'],1)
+        status,raw=c.call('/api/developer/export/ratings.csv');self.assertEqual(status,200)
+        self.assertIn(b'"Great, ""quoted"", comma"',raw)
+        status,raw=c.call('/api/developer/export/reports.csv');self.assertEqual(status,200);self.assertIn(b'Developer test report.',raw)
+        self.assertEqual(c.call('/api/developer/logout','POST',{})[0],200);self.assertEqual(c.call('/api/developer/data')[0],403)
+    def test_38_developer_lockout_is_separate_from_faculty(self):
+        c=Client(self.base)
+        for _ in range(5):c.call('/api/developer/login','POST',{'password':'guess'})
+        self.assertEqual(c.call('/api/developer/login','POST',{'password':'twinverse-dev'})[0],429)
+        self.assertEqual(c.call('/api/session','POST',{'role':'faculty','password':TOKEN})[0],200)
+    def test_39_delete_patient_requires_faculty_and_removes_draft(self):
         p=self.new_case();path='/api/patients/'+p['id']
         self.assertEqual(Client(self.base).call(path,'DELETE')[0],403)
         status,result=self.client.call(path,'DELETE')
@@ -219,7 +278,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.client.call(path+'/publish','POST',{'approved':True})[0],404)
         self.assertEqual(self.client.call(path,'DELETE')[0],404)
         self.assertEqual(self.client.call('/api/patients/missing','DELETE')[0],404)
-    def test_34_delete_preserves_encounters_and_artifacts(self):
+    def test_40_delete_preserves_encounters_and_artifacts(self):
         p=self.new_case();path='/api/patients/'+p['id']
         payload={'name':'test.txt','content':base64.b64encode(b'SAVED ARTIFACT').decode(),'kind':'artifact','release':'initial','keywords':[]}
         status,a=self.client.call(path+'/attachments','POST',payload);self.assertEqual(status,201)
@@ -233,7 +292,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.client.call('/api/encounters/'+e['id']+'/artifacts/'+a['id']),(200,b'SAVED ARTIFACT'))
         self.assertEqual(self.turn(e,'What are your lab results?')[0],200)
         self.assertEqual(self.finish(e)['status'],'completed')
-    def test_35_deleted_patients_do_not_return_on_restart(self):
+    def test_41_deleted_patients_do_not_return_on_restart(self):
         with tempfile.TemporaryDirectory() as temp:
             db=Path(temp)/'delete.sqlite3'
             server=make_server(0,db,verbose=False,faculty_password=TOKEN)

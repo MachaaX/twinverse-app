@@ -2,7 +2,7 @@
 
 _Main live demo (adult). Deterministic: the scripted clinician lines always produce the same replies, chart updates and scores. Showcases empathy, plain-language explanation, honest uncertainty, and grounding._
 
-**Case file:** `data/cases/adult-nisha-patel.json` · **Generated:** 2026-10-10 15:13 by `tools/run_demo_script.py`
+**Case file:** `data/cases/adult-nisha-patel.json` · **Generated:** 2026-10-10 16:49 by `tools/run_demo_script.py`
 
 > Type each clinician line exactly as written. Replies, chart updates and scores below were produced by running this script through the app's engine and scorer.
 
@@ -13,14 +13,14 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 
 **Patient replies:** They just told me I have MS. I've never been in a hospital before, and honestly I don't know what's happening.
 
-- Scores: U-CLOSE-3, U-OPEN-1, U-OPEN-3, U-SEQ-1
+- Scores: S-OPEN, U-CLOSE-3, U-OPEN-1, U-OPEN-3, U-SEQ-1
 
 ### 2. Opening
 **Clinician types:** What would you like me to call you?
 
 **Patient replies:** Nisha is fine.
 
-- Scores: NP-S2, U-OPEN-2
+- Scores: NP-S2, S-OPEN, U-OPEN-2
 
 ### 3. History
 **Clinician types:** What have you been told about your diagnosis so far?
@@ -28,7 +28,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 **Patient replies:** Just that it's MS and that a neurologist will talk to me about treatment. I looked it up online at 3 a.m., and now I'm terrified I'll end up in a wheelchair.
 
 - Chart adds: What she has been told
-- Scores: NP-E1
+- Scores: NP-E1, S-OPEN
 
 ### 4. Empathy
 **Clinician types:** That sounds really frightening, and it makes sense that you're overwhelmed. How are you feeling right now?
@@ -36,7 +36,7 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 **Patient replies:** Overwhelmed. I have a hundred questions, and every answer leads to three more. I need to understand all of it.
 
 - Chart adds: Emotional state
-- Scores: NP-E3, U-RAPP-1
+- Scores: NP-E3, S-OPEN, U-RAPP-1
 
 ### 5. History
 **Clinician types:** Can you tell me about your work and home life?
@@ -170,14 +170,14 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 | # | Domain | Score | Coverage | Missed |
 |---|---|---|---|---|
 | 1 | Opening and purpose | 4 | 100% | - |
-| 2 | Rapport, respect, and empathy | 4 | 100% | - |
-| 3 | Information gathering | 4 | 85% | U-INFO-4, U-VITAL-1 |
+| 2 | Rapport, respect, and empathy | 3 | 71% | S-TONE |
+| 3 | Information gathering | 4 | 95% | U-INFO-4, U-VITAL-1 |
 | 4 | Listening and response to cues | 4 | 100% | - |
 | 5 | Explanation and shared decisions | 4 | 100% | - |
-| 6 | Clinical reasoning and synthesis | 4 | 100% | - |
+| 6 | Clinical reasoning and synthesis | 3 | 78% | SYN-1 |
 | 7 | Professionalism, safety, and closure | 4 | 100% | - |
 
-**Total: 28 / 28**
+**Total: 26 / 28**
 
 **Strengths:**
 - Introduces self by name and role (t1)
@@ -188,11 +188,14 @@ _Main live demo (adult). Deterministic: the scripted clinician lines always prod
 
 **Gaps:**
 - Requests or reviews vital signs / available measurements (BP, HR, RR, temp, SpO2, weight/BMI)
+- Puts the picture together: states a fitting assessment linked to key findings
+- Keeps a warm, respectful tone throughout
 - Asks about relevant past medical and family history
 
 **Next-attempt suggestions:**
 - Review the available vital signs and measurements in the chart before forming a plan.
-- Explore past medical and family history relevant to the presenting problem.
+- Before closing, say what you think is going on and connect it to the key findings you gathered.
+- Use more validating language: acknowledge, thank, and reflect what the patient says.
 
 ## Intentional gaps
 

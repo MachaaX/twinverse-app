@@ -166,30 +166,97 @@ class Guardrails(unittest.TestCase):
 
 
 class DifficultyGrading(unittest.TestCase):
-    def encounter(self, profile, texts):
-        msgs = [{'id': 't0', 'role': 'patient', 'text': 'Hi', 'fact_ids': []}]
-        for t in texts:
+    def encounter(self, profile, texts, replies=None):
+        msgs = []
+        for i, t in enumerate(texts):
             msgs.append({'id': f't{len(msgs)}', 'role': 'student', 'text': t})
+            if replies:
+                r = replies[i]
+                msgs.append({'id': f't{len(msgs)}', 'role': 'patient', 'text': r[0], 'fact_ids': r[1], 'reply_to': msgs[-1]['id']})
         return {'profile': profile, 'messages': msgs}
 
-    def test_easy_patient_has_no_extra_criteria(self):
+    def test_easy_patient_has_no_patience_criterion(self):
         profile, _ = example_profile(temperament=1, openness=1)
         r = scoring.auto_score(self.encounter(profile, ['Hello, my name is Alex, I am a student clinician.']))
-        ids = [c['id'] for c in r['criteria_results']]
-        self.assertIn('D-LENGTH', ids);self.assertNotIn('D-PERSIST', ids)
-        self.assertEqual(r['difficulty']['threshold_shift'], 0)
+        ids = {c['id']: c for c in r['criteria_results']}
+        self.assertEqual(ids['D-DEPTH']['tier'], 'supplementary');self.assertNotIn('D-PERSIST', ids)
+        self.assertEqual(r['difficulty']['threshold_shift'], 0);self.assertEqual(r['difficulty']['expected_turns'], 5)
 
     def test_hard_patient_adjusts_grading(self):
         profile, _ = example_profile(temperament=5, openness=5)
         r = scoring.auto_score(self.encounter(profile, ['Calm down and just answer the question.']))
-        d = r['difficulty'];self.assertEqual(d['expected_turns'], 6 + 8 + 4);self.assertAlmostEqual(d['threshold_shift'], 0.10)
+        d = r['difficulty'];self.assertEqual(d['expected_turns'], 5 + 4 + 2);self.assertAlmostEqual(d['threshold_shift'], 0.10)
         by_id = {c['id']: c for c in r['criteria_results']}
         self.assertEqual(by_id['U-RAPP-1']['tier'], 'critical');self.assertEqual(by_id['D-PERSIST']['tier'], 'critical')
-        self.assertFalse(by_id['D-PERSIST']['met']);self.assertFalse(by_id['D-LENGTH']['met'])
+        self.assertFalse(by_id['D-PERSIST']['met']);self.assertFalse(by_id['D-DEPTH']['met'])
+        self.assertFalse(by_id['S-TONE']['met'])
+
+    def test_short_but_complete_interview_is_not_penalized_for_length(self):
+        profile, _ = example_profile(temperament=5, openness=5)
+        texts = ['Hi Maya, I am a speech-language pathologist. What brings you in?',
+                 'Your hearing test shows moderately severe hearing loss in both ears, and the audiogram explains why the cafeteria at lunch is so hard.']
+        r = scoring.auto_score(self.encounter(profile, texts))
+        by_id = {c['id']: c for c in r['criteria_results']}
+        self.assertTrue(by_id['SYN-1']['met']);self.assertTrue(by_id['D-DEPTH']['met'])
 
     def test_seed_cases_are_unchanged(self):
         r = scoring.auto_score({'profile': {'id': 'x', 'facts': [], 'objectives': []}, 'messages': []})
         self.assertIsNone(r['difficulty'])
+
+
+class SynthesisAndGathering(unittest.TestCase):
+    YVETTE = '6ca4cbf9-14ef-427c-b87c-bc9d34ce02b8'
+
+    def run_case(self, texts, disclose=()):
+        msgs = []
+        for t in texts:
+            msgs.append({'id': f't{len(msgs)}', 'role': 'student', 'text': t})
+            msgs.append({'id': f't{len(msgs)}', 'role': 'patient', 'text': 'Okay.', 'fact_ids': list(disclose), 'reply_to': msgs[-1]['id']})
+        return scoring.auto_score({'profile': {'id': self.YVETTE, 'facts': [], 'objectives': []}, 'messages': msgs})
+
+    def test_assessment_needs_linked_findings(self):
+        alone = self.run_case(['You have hypertension.'])
+        linked = self.run_case(['Your blood pressure of 155 over 110 means stage 2 hypertension, and the extra sodium and salt make it worse.'])
+        get = lambda r: {c['id']: c for c in r['criteria_results']}['SYN-1']
+        self.assertFalse(get(alone)['met']);self.assertTrue(get(linked)['met'])
+
+    def test_critical_first_gathering_forgives_minor_misses(self):
+        texts = ['Can we look at your blood pressure reading and bmi?', 'What did your doctor tell you? What do you understand about it?']
+        partial = self.run_case(texts, disclose=['f3', 'f5'])
+        self.assertTrue(partial['gathering']['critical_ok']);self.assertFalse(partial['gathering']['synthesis'])
+        rows = {c['id']: c for c in partial['criteria_results']}
+        self.assertEqual(rows['U-INFO-4']['forgiven'], 'dropped');self.assertEqual(rows['U-INFO-3']['forgiven'], 'half')
+        full = self.run_case(texts + ['So your blood pressure of 155 over 110 is stage 2 hypertension, and sodium and weight are part of it.'], disclose=['f3', 'f5'])
+        self.assertTrue(full['gathering']['synthesis'])
+        self.assertEqual({c['id']: c for c in full['criteria_results']}['U-INFO-3']['forgiven'], 'dropped')
+        d3 = lambda r: next(d for d in r['domains'] if d['id'] == 3)
+        self.assertGreater(d3(full)['coverage'], d3(partial)['coverage'])
+
+    def test_missing_critical_items_get_no_forgiveness(self):
+        r = self.run_case(['Hello, how are you?'])
+        self.assertFalse(r['gathering']['critical_ok']);self.assertEqual(r['gathering']['forgiven'], [])
+
+
+class Sentiment(unittest.TestCase):
+    def test_tone_questions_and_jargon(self):
+        msgs = [{'id': 't0', 'role': 'student', 'text': 'That sounds really hard. Thank you for telling me. How has this affected you?'},
+                {'id': 't1', 'role': 'patient', 'text': "I'd rather not talk about it.", 'fact_ids': [], 'reply_to': 't0'},
+                {'id': 't2', 'role': 'student', 'text': 'Do you smoke? Calm down, you need to answer.'},
+                {'id': 't3', 'role': 'patient', 'text': 'No.', 'fact_ids': [], 'reply_to': 't2'},
+                {'id': 't4', 'role': 'student', 'text': 'Your HbA1c suggests hyperglycemia. Is that clear?'},
+                {'id': 't5', 'role': 'patient', 'text': 'Okay, I appreciate you explaining, thank you, I get it now and maybe we can make a plan together today.', 'fact_ids': ['f1'], 'reply_to': 't4'}]
+        a = scoring.sentiment.analyze(msgs)
+        tones = [t['tone'] for t in a['turns']]
+        self.assertEqual(tones, ['warm', 'cold', 'neutral'])
+        self.assertEqual((a['student']['open_questions'], a['student']['closed_questions']), (1, 2))
+        self.assertEqual({j['term'] for j in a['student']['unexplained_jargon']}, {'hba1c', 'hyperglycemia'})
+        self.assertEqual(a['patient']['trajectory'], 'opened up');self.assertEqual(a['patient']['guarded_replies'], ['t1'])
+        crit = {c['id']: met for c, met, _ in scoring.sentiment.criteria(a)}
+        self.assertEqual(crit, {'S-TONE': False, 'S-OPEN': True, 'S-JARGON': False, 'S-TRUST': True})
+
+    def test_explained_terms_are_fine(self):
+        a = scoring.sentiment.analyze([{'id': 't0', 'role': 'student', 'text': 'Your A1c, which means your average blood sugar, shows hyperglycemia.'}])
+        self.assertEqual(a['student']['unexplained_jargon'], [])
 
 
 class GeneratorApi(unittest.TestCase):

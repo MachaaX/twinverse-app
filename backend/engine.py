@@ -94,13 +94,13 @@ def assess(encounter, rubric):
         a=by_domain.get(d['id'],{})
         d['suggested_score']=a.get('score')
         d['suggested_coverage']=a.get('coverage')
-        d['criteria']=[{k:r[k] for k in ['id','criterion','tier','met','evidence','feedback']} for r in auto['criteria_results'] if r['domain']==d['id'] and r['met'] is not None]
+        d['criteria']=[{**{k:r[k] for k in ['id','criterion','tier','met','evidence','feedback']},'forgiven':r.get('forgiven')} for r in auto['criteria_results'] if r['domain']==d['id'] and r['met'] is not None]
         d['suggested_note']=suggested_note(d,a)
         d['suggested_evidence_ids']=list(dict.fromkeys(e['turn_id'] for r in d['criteria'] if r['met'] for e in r['evidence'] if e['turn_id'] in {m['id'] for m in messages}))[:6]
     summary={'comments':'','strengths':auto['strengths'],'improvements':auto['gaps'],'next_steps':[x for x in auto['next_attempt_suggestions'] if x]}
     return {'engine_version':ENGINE_VERSION,'rubric_version':'organizer-1','status':'awaiting_review','review_version':0,'reviewer':'','domains':domains,'checkpoints':checks,'total':None,'available_points':0,'rated_domains':0,'na_domains':0,'unrated_domains':7,'review_required':False,'review_trigger_domains':[],'coverage_label':'Keyword-based observations; not a clinical competence score.',
-            'auto_score':{k:auto[k] for k in ['criteria_version','total','available_points','na_domains','review_required','unsafe_actions','vitals','difficulty','profile_gaps_to_acknowledge']},
-            'summary':summary,'suggested_summary':copy.deepcopy(summary),'released':False,'released_at':None,'released_by':'','released_review_version':None}
+            'auto_score':{k:auto[k] for k in ['criteria_version','total','available_points','na_domains','review_required','unsafe_actions','vitals','difficulty','gathering','profile_gaps_to_acknowledge']},
+            'sentiment':auto['sentiment'],'summary':summary,'suggested_summary':copy.deepcopy(summary),'released':False,'released_at':None,'released_by':'','released_review_version':None}
 
 def suggested_note(d,a):
     if a.get('score') in (None,'N/A'):

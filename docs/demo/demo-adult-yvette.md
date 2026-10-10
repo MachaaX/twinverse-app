@@ -2,7 +2,7 @@
 
 _Alternate adult case (hypertension). Deterministic: the scripted clinician lines always produce the same replies, chart updates and scores._
 
-**Case file:** `data/cases/adult-yvette-armstrong.json` · **Generated:** 2026-10-10 15:13 by `tools/run_demo_script.py`
+**Case file:** `data/cases/adult-yvette-armstrong.json` · **Generated:** 2026-10-10 16:49 by `tools/run_demo_script.py`
 
 > Type each clinician line exactly as written. Replies, chart updates and scores below were produced by running this script through the app's engine and scorer.
 
@@ -13,14 +13,14 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 
 **Patient replies:** My doctor told me I have high blood pressure, hypertension she called it. Honestly, I left more confused than when I walked in.
 
-- Scores: U-CLOSE-3, U-OPEN-1, U-OPEN-3, U-SEQ-1
+- Scores: S-OPEN, U-CLOSE-3, U-OPEN-1, U-OPEN-3, U-SEQ-1
 
 ### 2. Opening
 **Clinician types:** What would you like me to call you?
 
 **Patient replies:** Yvette is fine. Yvette Armstrong.
 
-- Scores: U-OPEN-2
+- Scores: S-OPEN, U-OPEN-2
 
 ### 3. History
 **Clinician types:** Can you tell me about your work and home life?
@@ -28,7 +28,7 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 **Patient replies:** I work full time for the state. I have an associate's degree in political science, so I like to understand things - but medical words just lose me.
 
 - Chart adds: Work and home
-- Scores: U-INFO-1, U-INFO-5, U-SEQ-1
+- Scores: S-OPEN, U-INFO-1, U-INFO-5, U-SEQ-1
 
 ### 4. History
 **Clinician types:** What did your doctor tell you about your diagnosis?
@@ -36,7 +36,7 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 **Patient replies:** My doctor told me, but I just didn't understand what she said. She used a lot of words I didn't know, and I was too embarrassed to ask.
 
 - Chart adds: Understanding of diagnosis
-- Scores: YA-E2
+- Scores: S-OPEN, YA-E2
 
 ### 5. Empathy
 **Clinician types:** That sounds really frustrating, and it makes sense that it was confusing. How do you feel about all of this?
@@ -93,7 +93,7 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 
 **Patient replies:** Yes, that's right. That's exactly where I am.
 
-- Scores: U-REAS-1, U-SEQ-1, U-VITAL-1, YA-E1, YA-E3, YA-I1
+- Scores: SYN-1, U-REAS-1, U-SEQ-1, U-VITAL-1, YA-E1, YA-E3, YA-I1
 
 ### 12. Education
 **Clinician types:** Blood pressure is the force of blood pushing against the walls of your arteries. When it stays high, your heart works harder.
@@ -150,14 +150,14 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 | # | Domain | Score | Coverage | Missed |
 |---|---|---|---|---|
 | 1 | Opening and purpose | 4 | 100% | - |
-| 2 | Rapport, respect, and empathy | 4 | 100% | - |
-| 3 | Information gathering | 4 | 96% | U-INFO-4 |
+| 2 | Rapport, respect, and empathy | 3 | 71% | S-TONE |
+| 3 | Information gathering | 4 | 100% | U-INFO-4 |
 | 4 | Listening and response to cues | 4 | 100% | - |
-| 5 | Explanation and shared decisions | 4 | 87% | YA-D4 |
-| 6 | Clinical reasoning and synthesis | 3 | 80% | U-REAS-2 |
+| 5 | Explanation and shared decisions | 4 | 88% | YA-D4 |
+| 6 | Clinical reasoning and synthesis | 3 | 83% | U-REAS-2 |
 | 7 | Professionalism, safety, and closure | 4 | 100% | - |
 
-**Total: 27 / 28**
+**Total: 26 / 28**
 
 **Strengths:**
 - Introduces self by name and role (t1)
@@ -169,12 +169,13 @@ _Alternate adult case (hypertension). Deterministic: the scripted clinician line
 **Gaps:**
 - Acknowledges uncertainty or missing data rather than guessing
 - Explains benefit of modest weight loss (5-10%)
+- Keeps a warm, respectful tone throughout
 - Asks about relevant past medical and family history
 
 **Next-attempt suggestions:**
 - Name what is still unknown and what would be needed to find out.
 - Explain that even modest (5-10%) weight loss lowers blood pressure.
-- Explore past medical and family history relevant to the presenting problem.
+- Use more validating language: acknowledge, thank, and reflect what the patient says.
 
 ## Intentional gaps
 

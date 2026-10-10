@@ -208,6 +208,49 @@ class AppTests(unittest.TestCase):
         finally:
             os.environ.pop('TWINVERSE_FACULTY_PASSWORD',None)
             if old is not None:os.environ['TWINVERSE_FACULTY_PASSWORD']=old
+    def test_33_delete_patient_requires_faculty_and_removes_draft(self):
+        p=self.new_case();path='/api/patients/'+p['id']
+        self.assertEqual(Client(self.base).call(path,'DELETE')[0],403)
+        status,result=self.client.call(path,'DELETE')
+        self.assertEqual((status,result['deleted']),(200,True))
+        self.assertNotIn(p['id'],[x['id'] for x in self.client.call('/api/patients')[1]['patients']])
+        self.assertEqual(self.client.call(path)[0],404)
+        self.assertEqual(self.client.call(path,'PUT',{'profile':p})[0],404)
+        self.assertEqual(self.client.call(path+'/publish','POST',{'approved':True})[0],404)
+        self.assertEqual(self.client.call(path,'DELETE')[0],404)
+        self.assertEqual(self.client.call('/api/patients/missing','DELETE')[0],404)
+    def test_34_delete_preserves_encounters_and_artifacts(self):
+        p=self.new_case();path='/api/patients/'+p['id']
+        payload={'name':'test.txt','content':base64.b64encode(b'SAVED ARTIFACT').decode(),'kind':'artifact','release':'initial','keywords':[]}
+        status,a=self.client.call(path+'/attachments','POST',payload);self.assertEqual(status,201)
+        self.assertEqual(self.client.call(path+'/publish','POST',{'approved':True})[0],200)
+        self.client.call('/api/session','POST',{'role':'student'});e=self.start(p['id'])
+        self.faculty();self.assertEqual(self.client.call(path,'DELETE')[0],200)
+        self.client.call('/api/session','POST',{'role':'student'})
+        self.assertNotIn(p['id'],[x['id'] for x in self.client.call('/api/patients')[1]['patients']])
+        self.assertEqual(self.client.call('/api/encounters','POST',{'patient_id':p['id']})[0],404)
+        self.assertEqual(self.client.call('/api/encounters/'+e['id'])[1]['patient']['name'],p['name'])
+        self.assertEqual(self.client.call('/api/encounters/'+e['id']+'/artifacts/'+a['id']),(200,b'SAVED ARTIFACT'))
+        self.assertEqual(self.turn(e,'What are your lab results?')[0],200)
+        self.assertEqual(self.finish(e)['status'],'completed')
+    def test_35_deleted_patients_do_not_return_on_restart(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'delete.sqlite3'
+            server=make_server(0,db,verbose=False,faculty_password=TOKEN)
+            thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+            try:
+                client=Client(f'http://127.0.0.1:{server.server_port}')
+                client.call('/api/session','POST',{'role':'faculty','password':TOKEN})
+                for p in client.call('/api/patients')[1]['patients']:
+                    self.assertEqual(client.call('/api/patients/'+p['id'],'DELETE')[0],200)
+                self.assertEqual(client.call('/api/patients')[1]['patients'],[])
+            finally:
+                server.shutdown();server.server_close();thread.join();server.store.db.close()
+            restarted=make_server(0,db,verbose=False,faculty_password=TOKEN)
+            try:
+                self.assertTrue(all(c.get('deleted_at') for c in restarted.store.all('cases')))
+                self.assertEqual(len(restarted.store.all('cases')),8)
+            finally:restarted.server_close();restarted.store.db.close()
     def test_24_seed_import_has_all_eight_images(self):
         from backend.seed import ROOT
         patients=seed_profiles();self.assertEqual(len(patients),8)

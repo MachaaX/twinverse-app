@@ -32,9 +32,9 @@ let count=0;
 function check(name,fn){fn();count++;console.log('PASS',name);}
 check('Eight patient cards render',()=>assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,8));
 check('Library contains patient actions',()=>assert.ok(run('casesView()').includes('data-action="start"')));
-check('Studio table renders',()=>assert.ok(run('studioView()').includes('Omar Sinclair')));
-check('New patient editor renders',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");assert.ok(run('editorView()').includes('Approve &amp; publish'));});
-check('Existing patient editor renders facts',()=>{run('S.editor=fixture.profiles[4];');assert.ok(run('editorView()').includes('Lipid values'));});
+check('Studio table renders with AI generation before Create patient',()=>{const html=run('studioView()');assert.ok(html.includes('Omar Sinclair'));assert.ok(html.includes('data-action="navigate" data-id="generate"'));assert.ok(html.indexOf('Generate patient with AI')<html.indexOf('Create patient'));});
+check('New patient editor renders without a delete action',()=>{run("S.editor=newProfile();S.attachments=[];S.validation=null;");const html=run('editorView()');assert.ok(html.includes('Approve &amp; publish'));assert.ok(!html.includes('data-action="delete-case"'));});
+check('Existing patient editor renders delete before Back to cases',()=>{run('S.editor=fixture.profiles[4];');const html=run('editorView()');assert.ok(html.includes('Lipid values'));assert.ok(html.includes('data-action="delete-case"'));assert.ok(html.indexOf('Delete patient profile')<html.indexOf('Back to cases'));});
 check('Split-screen encounter renders',()=>{const html=run('encounterView()');assert.ok(html.includes('Medical record'));assert.ok(html.includes('patient-banner'));});
 check('Student feedback contains no rating editor',()=>{run("S.role='student';");assert.ok(!run('reportView()').includes('class="rating-editor"'));});
 check('Faculty feedback renders seven rating editors',()=>{run("S.role='faculty';");assert.equal((run('reportView()').match(/class="rating-editor"/g)||[]).length,7);});

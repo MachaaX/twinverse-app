@@ -2,6 +2,17 @@
 """Run with Python 3.10+: python3 run.py"""
 import argparse
 import sys
+from pathlib import Path
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    load_dotenv(dotenv_path=env_path)
+    print('[Startup] Loaded .env file')
+except ImportError:
+    print('[Startup] python-dotenv not available, skipping .env load')
+
 from backend.server import make_server
 
 if __name__=='__main__':

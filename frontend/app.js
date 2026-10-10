@@ -1,3 +1,7 @@
+// Import avatar components - using TalkingHead.js version
+import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
+import { ttsService } from './components/TTSService.js';
+
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,7 +20,7 @@ const paths = {
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
-const S = {role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, epoch:0};
+const S = {role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, epoch:0, avatar:null, avatarEnabled:true};
 const main = $('#main');
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
@@ -30,6 +34,33 @@ const notice=(text,kind='')=>`<div class="notice ${kind}">${icon('info')}<div>${
 const date=(s)=>new Date(s).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 const initials=(s)=>s.split(' ').map(x=>x[0]).slice(0,2).join('');
 function portrait(p,cls=''){return p.image?`<img class="${cls}" src="${esc(p.image)}" alt="Organizer-provided synthetic portrait of ${esc(p.name)}" loading="lazy">`:`<div class="placeholder-portrait ${cls}">${esc(initials(p.name || 'New Patient'))}</div>`;}
+
+// Initialize avatar for current encounter
+function initializeAvatar(){
+  const container = $('#avatar-container');
+  if(!container || !S.encounter || !S.avatarEnabled) return;
+
+  // Clean up existing avatar
+  if(S.avatar){
+    S.avatar.destroy();
+    S.avatar = null;
+  }
+
+  try{
+    const p = S.encounter.patient;
+    S.avatar = new Avatar3D(container, {
+      name: p.name,
+      gender: p.gender,
+      patientId: p.id,
+      imageUrl: p.image,
+      enableLipSync: true,
+      enableIdleAnimation: true
+    });
+  }catch(err){
+    console.error('Avatar initialization error:', err);
+    container.innerHTML = `<div class="avatar-error">Avatar unavailable. ${portrait(S.encounter.patient)}</div>`;
+  }
+}
 function navigation(){
  const r=S.route.split('/')[0];const links=[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['resources','file','Source materials']]:[])];
  $('#navigation').innerHTML=links.map(([key,ic,label])=>`<a class="nav-link ${r===key || key==='reviews'&&r==='report'?'active':''}" href="#${key}" aria-label="${label}">${icon(ic)}<span>${label}</span>${r===key?'<i class="nav-dot"></i>':''}</a>`).join('');
@@ -54,6 +85,10 @@ async function route(){
      view=editorView();
    }else if(page==='encounter'||page==='report'){
      S.encounter=await api('/encounters/'+encodeURIComponent(id));view=page==='report'?reportView():encounterView();
+     // Initialize avatar after render
+     if(page==='encounter'){
+       setTimeout(()=>initializeAvatar(),100);
+     }
    }else if(page==='reviews'){S.encounters=(await api('/encounters')).encounters;view=historyView();}
    else if(page==='rubric'){view=rubricView();}
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
@@ -107,9 +142,10 @@ async function saveCase(publish=false){
  const newRoute='studio/'+S.editor.id;S.route=newRoute;history.replaceState(null,'','#'+newRoute);navigation();main.innerHTML=editorView();toast(publish?'Patient published. Ready for a new encounter.':'Draft saved.');
 }
 function encounterView(){const e=S.encounter;const p=e.patient;
- return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}</div></div>
- <div class="encounter-layout"><section class="panel conversation-panel"><div class="patient-banner">${portrait(p)}<div><h2>${esc(p.name)}</h2><p>${p.age} years · ${esc(p.gender)} · Case v${p.version}</p>${badge('Synthetic patient','neutral')}</div><span class="session-clock" id="session-clock"></span></div><div class="transcript" id="transcript" role="log" aria-label="Patient conversation" aria-live="polite">${messagesView()}</div>${e.status==='active'?`<div class="starters"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div><form class="composer" id="chat-form"><div class="composer-row"><textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea><button type="submit" class="btn btn-primary send-btn" aria-label="Send question">${icon('send')}</button></div><div class="composer-footer"><span>Enter to send · Shift + Enter for a new line</span>${'speechSynthesis' in window?`<label><input type="checkbox" id="speak-toggle" ${S.speak?'checked':''}> Read replies · browser voice</label>`:''}</div></form>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
- <aside class="panel chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>`;
+ return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}<button class="btn btn-small" data-action="toggle-transcript" id="transcript-toggle">${icon('history')} View transcript</button></div></div>
+ <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div><form class="avatar-input-section" id="chat-form"><textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea><button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button></form><div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
+ <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
+ <dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
 }
 function messagesView(){return S.encounter.messages.map(m=>`<article class="message ${m.role}" id="message-${esc(m.id)}"><div class="message-meta"><strong>${m.role==='student'?'You':esc(S.encounter.patient.name.split(' ')[0])}</strong><span>${esc(m.id)} · ${new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div class="message-bubble">${esc(m.text).replace(/\n/g,'<br>')}</div>${m.role==='patient'?`<div class="message-label">${icon(m.kind==='not_provided'?'info':'shield')}${m.kind==='profile'?'Approved sample wording':m.kind==='not_provided'?'Not provided in sample':'Scripted sample response'}</div>`:''}</article>`).join('');}
 function chartView(){const e=S.encounter;
@@ -122,8 +158,37 @@ function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||
 setInterval(updateClock,1000);
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
- try{const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});if(S.route!=='encounter/'+activeId)return;S.encounter=r;$('#transcript').innerHTML=messagesView();$('#chart-body').innerHTML=chartView();input.value='';scrollChat();if(S.speak&&'speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(r.messages.at(-1).text));}}
- catch(err){toast(err.message,true);}finally{S.sending=false;submit.disabled=false;input.disabled=false;if(input.isConnected)input.focus();}
+ try{
+   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
+   if(S.route!=='encounter/'+activeId)return;
+   S.encounter=r;
+   // Update transcript dialog if it's open
+   const transcriptView=$('#transcript-view');
+   if(transcriptView){transcriptView.innerHTML=messagesView();}
+   $('#chart-body').innerHTML=chartView();
+   input.value='';
+   if(transcriptView)scrollChat();
+
+   // Use avatar speech if enabled and available
+   const lastMessage = r.messages.at(-1);
+   if(lastMessage && lastMessage.role === 'patient'){
+     if(S.avatar && S.avatarEnabled){
+       try{
+         const emotion = lastMessage.emotion || 'neutral';
+         await S.avatar.speak(lastMessage.text, emotion);
+       }catch(avatarErr){
+         console.error('Avatar speech error:', avatarErr);
+         // Fallback to basic TTS if avatar fails
+         if(ttsService.isAvailable()){
+           await ttsService.speak(lastMessage.text, {}, lastMessage.emotion || 'neutral');
+         }
+       }
+     }else if(ttsService.isAvailable()){
+       // Fallback: use TTS directly without avatar
+       await ttsService.speak(lastMessage.text, {}, lastMessage.emotion || 'neutral');
+     }
+   }
+ }catch(err){toast(err.message,true);}finally{S.sending=false;submit.disabled=false;input.disabled=false;if(input.isConnected)input.focus();}
 }
 function historyView(){const all=S.encounters;const completed=all.filter(e=>e.status==='completed');
  return heading('REFLECT & RETURN','Your encounter history','Pick up a conversation or revisit the evidence behind your feedback.')+`<div class="stats-row"><div class="stat"><strong>${all.length}</strong><span>Saved encounters</span></div><div class="stat"><strong>${completed.length}</strong><span>Completed encounters</span></div><div class="stat"><strong>${all.filter(e=>e.feedback_status==='reviewed').length}</strong><span>Faculty-reviewed</span></div></div>`+(all.length?`<div class="panel"><div class="table-scroll"><table class="data-table"><thead><tr><th>PATIENT</th><th>STARTED</th><th>QUESTIONS</th><th>STATUS</th><th></th></tr></thead><tbody>${all.map(e=>`<tr><td><div class="table-person">${portrait(e.patient)}<div><strong>${esc(e.patient.name)}</strong><div class="small muted">Case v${e.patient.version}</div></div></div></td><td>${date(e.started_at)}</td><td>${e.turns}</td><td>${badge(e.status==='active'?'In progress':e.feedback_status==='reviewed'?'Reviewed':'Awaiting review',e.status==='active'?'neutral':e.feedback_status==='reviewed'?'':'warning')}</td><td>${button(e.status==='active'?'Continue':'View feedback','navigate',(e.status==='active'?'encounter/':'report/')+e.id,'btn-small','arrow')}</td></tr>`).join('')}</tbody></table></div></div>`:`<div class="empty-state">${icon('history')}<h3>Your first encounter starts here</h3><p>Choose a patient from the practice library. Each conversation is saved automatically.</p>${button('Meet your patients','navigate','cases','btn-primary','arrow')}</div>`);
@@ -149,7 +214,8 @@ document.addEventListener('click',async event=>{
  const el=event.target.closest('[data-action]');if(!el||el.disabled)return;const action=el.dataset.action,id=el.dataset.id;event.preventDefault();
  try{
   if(action==='navigate'){location.hash=id;return;}
-  if(action==='close-dialog'){$('#confirm-dialog').close();return;}
+  if(action==='close-dialog'){$('#confirm-dialog').close();$('#transcript-dialog')?.close();return;}
+  if(action==='toggle-transcript'){$('#transcript-dialog')?.showModal();return;}
   if(action==='role'){
    if(S.dirty&&!confirm('Switch workspaces and discard unsaved case edits?'))return;
    S.dirty=false;await api('/session','POST',{role:id});S.role=id;
@@ -179,7 +245,17 @@ main.addEventListener('input',event=>{
  if(event.target.id==='patient-search'){S.query=event.target.value;$('#patient-grid').innerHTML=patientCards();}
  if(event.target.closest('#case-form'))S.dirty=true;
 });
-main.addEventListener('change',event=>{if(event.target.id==='speak-toggle'){S.speak=event.target.checked;if(!S.speak&&'speechSynthesis'in window)speechSynthesis.cancel();}if(event.target.closest('#case-form'))S.dirty=true;});
+main.addEventListener('change',event=>{
+  if(event.target.id==='speak-toggle'){S.speak=event.target.checked;if(!S.speak&&'speechSynthesis'in window)speechSynthesis.cancel();}
+  if(event.target.id==='avatar-toggle'){
+    S.avatarEnabled=event.target.checked;
+    if(!S.avatarEnabled && S.avatar){
+      S.avatar.stop();
+    }
+    initializeAvatar();
+  }
+  if(event.target.closest('#case-form'))S.dirty=true;
+});
 main.addEventListener('keydown',event=>{if(event.target.id==='question'&&event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendQuestion();}});
 main.addEventListener('submit',async event=>{
  event.preventDefault();const form=event.target;const submit=$('button[type=submit]',form);

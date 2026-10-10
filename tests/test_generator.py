@@ -292,8 +292,9 @@ class GeneratorApi(unittest.TestCase):
         _, e = self.c.call('/api/encounters', 'POST', {'patient_id': pid})
         with mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': ''}):
             _, e = self.c.call(f"/api/encounters/{e['id']}/turns", 'POST', {'text': 'When were you diagnosed with hearing loss?', 'request_id': 'a'})
-            self.assertIn('when I was 4', e['messages'][-1]['text']);self.assertEqual(e['messages'][-1]['kind'], 'scripted_fallback')
-            self.assertTrue(any(v['type'] == 'guardrail_blocked' for v in e['events']))
+            # No key: approved wording with its normal label, and no guardrail warnings.
+            self.assertIn('when I was 4', e['messages'][-1]['text']);self.assertEqual(e['messages'][-1]['kind'], 'profile')
+            self.assertFalse(any(v['type'] == 'guardrail_blocked' for v in e['events']))
             _, e = self.c.call(f"/api/encounters/{e['id']}/turns", 'POST', {'text': 'How do you feel about your hearing aids?', 'request_id': 'b'})
             self.assertNotIn('embarrassing', e['messages'][-1]['text'])
             _, e = self.c.call(f"/api/encounters/{e['id']}/turns", 'POST', {'text': 'Can I see your hearing test results?', 'request_id': 'c'})
@@ -309,7 +310,7 @@ class GeneratorApi(unittest.TestCase):
         calls = []
         def fake(prof, history, text):
             calls.append(text);return {'text': 'I was 4.', 'fact_ids': [fact(prof)['id']], 'kind': 'generative', 'guardrail': None}
-        with mock.patch.object(dialogue, 'generate_reply', side_effect=fake):
+        with mock.patch.object(dialogue, 'generate_reply', side_effect=fake), mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'k'}):
             replies = []
             for run in range(2):
                 _, e = self.c.call('/api/encounters', 'POST', {'patient_id': pid})
@@ -317,6 +318,20 @@ class GeneratorApi(unittest.TestCase):
                 replies.append(e['messages'][-1])
         self.assertEqual(len(calls), 1);self.assertEqual(replies[0]['text'], replies[1]['text']);self.assertTrue(replies[1]['cached'])
         self.assertIn(fact(profile)['id'], e['records'][-1]['id'])
+
+    def test_seed_patients_use_ai_conversation_by_default(self):
+        omar = 'b5814549-fd2b-42a2-af78-9b681ad6f268'
+        seen = []
+        def fake(prof, history, text):
+            seen.append(prof['name']);return {'text': 'My LDL came back at 195.', 'fact_ids': ['f3'], 'kind': 'generative', 'guardrail': None}
+        _, e = self.c.call('/api/encounters', 'POST', {'patient_id': omar})
+        with mock.patch.object(dialogue, 'generate_reply', side_effect=fake), mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'k'}):
+            _, e = self.c.call(f"/api/encounters/{e['id']}/turns", 'POST', {'text': 'What is your LDL number?', 'request_id': 'omar-1'})
+        self.assertEqual(seen, ['Omar Sinclair']);self.assertEqual(e['messages'][-1]['kind'], 'generative')
+        _, e = self.c.call('/api/encounters', 'POST', {'patient_id': omar})
+        with mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': ''}):
+            _, e = self.c.call(f"/api/encounters/{e['id']}/turns", 'POST', {'text': 'What are your cholesterol results?', 'request_id': 'omar-2'})
+        self.assertEqual(e['messages'][-1]['kind'], 'profile');self.assertIn('195', e['messages'][-1]['text'])
 
     def test_generate_with_fake_model_saves_portrait_and_sources(self):
         req = {**REQUEST, 'files': [{'name': 'labs.txt', 'content': base64.b64encode(b'BP 155/110').decode()}]}

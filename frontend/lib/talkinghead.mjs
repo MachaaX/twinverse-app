@@ -704,8 +704,9 @@ class TalkingHead {
     this.mtMaxDefault = 1;
     this.mtMaxExceptions = {};
     this.mtLimits = {
-      eyeBlinkLeft: (v) => ( Math.max(v, ( this.mtAvatar['eyesLookDown'].value + this.mtAvatar['browDownLeft'].value ) / 2) ),
-      eyeBlinkRight: (v) => ( Math.max(v, ( this.mtAvatar['eyesLookDown'].value + this.mtAvatar['browDownRight'].value ) / 2 ) )
+      // Some avatar models lack these morph targets; treat missing ones as 0 instead of throwing every frame.
+      eyeBlinkLeft: (v) => ( Math.max(v, ( (this.mtAvatar['eyesLookDown']?.value ?? 0) + (this.mtAvatar['browDownLeft']?.value ?? 0) ) / 2) ),
+      eyeBlinkRight: (v) => ( Math.max(v, ( (this.mtAvatar['eyesLookDown']?.value ?? 0) + (this.mtAvatar['browDownRight']?.value ?? 0) ) / 2 ) )
     };
     this.mtOnchange = {
       eyesLookDown: () => {

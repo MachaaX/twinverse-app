@@ -23,7 +23,7 @@ r['released_feedback']=student_feedback(r['feedback'])
 print(json.dumps({'profiles':seed_profiles(),'patients':[{**brief(p),'has_published_version':True,'published_card':brief(p)} for p in seed_profiles()],'rubric':RUBRIC,'encounter':public_encounter(e,'faculty'),'student_pending':public_encounter(e,'student'),'student_released':public_encounter(r,'student')}))
 `],{cwd:root,encoding:'utf8'}));
 const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
-const avatarMocks={Avatar3D:class {},ttsService:{isAvailable:()=>false}};
+const avatarMocks={Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}}};
 const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON});
 const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);

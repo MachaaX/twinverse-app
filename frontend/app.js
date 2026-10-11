@@ -632,19 +632,34 @@ function scoreHistogram(r, faculty, title='Candidate rubric scores', description
   return {name:d.name,value:Number.isInteger(value)&&value>=0&&value<=4?value:null,na:value==='N/A'};
  });
  const hasScores=scores.some(d=>d.value!==null);
- return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">${esc(title)}</h2><p class="small muted">${esc(description)}</p></div><span class="badge neutral">Scale: 0 to 4</span></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
+ const maxPoints=Number(r.available_points ?? 28);
+ const totalScore=(r.total!==null&&r.total!==undefined)?Number(r.total):null;
+ const totalLabel=totalScore!==null?`${totalScore} / ${maxPoints}`:'Total pending';
+ return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">${esc(title)}</h2><p class="small muted">${esc(description)}</p></div><div class="score-histogram-header-actions"><span class="histogram-total">${esc(totalLabel)}</span><span class="badge neutral">Scale: 0 to 4</span></div></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
+}
+function studentMetricsTrendChart(student){
+ const encounters=[...(student.encounters||[])].sort((a,b)=>new Date(a.started_at)-new Date(b.started_at));
+ if(!encounters.length)return '';
+ const maxPoints=Math.max(28,...encounters.map(encounter=>Number(encounter.available_points ?? 28)));
+ const points=encounters.map(encounter=>{
+  const total=Number(encounter.total ?? 0);
+  const pct=maxPoints>0?(total/maxPoints)*100:0;
+  const label=new Date(encounter.started_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  return `<div class="trend-bar-group" title="${esc(`${total} / ${maxPoints} points on ${label}`)}"><span class="trend-value">${esc(total)}</span><span class="trend-bar" style="height:${Math.max(pct, total>0?8:0)}%"></span><span class="trend-label">${esc(label)}</span></div>`;
+ }).join('');
+ return `<section class="panel trend-panel"><div class="panel-header"><div><h2>Performance trend</h2><p class="small muted">Score out of ${maxPoints} over time</p></div><span class="badge neutral">${encounters.length} encounters</span></div><div class="trend-chart-wrap"><div class="trend-axis" aria-hidden="true"><span>28</span><span>21</span><span>14</span><span>7</span><span>0</span></div><div class="trend-bars">${points}</div></div></section>`;
 }
 function studentMetricsView(students){
  const count=students.reduce((total,student)=>total+student.encounters.length,0);
  const latest=student=>student.encounters[0]?.started_at;
  const stat=(value,label)=>`<div class="stat"><strong>${value}</strong><span>${label}</span></div>`;
  return heading('FACULTY WORKSPACE','Student metrics','Review each student’s rubric scores across completed encounters.')+
- `<div class="stats-row">${stat(students.length,'Student folders')}${stat(count,'Saved score charts')}</div><section class="panel"><div class="panel-header"><h2>Student folders</h2>${badge(students.length+' students','neutral')}</div>${students.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>STUDENT</th><th>SAVED CHARTS</th><th>MOST RECENT</th><th></th></tr></thead><tbody>${students.map(student=>`<tr><td><strong>${esc(student.name)}</strong></td><td>${student.encounters.length}</td><td class="small">${latest(student)?date(latest(student)):'No scored encounters'}</td><td>${button('Open folder','navigate','metrics/'+encodeURIComponent(student.id),'btn-small','arrow')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><h3>No student accounts yet</h3></div>'}</section>`;
+ `<div class="stats-row">${stat(students.length,'Student folders')}${stat(count,'Saved score charts')}</div><section class="panel"><div class="panel-header"><h2>Student folders</h2>${badge(students.length+' students','neutral')}</div>${students.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>STUDENT</th><th>SAVED CHARTS</th><th>MOST RECENT</th><th></th></tr></thead><tbody>${students.map(student=>`<tr><td><strong>${esc(student.name)}</strong></td><td>${student.encounters.length}</td><td class="small">${latest(student)?date(latest(student)):'No scored encounters'}</td><td>${button('Open metrics','navigate','metrics/'+encodeURIComponent(student.id),'btn-small','arrow')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><h3>No student accounts yet</h3></div>'}</section>`;
 }
 function studentMetricsFolderView(student){
- const encounters=student.encounters;
+ const encounters=[...(student.encounters||[])].sort((a,b)=>new Date(b.started_at)-new Date(a.started_at));
  return heading('FACULTY / STUDENT METRICS',student.name,'Saved rubric score charts, newest encounter first.',button('All students','navigate','metrics','btn','back'))+
- (encounters.length?encounters.map(encounter=>scoreHistogram(encounter,true,`${encounter.patient_name} · ${date(encounter.started_at)}`,`${encounter.released?'Released faculty ratings':'Faculty review · '+(encounter.status||'in progress')} - ${encounter.total==null?'Total pending':encounter.total+' / '+(encounter.available_points??28)} points`)).join(''):
+ (encounters.length?studentMetricsTrendChart(student)+encounters.map(encounter=>scoreHistogram(encounter,true,`${encounter.patient_name} · ${date(encounter.started_at)}`,`${encounter.released?'Released faculty ratings':'Faculty review · '+(encounter.status||'in progress')} - ${encounter.total==null?'Total pending':encounter.total+' / '+(encounter.available_points??28)} points`)).join(''):
  `<div class="empty-state"><h3>No scored encounters yet</h3><p>Charts appear here after this student finishes an encounter.</p></div>`);
 }
 function reportView(){const e=S.encounter,r=e.feedback;if(!r)return notice('This encounter is still in progress. Finish it to generate observations.')+button('Continue encounter','navigate','encounter/'+e.id,'btn-primary','arrow');

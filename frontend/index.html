@@ -13,7 +13,7 @@
   <script src="/lib/talkinghead.mjs" type="module"></script>
   <script type="module" src="/app.js"></script>
 </head>
-<body>
+<body class="auth-page">
   <a class="skip-link" href="#main">Skip to content</a>
   <aside class="sidebar">
     <a class="brand" href="#cases" aria-label="TwinVerse home"><span class="brand-mark">✳</span><span>TwinVerse<small>CLINICAL SIMULATION</small></span></a>
@@ -26,6 +26,7 @@
   </aside>
   <div class="app-shell">
     <header class="topbar">
+      <a class="brand auth-header-brand" href="#login" aria-label="TwinVerse home"><span class="brand-mark" aria-hidden="true">✳</span><span>TwinVerse<small>CLINICAL SIMULATION</small></span></a>
       <div class="breadcrumb"><span>Workspace</span><span class="slash">/</span><strong id="page-label">Practice library</strong></div>
       <div class="topbar-actions"><span class="demo-tag">SYNTHETIC DATA</span><span id="report-slot"></span><div id="account-slot" class="account-slot"></div></div>
     </header>

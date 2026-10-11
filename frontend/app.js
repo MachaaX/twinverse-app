@@ -244,6 +244,7 @@ function initializeAvatar(){
   }
 }
 function navigation(){
+ document.body?.classList.toggle('auth-page',S.route==='login'||S.route==='signup');
  const r=S.route.split('/')[0];const links=S.user?[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio'],['generate','send','Generate patients']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['feedback','star','Feedback & reports'],['resources','file','Source materials'],['developer','code','Developer']]:[])]:[];
  $('#navigation').innerHTML=links.map(([key,ic,label])=>`<a class="nav-link ${r===key || key==='reviews'&&r==='report'?'active':''}" href="#${key}" aria-label="${label}">${icon(ic)}<span>${label}</span>${r===key?'<i class="nav-dot"></i>':''}</a>`).join('');
  accountControls();
@@ -268,7 +269,7 @@ function clearWorkspace(){
 function applySession(session){S.user=session.user||null;S.role=session.role||null;S.csrf=session.csrf_token||'';S.googleAvailable=!!session.google_available;S.developer=!!session.developer;}
 function authView(signup=false){
  const params=new URLSearchParams(location.hash.split('?')[1]||'');const error=params.get('error');
- return `<section class="auth-card panel"><div class="auth-intro"><span class="brand-mark" aria-hidden="true">✳</span><div class="eyebrow">TWINVERSE</div><h1>${signup?'Create your account':'Welcome back'}</h1><p>${signup?'Choose your role and start your clinical simulation workspace.':'Sign in to continue your clinical practice.'}</p></div>
+ return `<section class="auth-card panel"><div class="auth-intro"><h1>${signup?'Create your account':'Welcome back'}</h1><p>${signup?'Choose your role and start your clinical simulation workspace.':'Sign in to continue your clinical practice.'}</p></div>
  <div class="auth-tabs"><a href="#login" ${!signup?'aria-current="page"':''}>Sign in</a><a href="#signup" ${signup?'aria-current="page"':''}>Sign up</a></div>
  <form id="auth-form" data-intent="${signup?'signup':'login'}" class="auth-form">
  ${signup?'<div class="field"><label for="auth-name">Name</label><input id="auth-name" name="name" autocomplete="name" maxlength="120" required></div><div class="field"><label for="auth-role">Your role</label><select id="auth-role" name="role"><option value="medical-student">Medical student</option><option value="faculty">Faculty</option></select></div>':''}
@@ -276,7 +277,7 @@ function authView(signup=false){
  <div class="field"><label for="auth-password">Password</label><input type="password" id="auth-password" name="password" autocomplete="${signup?'new-password':'current-password'}" ${signup?'minlength="8"':''} maxlength="128" required>${signup?'<small class="muted">At least 8 characters.</small>':''}</div>
  <p id="auth-error" class="login-error" role="alert" ${error?'':'hidden'}>${esc(error||'')}</p>
  <button class="btn btn-primary" type="submit">${signup?'Create account':'Sign in'}</button>
- </form><div class="auth-divider"><span>or</span></div><button class="btn google-login" type="button" data-action="google-login" data-intent="${signup?'signup':'login'}" ${S.googleAvailable?'':'disabled'}><span class="google-letter" aria-hidden="true">G</span>Continue with Google</button>${S.googleAvailable?'':'<p class="auth-provider-note muted">Google sign-in is being configured. You can use email and password.</p>'}</section>`;
+ </form><div class="auth-divider"><span>or</span></div><button class="btn google-login" type="button" data-action="google-login" data-intent="${signup?'signup':'login'}" ${S.googleAvailable?'':'disabled'}><img class="google-logo" src="/assets/google_logo.png" width="20" height="20" alt="">Continue with Google</button>${S.googleAvailable?'':'<p class="auth-provider-note muted">Google sign-in is being configured. You can use email and password.</p>'}</section>`;
 }
 async function logout(){
  if(S.dirty&&!confirm('Log out and discard unsaved case edits?'))return;

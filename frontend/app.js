@@ -296,7 +296,7 @@ async function googleLogin(intent){
 function heading(kicker,title,desc,action=''){return `<div class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(desc)}</p></div>${action}</div>`;}
 async function route(){
  let target=location.hash.slice(1) || 'cases';const requested=target.split('?')[0];
- stopVoiceInput();clearTimeout(speechTimer);
+ stopVoiceInput();clearTimeout(speechTimer);S.avatar?.stop();ttsService.stop?.();
  if(!S.user){S.route=requested==='signup'?'signup':'login';++S.epoch;navigation();main.innerHTML=authView(S.route==='signup');return;}
  if(requested==='login'||requested==='signup'){location.hash='cases';target='cases';}
  if(S.role!=='faculty'&&['studio','generate','metrics','feedback','resources','developer'].includes(target.split('/')[0])){
@@ -585,6 +585,7 @@ async function sendQuestion(capture=null){
        console.warn('[Emotion] Failed to set mood:', err);
      }
    }
+   if(epoch!==S.epoch||S.route!=='encounter/'+activeId)return;
    const requestId=crypto.randomUUID();
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:requestId});
    if(S.route!=='encounter/'+activeId||epoch!==S.epoch)return;

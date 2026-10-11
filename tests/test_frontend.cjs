@@ -123,6 +123,24 @@ check('Recording requires a separate unchecked opt-in',()=>{
 console.log(`${count} frontend render checks passed.`);
 
 (async()=>{
+ let releaseReaction,requests=0;
+ const ui={value:'Hello there',innerHTML:'',textContent:'',hidden:false,style:{},classList:{toggle(){}},disabled:false,isConnected:false,addEventListener(){}};
+ const sandbox=vm.createContext({...avatarMocks,fixture,
+  emotionDetector:{getAvatarReaction:()=>({detected:true,mood:'concerned',emotion:'concerned'})},
+  vitalsPanel:{checkForUnlocks:()=>[],reset(){}},
+  document:{querySelector:()=>ui,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#encounter/test'},
+  crypto:{randomUUID:()=> 'delayed-question'},setInterval(){},setTimeout(fn,ms){if(ms===800)releaseReaction=fn;return 1;},clearTimeout(){},
+  console,structuredClone,Date,Set,JSON,URLSearchParams,
+  fetch:async()=>{requests++;return {ok:true,json:async()=>fixture.encounter};}
+ });
+ vm.runInContext(source,sandbox);vm.runInContext("S.user={id:'old-user'};S.csrf='old-csrf';S.encounter=fixture.encounter;S.route='encounter/test';S.avatar={head:{setMood(){}}};",sandbox);
+ const sending=vm.runInContext('sendQuestion()',sandbox);assert.equal(typeof releaseReaction,'function');
+ vm.runInContext("S.epoch++;S.user={id:'new-user'};S.csrf='new-csrf';S.route='cases';S.sending=false;",sandbox);
+ releaseReaction();await sending;assert.equal(requests,0);assert.equal(vm.runInContext('S.user.id',sandbox),'new-user');
+ console.log('PASS A delayed speaking turn cannot submit after navigation or an account change');
+})().catch(error=>{console.error(error);process.exitCode=1;});
+
+(async()=>{
  const requests=[],nodes=new Map();
  const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',hidden:true,style:{},close(){},setAttribute(){},addEventListener(){}});return nodes.get(s);};
  let session={authenticated:true,user:{id:'s1',name:'Student',email:'s@example.test',role:'medical-student'},role:'student',csrf_token:'csrf-before',google_available:true};

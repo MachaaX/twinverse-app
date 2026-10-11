@@ -28,6 +28,12 @@ authentication credential.
   app resolves the original endpoint again. TLS still verifies the original
   hostname and each attempt generates a fresh IAM token. Queries and transactions
   are never replayed by this connection retry.
+- PostgreSQL accounts use a shared pool of 1–4 connections, with a health check
+  before each transaction, ten-minute maximum connection lifetime and two-minute
+  idle cleanup. Healthy sessions reuse their authenticated connection rather than
+  opening a new gateway/TLS/IAM connection for every request. New connections
+  still generate fresh IAM tokens. Failed transactions are rolled back, never
+  replayed; PostgreSQL remains the account source of truth.
 - The hosted express database uses Aurora's internet access gateway. If one
   gateway address fails while others work, check that DNS returns the complete
   address list. EC2's database-only DNS routing is in

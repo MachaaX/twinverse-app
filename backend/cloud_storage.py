@@ -91,7 +91,7 @@ class CloudStorage:
         if not self.enabled:
             raise CloudStorageError('AWS storage is off. Set TWINVERSE_CLOUD_STORAGE=aws first.')
 
-    def _connect(self):
+    def _connect(self, _connector=None):
         try:
             import psycopg
         except ImportError:
@@ -105,7 +105,7 @@ class CloudStorage:
             if self.pg_auth == 'iam':
                 params['password'] = self._iam_token()
             try:
-                connection = psycopg.connect(**params)
+                connection = (_connector or psycopg.connect)(**params)
                 address = getattr(getattr(connection, 'info', None), 'hostaddr', None)
                 if isinstance(address, str) and 'hostaddr' not in self.pg:
                     try:

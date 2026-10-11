@@ -870,6 +870,15 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
+class AccountHTTPServer(ThreadingHTTPServer):
+    def server_close(self):
+        # Wait for active request threads before releasing their account pool.
+        super().server_close()
+        auth = getattr(self, 'auth', None)
+        if auth is not None:
+            auth.close()
+
+
 def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None,public_origin=None,auth_store=None):
     public_origin=(public_origin if public_origin is not None else os.environ.get('TWINVERSE_PUBLIC_ORIGIN','')).rstrip('/')
     if public_origin:
@@ -880,7 +889,7 @@ def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_
         if (auth_store is False and (faculty_password or load_faculty_password()[0])==DEFAULT_FACULTY_PASSWORD
             or load_developer_password()==DEFAULT_DEVELOPER_PASSWORD):
             raise ValueError('Set private TWINVERSE_FACULTY_PASSWORD and TWINVERSE_DEVELOPER_PASSWORD before hosting.')
-    s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
+    s=AccountHTTPServer(('127.0.0.1',port),Handler)
     s.public_origin=public_origin
     release_file=ROOT/'.release'
     s.release=release_file.read_text().strip() if release_file.is_file() else 'local'

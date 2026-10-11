@@ -10,6 +10,7 @@ import ipaddress
 import os
 import re
 import secrets
+import threading
 import time
 import urllib.parse
 import uuid
@@ -102,6 +103,8 @@ class AuthStore:
         self.cloud = cloud or CloudStorage()
         self.mode = mode or os.environ.get('TWINVERSE_AUTH_STORAGE') or (
             'postgres' if self.cloud.enabled else 'sqlite')
+        self._pool = None
+        self._pool_lock = threading.Lock()
         if self.mode not in ('postgres', 'sqlite'):
             raise ValueError('TWINVERSE_AUTH_STORAGE must be postgres or sqlite.')
         if self.mode == 'sqlite':
@@ -112,13 +115,45 @@ class AuthStore:
                 store.db.executescript(SCHEMA.read_text())
                 store.db.commit()
 
+    def _postgres_pool(self):
+        # Optional dependency: local SQLite accounts still run without psycopg.
+        with self._pool_lock:
+            if self._pool is None:
+                import psycopg
+                from psycopg.rows import dict_row
+                from psycopg_pool import ConnectionPool
+                cloud = self.cloud
+
+                class AccountConnection(psycopg.Connection):
+                    @classmethod
+                    def connect(cls, conninfo='', **kwargs):
+                        # Use the same bounded gateway recovery and fresh IAM token
+                        # as other cloud operations. Pool logs receive safe errors,
+                        # never the signed token or the driver's raw exception.
+                        return cloud._connect(_connector=lambda **params:
+                            super(AccountConnection, cls).connect(conninfo, **params, **kwargs))
+
+                def configure(connection):
+                    connection.row_factory = dict_row
+
+                self._pool = ConnectionPool(connection_class=AccountConnection,
+                    min_size=1, max_size=4, num_workers=2, timeout=90,
+                    max_waiting=64, max_lifetime=600, max_idle=120,
+                    configure=configure, check=ConnectionPool.check_connection,
+                    name='account-storage', open=True)
+            return self._pool
+
+    def close(self):
+        with self._pool_lock:
+            if self._pool is not None:
+                self._pool.close()
+                self._pool = None
+
     @contextmanager
     def connection(self):
         try:
             if self.mode == 'postgres':
-                from psycopg.rows import dict_row
-                with self.cloud._connect() as connection:
-                    connection.row_factory = dict_row
+                with self._postgres_pool().connection() as connection:
                     yield _Connection(connection, True)
             else:
                 with self.store.lock, self.store.db:
@@ -129,7 +164,7 @@ class AuthStore:
             if getattr(exc, 'sqlstate', '') == '23505':
                 raise AuthError(409, 'An account with this email or Google identity already exists.') from None
             # Do not expose DB credentials, SQL, or personally identifying data.
-            raise AuthError(503, 'Account storage is unavailable. Check the database connection and initialize the account tables.') from None
+            raise AuthError(503, 'Account storage is temporarily unavailable. Please try again shortly.') from None
 
     def init_db(self):
         with self.connection() as connection:
@@ -325,6 +360,7 @@ def main():
     parser = argparse.ArgumentParser(description='Initialize account tables in the existing PostgreSQL database.')
     parser.add_argument('command', choices=('init-db', 'check'))
     args = parser.parse_args()
+    store = None
     try:
         load_environment()
         store = AuthStore(cloud=CloudStorage(), mode='postgres')
@@ -341,6 +377,9 @@ def main():
     except (AuthError, CloudStorageError) as exc:
         print('FAILED: ' + str(exc))
         return 1
+    finally:
+        if store is not None:
+            store.close()
 
 
 if __name__ == '__main__':

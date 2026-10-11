@@ -6,6 +6,7 @@ Run `python3 -m backend.cloud_storage check` or `... init-db` after configuring
 import argparse
 import copy
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -54,7 +55,8 @@ class CloudStorage:
         self.pg['port'] = self.pg['port'] or '5432'
         self.pg['sslmode'] = self.pg['sslmode'] or 'verify-full'
         self.pg = {key: value for key, value in self.pg.items() if value != ''}
-        self.pg.update(connect_timeout=10, options='-c statement_timeout=30000 -c lock_timeout=10000')
+        self.pg.update(connect_timeout=30, options='-c statement_timeout=30000 -c lock_timeout=10000')
+        self._pg_address_hint = None
         if self.mode not in ('local', 'aws'):
             self.errors.append('TWINVERSE_CLOUD_STORAGE must be local or aws.')
         if self.enabled:
@@ -94,15 +96,40 @@ class CloudStorage:
             import psycopg
         except ImportError:
             raise CloudStorageError('Install requirements-cloud.txt to use PostgreSQL storage.') from None
-        params = dict(self.pg)
-        if self.pg_auth == 'iam':
-            params['password'] = self._iam_token()
-        try:
-            return psycopg.connect(**params)
-        except Exception:
+        for attempt in range(2):
+            params = dict(self.pg)
+            # A successful gateway address is a hint, not a replacement hostname.
+            # Keep the configured hostname for certificate checks and IAM signing.
+            if self._pg_address_hint and 'hostaddr' not in params:
+                params['hostaddr'] = self._pg_address_hint
             if self.pg_auth == 'iam':
-                raise CloudStorageError('PostgreSQL IAM connection failed. Check current AWS credentials, IAM database authentication, the rds_iam database role, rds-db:connect permission, TLS, and network access.') from None
-            raise CloudStorageError('PostgreSQL connection failed. Check the endpoint, database login, TLS certificate, and network access.') from None
+                params['password'] = self._iam_token()
+            try:
+                connection = psycopg.connect(**params)
+                address = getattr(getattr(connection, 'info', None), 'hostaddr', None)
+                if isinstance(address, str) and 'hostaddr' not in self.pg:
+                    try:
+                        self._pg_address_hint = str(ipaddress.ip_address(address))
+                    except ValueError:
+                        pass
+                return connection
+            except Exception as exc:
+                self._pg_address_hint = None
+                operational_error = getattr(psycopg, 'OperationalError', None)
+                state = getattr(exc, 'sqlstate', None)
+                transient = (isinstance(operational_error, type)
+                             and isinstance(exc, operational_error)
+                             and (state is None or state.startswith('08') or state == '57P03'))
+                # Authentication and certificate failures need configuration fixes.
+                # Only retry opening a connection, never a query or transaction.
+                configuration_failure = any(term in str(exc).lower() for term in (
+                    'certificate', 'does not match host name', 'authentication failed',
+                    'permission denied', 'no pg_hba.conf entry'))
+                if attempt == 0 and transient and not configuration_failure:
+                    continue
+                if self.pg_auth == 'iam':
+                    raise CloudStorageError('PostgreSQL IAM connection failed. Check current AWS credentials, IAM database authentication, the rds_iam database role, rds-db:connect permission, TLS, and network access.') from None
+                raise CloudStorageError('PostgreSQL connection failed. Check the endpoint, database login, TLS certificate, and network access.') from None
 
     def _aws_client(self, service, region=None):
         try:

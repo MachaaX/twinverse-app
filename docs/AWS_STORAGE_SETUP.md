@@ -23,6 +23,18 @@ authentication credential.
   The app does not store/cache tokens, and ignores `PGPASSWORD` in IAM mode.
   Tokens are valid for 15 minutes; the underlying workshop AWS credentials must
   also be valid. [AWS IAM authentication](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
+- Connections allow 30 seconds per gateway address and one retry for transient
+  connection failures. A successful address is reused until it fails, then the
+  app resolves the original endpoint again. TLS still verifies the original
+  hostname and each attempt generates a fresh IAM token. Queries and transactions
+  are never replayed by this connection retry.
+- The hosted express database uses Aurora's internet access gateway. If one
+  gateway address fails while others work, check that DNS returns the complete
+  address list. EC2's database-only DNS routing is in
+  `/etc/systemd/resolved.conf.d/twinverse-rds.conf`; it resolves the public RDS
+  domains through Cloudflare/Google while other names retain AWS private DNS.
+  This survives app releases. To undo it, remove that file and restart
+  `systemd-resolved`. Do not pin a permanent gateway IP or disable TLS verification.
 - When your workshop session expires, refresh `AWS_ACCESS_KEY_ID`,
   `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` together in the ignored `.env`
   from **Workshop Studio → AWS account access → Get AWS CLI credentials**, then

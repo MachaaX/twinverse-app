@@ -116,6 +116,62 @@ class StorageTests(unittest.TestCase):
                 storage._connect()
         self.assertNotIn('SECRET-IAM-TOKEN', str(caught.exception))
 
+    @unittest.skipUnless(importlib.util.find_spec('psycopg'), 'PostgreSQL driver not installed')
+    def test_connection_retry_discards_failed_address_and_refreshes_iam_token(self):
+        import psycopg
+        storage = CloudStorage({**ENV, 'TWINVERSE_PG_AUTH': 'iam'})
+        storage._pg_address_hint = '192.0.2.10'
+        storage._iam_token = Mock(side_effect=['first-token', 'second-token'])
+        driver = Mock(OperationalError=psycopg.OperationalError)
+        connection = Mock(); connection.info.hostaddr = '192.0.2.20'
+        driver.connect.side_effect = [psycopg.OperationalError('connection timeout expired'), connection]
+        with patch.dict('sys.modules', {'psycopg': driver}):
+            self.assertIs(storage._connect(), connection)
+        first, second = [call.kwargs for call in driver.connect.call_args_list]
+        self.assertEqual(first['hostaddr'], '192.0.2.10')
+        self.assertNotIn('hostaddr', second)
+        self.assertEqual([first['password'], second['password']], ['first-token', 'second-token'])
+        self.assertEqual(second['connect_timeout'], 30)
+        self.assertEqual(second['host'], ENV['PGHOST'])
+        self.assertEqual(second['sslmode'], 'verify-full')
+        self.assertEqual(storage._pg_address_hint, '192.0.2.20')
+
+    def test_successful_gateway_hint_keeps_original_hostname(self):
+        storage = CloudStorage({**ENV, 'TWINVERSE_PG_AUTH': 'iam'})
+        storage._iam_token = Mock(return_value='fresh-token')
+        driver = Mock(); driver.connect.return_value.info.hostaddr = '192.0.2.20'
+        with patch.dict('sys.modules', {'psycopg': driver}):
+            storage._connect(); storage._connect()
+        first, second = [call.kwargs for call in driver.connect.call_args_list]
+        self.assertNotIn('hostaddr', first)
+        self.assertEqual(second['hostaddr'], '192.0.2.20')
+        self.assertEqual(second['host'], ENV['PGHOST'])
+        self.assertNotIn('hostaddr', storage.pg)
+
+    @unittest.skipUnless(importlib.util.find_spec('psycopg'), 'PostgreSQL driver not installed')
+    def test_authentication_and_certificate_errors_are_not_retried(self):
+        import psycopg
+        for error in [psycopg.errors.InvalidPassword('private-token'),
+                      psycopg.OperationalError('certificate verify failed: private-token')]:
+            storage = CloudStorage({**ENV, 'TWINVERSE_PG_AUTH': 'iam'})
+            storage._iam_token = Mock(return_value='private-token')
+            driver = Mock(OperationalError=psycopg.OperationalError)
+            driver.connect.side_effect = error
+            with patch.dict('sys.modules', {'psycopg': driver}):
+                with self.assertRaises(CloudStorageError) as caught:storage._connect()
+            driver.connect.assert_called_once()
+            self.assertNotIn('private-token', str(caught.exception))
+
+    @unittest.skipUnless(importlib.util.find_spec('psycopg'), 'PostgreSQL driver not installed')
+    def test_connection_retries_are_bounded(self):
+        import psycopg
+        storage = CloudStorage(ENV)
+        driver = Mock(OperationalError=psycopg.OperationalError)
+        driver.connect.side_effect = psycopg.OperationalError('connection timeout expired')
+        with patch.dict('sys.modules', {'psycopg': driver}):
+            with self.assertRaises(CloudStorageError):storage._connect()
+        self.assertEqual(driver.connect.call_count, 2)
+
     def test_same_version_retry_uses_same_s3_keys(self):
         self.storage.publish(self.profile, [(self.metadata, self.raw)])
         first = self.s3.put_object.call_args.kwargs['Key']

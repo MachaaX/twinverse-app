@@ -224,6 +224,8 @@
 .histogram-empty{padding:18px 22px;color:var(--muted);font-size:12px}
 .score-histogram .panel-header h2{font-size:15px}
 .score-histogram .panel-header .badge{flex-shrink:0}
+.brand .brand-tagline{margin-top:4px;line-height:1.5}
+.brand-tagline>span{display:block;white-space:nowrap}
 
 @media(max-width:600px){
   .score-histogram .panel-header{padding:15px}

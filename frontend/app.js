@@ -173,7 +173,6 @@ function vitalsUI(){
     </div>
   `;
 }
-
 // Input mode UI (chat vs voice)
 function inputModeUI(){
   if(!voiceInput.isAvailable()){
@@ -202,7 +201,7 @@ function inputModeUI(){
     <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
       <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
         ${icon('mic')}
-        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Speak'}</span>
+        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
       </button>
       <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
         ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
@@ -469,7 +468,7 @@ function updateVoiceUI(){
     voiceBtn.className = `voice-btn ${S.isListening?'listening':''}`;
     voiceBtn.style.borderColor = S.isListening?'#e74c3c':'#1e584b';
     voiceBtn.style.background = S.isListening?'#e74c3c':'#1e584b';
-    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Speak'}`;
+    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Tap to Speak'}`;
   }
 
   if(transcriptEl && !S.isListening){
@@ -521,24 +520,14 @@ async function sendQuestion(){
        console.warn('[Emotion] Failed to set mood:', err);
      }
    }
-
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
    if(S.route!=='encounter/'+activeId)return;
    S.encounter=r;
+   // The avatar layout keeps the transcript in a dialog; the classic layout has #transcript.
    const transcript=$('#transcript-view')||$('#transcript');
    if(transcript)transcript.innerHTML=messagesView();
    const chart=$('#chart-body');if(chart)chart.innerHTML=chartView();
    input.value='';scrollChat();
-
-   // Reset to neutral before speaking
-   if(S.avatarEnabled && S.avatar && S.avatar.head){
-     setTimeout(() => {
-       try {
-         S.avatar.head.setMood('neutral');
-       } catch(err) { }
-     }, 500);
-   }
-
    const last=r.messages.at(-1);
    if(last&&last.role==='patient'){
      if(S.avatar&&S.avatarEnabled){
@@ -585,63 +574,23 @@ function qualityView(q){if(!q||!q.turns)return '';const s=q.student,p=q.patient;
  <ul class="small">${q.summary.map(x=>`<li>${esc(x)}</li>`).join('')}${p.guarded_replies.length?`<li>Guarded patient replies: ${p.guarded_replies.map(id=>turnChip(id)).join('')}</li>`:''}</ul></div></section>`;}
 function checkpointsView(r){return `<div class="section-heading"><h2>Case learning checkpoints</h2><span class="small muted">Rule-based observations</span></div><div class="checkpoint-list">${r.checkpoints.map(c=>`<article class="checkpoint"><div class="checkpoint-top">${icon(c.status==='observed'?'check':'dot')}<h3>${esc(c.label)}</h3></div><p>${c.status==='observed'?'Relevant question and patient disclosure recorded.':c.status==='partial'?'Some relevant information was elicited.':esc(c.suggestion)}</p>${c.evidence_ids.length?button('Inspect evidence','evidence',c.evidence_ids.join(','),'btn-small btn-ghost','eye'):badge(c.status==='manual_review'?'Manual review':'Not observed','neutral')}</article>`).join('')}</div>`;}
 function scoreHistogram(r, faculty){
-  const scores=(r.domains||[]).map(d=>{
-    const value=d.score!==null&&d.score!==undefined
-      ? d.score
-      : (faculty ? d.suggested_score : null);
-    return {
-      name:d.name,
-      value:Number.isInteger(value)&&value>=0&&value<=4 ? value : null,
-      na:value==='N/A'
-    };
-  });
-  const hasScores=scores.some(d=>d.value!==null);
-
-  return `<section class="panel score-histogram" aria-labelledby="score-histogram-title">
-    <div class="panel-header">
-      <div>
-        <h2 id="score-histogram-title">Candidate rubric scores</h2>
-        <p class="small muted">${faculty
-          ? 'Saved ratings, or suggested ratings while reviewing'
-          : 'Released faculty ratings'} - one bar per rubric category</p>
-      </div>
-      <span class="badge neutral">Scale: 0 to 4</span>
-    </div>
-    ${hasScores
-      ? `<div class="histogram-wrap">
-          <div class="histogram-axis" aria-hidden="true">
-            <span>4</span><span>3</span><span>2</span><span>1</span><span>0</span>
-          </div>
-          <div class="histogram-columns">
-            ${scores.map(d=>`<div class="histogram-column">
-              <div class="histogram-plot" role="img"
-                aria-label="${esc(d.name)}: ${d.value===null
-                  ? (d.na ? 'N/A' : 'unreviewed')
-                  : d.value+' out of 4'}">
-                <div class="histogram-bar ${d.value===null?'empty':''}"
-                  style="--score-height:${d.value===null?0:d.value*25}%"></div>
-              </div>
-              <div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div>
-              <div class="histogram-value">${d.value===null
-                ? (d.na?'N/A':'Not rated')
-                : d.value+'/4'}</div>
-            </div>`).join('')}
-          </div>
-        </div>`
-      : `<p class="histogram-empty">${faculty
-          ? 'No category ratings are available yet.'
-          : 'Category scores will appear here after faculty releases the review.'}</p>`}
-  </section>`;
+ const scores=(r.domains||[]).map(d=>{
+  const value=d.score!==null&&d.score!==undefined?d.score:(faculty?d.suggested_score:null);
+  return {name:d.name,value:Number.isInteger(value)&&value>=0&&value<=4?value:null,na:value==='N/A'};
+ });
+ const hasScores=scores.some(d=>d.value!==null);
+ return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">Candidate rubric scores</h2><p class="small muted">${faculty?'Saved ratings, or suggested ratings while reviewing':'Released faculty ratings'} - one bar per rubric category</p></div><span class="badge neutral">Scale: 0 to 4</span></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
 }
 function reportView(){const e=S.encounter,r=e.feedback;if(!r)return notice('This encounter is still in progress. Finish it to generate observations.')+button('Continue encounter','navigate','encounter/'+e.id,'btn-primary','arrow');
  const faculty=S.role==='faculty';
  const top=heading('ENCOUNTER / REFLECTION','A closer look at your conversation',`${e.patient.name} · ${date(e.started_at)} · Case v${e.patient.version}`,`<div class="button-row"><a class="btn" href="/api/encounters/${e.id}/export">${icon('down')}Export JSON</a>${button('New attempt','start',e.patient.id,'btn-primary','plus')}</div>`);
- if(!faculty&&!r.released)return top+notice('<strong>Submitted for faculty review.</strong> Your score and feedback will appear here once your faculty reviewer releases them.')+studentRatingPanel(e)+`<div class="button-row pending-actions">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div>`+checkpointsView(r);
+  if(!faculty&&!r.released)return top+scoreHistogram(r,faculty)+notice('<strong>Submitted for faculty review.</strong> Your score and feedback will appear here once your faculty reviewer releases them.')+studentRatingPanel(e)+`<div class="button-row pending-actions">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div>`+checkpointsView(r);
  const observed=r.checkpoints.filter(c=>c.status==='observed').length;
- return top+(faculty?releaseNotice(r):notice(`<strong>Final feedback</strong> released by ${esc(r.released_by)} · ${date(r.released_at)}.${r.update_pending?' Your reviewer is updating this feedback.':''} Scores are a discussion aid, not a pass/fail grade.`))+
+  return top+(faculty?releaseNotice(r):notice(`<strong>Final feedback</strong> released by ${esc(r.released_by)} · ${date(r.released_at)}.${r.update_pending?' Your reviewer is updating this feedback.':''} Scores are a discussion aid, not a pass/fail grade.`))+
  (r.review_required?notice(`<strong>Review required:</strong> ${esc(r.review_trigger_domains.join('; '))} received a score of 1. This flag applies regardless of the total.`,'error'):'')+
  (faculty?autoScoreView(r):'')+
- `<div class="feedback-overview"><section class="score-panel"><div class="eyebrow">${faculty?'FACULTY RUBRIC TOTAL':'YOUR SCORE'}</div><div class="score-number">${r.total??'—'}${r.total!==null?`<span>/ ${r.available_points}</span>`:''}</div><p>${r.total===null?(r.unrated_domains?'Awaiting faculty ratings':'No applicable rated domains'):r.unrated_domains?'Partial assessment':'Discussion aid · not a pass/fail grade'}</p><small>${r.rated_domains} rated · ${r.na_domains} N/A · ${r.unrated_domains} unreviewed<br>Full rubric maximum: 28</small></section><section class="feedback-summary"><h2>${r.status==='reviewed'?'Faculty review saved':'Evidence first. Reflection next.'}</h2><p>${observed} of ${r.checkpoints.length} case checkpoints have matching question-and-response evidence. This measures recorded disclosure, not understanding or competence.</p><p>${r.reviewer?'Reviewed by '+esc(r.reviewer)+' · Review v'+r.review_version:'Scores below are auto-suggested drafts until a faculty reviewer saves them.'}</p><div class="button-row">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div></section></div>`+
+  `<div class="feedback-overview"><section class="score-panel"><div class="eyebrow">${faculty?'FACULTY RUBRIC TOTAL':'YOUR SCORE'}</div><div class="score-number">${r.total??'—'}${r.total!==null?`<span>/ ${r.available_points}</span>`:''}</div><p>${r.total===null?(r.unrated_domains?'Awaiting faculty ratings':'No applicable rated domains'):r.unrated_domains?'Partial assessment':'Discussion aid · not a pass/fail grade'}</p><small>${r.rated_domains} rated · ${r.na_domains} N/A · ${r.unrated_domains} unreviewed<br>Full rubric maximum: 28</small></section><section class="feedback-summary"><h2>${r.status==='reviewed'?'Faculty review saved':'Evidence first. Reflection next.'}</h2><p>${observed} of ${r.checkpoints.length} case checkpoints have matching question-and-response evidence. This measures recorded disclosure, not understanding or competence.</p><p>${r.reviewer?'Reviewed by '+esc(r.reviewer)+' · Review v'+r.review_version:'Scores below are auto-suggested drafts until a faculty reviewer saves them.'}</p><div class="button-row">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div></section></div>`+
+  scoreHistogram(r,faculty)+
  (faculty?'':summaryView(r.summary)+studentRatingPanel(e))+qualityView(r.sentiment)+checkpointsView(r)+
  `<form id="review-form" class="panel"><div class="panel-header"><div><h2>Patient Encounter Performance Rubric</h2><p class="small muted">Official organizer rubric · seven domains · scores 1–4 or N/A</p></div>${badge(r.status.replaceAll('_',' '),r.status==='reviewed'?'':'warning')}</div>${r.domains.map(d=>domainView(d)).join('')}${faculty?summaryEditor(r.summary||{})+`<div class="review-footer">${field('Reviewer name','reviewer-name',r.reviewer||'')}<div class="button-row"><button class="btn" type="submit" data-release="0">${icon('check')}Save review</button><button class="btn btn-primary" type="submit" data-release="1">${icon('send')}Save &amp; release to student</button></div></div>`:''}</form>`;
 }

@@ -186,6 +186,9 @@ function vitalsUI(){
   `;
 }
 // Camera mode shares voice input and optional audio-only coaching.
+function voiceButtonContents(){
+ return icon('mic')+`<span class="voice-btn-label">${S.isListening?'Stop listening':'Tap to Speak'}</span>`;
+}
 function inputModeUI(){
   if(!voiceInput.isAvailable()){
     // Voice not supported, show only chat
@@ -217,9 +220,8 @@ function inputModeUI(){
     <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
       ${voiceRecorder.isAvailable()&&S.speechMayDelete?`<label class="speech-consent"><input type="checkbox" id="speech-consent" ${S.speechOptIn?'checked':''}>Record my speaking turns for delivery coaching<small>Optional · recordings accessible to you and faculty for 7 days, or delete earlier. Measurements stay saved. Maximum 90 seconds per turn; no effect on your rubric score.</small></label>`:'<p class="small muted">Audio recording is unavailable here. Voice input still saves recognized text.</p>'}
       <span class="recording-status" id="recording-status" role="status"></span>
-      <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
-        ${icon('mic')}
-        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
+      <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice">
+        ${voiceButtonContents()}
       </button>
       <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
         ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
@@ -540,7 +542,7 @@ function toggleVoiceInput(){
 }
 function updateVoiceUI(){
  const button=$('[data-action="toggle-voice"]'),status=$('#recording-status');
- if(button){button.classList.toggle('listening',S.isListening);button.style.background=S.isListening?'#e74c3c':'#1e584b';button.innerHTML=icon('mic')+(S.isListening?'Stop listening':'Tap to Speak');button.disabled=S.sending||!!S.voiceRun?.ending||(S.videoMode&&!videoPreview.active);}
+ if(button){button.classList.toggle('listening',S.isListening);button.innerHTML=voiceButtonContents();button.disabled=S.sending||!!S.voiceRun?.ending||(S.videoMode&&!videoPreview.active);}
  if(status)status.textContent=S.isListening?(voiceRecorder.active?'Recording microphone · stop to finish this turn':S.speechOptIn?'Opening microphone…':'Recognizing speech · audio is not stored'):'';
  const consent=$('#speech-consent');if(consent)consent.disabled=S.isListening||S.sending;
 }

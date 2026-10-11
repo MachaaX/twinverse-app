@@ -5,7 +5,7 @@ In an encounter, select **Voice** and check **Record my speaking turns for deliv
 ## Video mode
 
 Select **Video Mode** during an active encounter and allow camera and microphone
-access in Chrome. A muted, mirrored camera preview appears at the upper right of
+access in Chrome. A muted, mirrored camera preview appears at the upper left of
 the patient animation frame. It is square with rounded corners and uses at most
 1/16 (6.25%) of that frame's area, including after resizing.
 

@@ -308,7 +308,7 @@ class GeneratorApi(unittest.TestCase):
         fact = lambda p: next(x for x in p['facts'] if x['label'] == 'Age at diagnosis')
         profile = self.c.call(f'/api/patients/{pid}')[1]['profile']
         calls = []
-        def fake(prof, history, text):
+        def fake(prof, history, text, language='en-US'):
             calls.append(text);return {'text': 'I was 4.', 'fact_ids': [fact(prof)['id']], 'kind': 'generative', 'guardrail': None}
         with mock.patch.object(dialogue, 'generate_reply', side_effect=fake), mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'k'}):
             replies = []
@@ -322,7 +322,7 @@ class GeneratorApi(unittest.TestCase):
     def test_seed_patients_use_ai_conversation_by_default(self):
         omar = 'b5814549-fd2b-42a2-af78-9b681ad6f268'
         seen = []
-        def fake(prof, history, text):
+        def fake(prof, history, text, language='en-US'):
             seen.append(prof['name']);return {'text': 'My LDL came back at 195.', 'fact_ids': ['f3'], 'kind': 'generative', 'guardrail': None}
         _, e = self.c.call('/api/encounters', 'POST', {'patient_id': omar})
         with mock.patch.object(dialogue, 'generate_reply', side_effect=fake), mock.patch.dict(os.environ, {'AWS_BEARER_TOKEN_BEDROCK': 'k'}):

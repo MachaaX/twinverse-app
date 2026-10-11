@@ -236,3 +236,11 @@
 
 /* Logo palette: maroon headings, red brand name, navy text, light-blue surfaces. */
 h1,h2,.page-heading h1{color:var(--green)}.brand>span{color:var(--green)}.brand .brand-tagline,.brand .brand-tagline span{color:var(--navy)}
+
+/* Keep slider endpoints and the selected description aligned beneath the track. */
+.slider-grid{display:grid;gap:20px;margin-bottom:20px}
+.slider-grid .slider-field{margin-bottom:0}
+.slider-field input[type="range"]{padding:0;margin:0;height:24px;border:0;border-radius:0;background:transparent}
+.slider-scale{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:1.5;color:var(--muted)}
+.slider-scale>strong{min-width:0;text-align:center;color:var(--ink);font-weight:600;overflow-wrap:anywhere}
+.slider-scale>span:last-child{text-align:right}

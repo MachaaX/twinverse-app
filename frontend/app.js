@@ -258,7 +258,7 @@ function navigation(){
  $('#report-slot').innerHTML=S.user?reportButton():'';
 }
 function roleLabel(){return S.role==='faculty'?'Faculty':'Medical student';}
-function accountContent(){return `<strong>${esc(S.user.name)}</strong><span class="account-email">${esc(S.user.email)}</span><span class="account-role">${esc(roleLabel())}</span><div class="account-actions">${S.googleAvailable&&!S.user.has_google?button('Link Google','google-link','','btn btn-small'):''}${button('Log out','logout','','btn btn-small')}</div>`;}
+function accountContent(){return `<strong>${esc(S.user.name)}</strong><span class="account-email">${esc(S.user.email)}</span><span class="account-role">${esc(roleLabel())}</span><div class="account-actions">${button('Log out','logout','','btn btn-small')}</div>`;}
 function accountControls(){
  const slot=$('#account-slot'),side=$('#sidebar-account');
  if(!S.user){if(slot)slot.innerHTML='<a class="btn btn-small" href="#login">Sign in</a>';if(side)side.innerHTML='<strong>Your workspace</strong><a class="btn btn-small" href="#login">Sign in</a>';return;}
@@ -786,7 +786,6 @@ document.addEventListener('click',async event=>{
   if(action==='account-menu'){const menu=$('#account-menu');menu.hidden=!menu.hidden;el.setAttribute('aria-expanded',String(!menu.hidden));return;}
   if(action==='logout'){el.disabled=true;await logout();return;}
   if(action==='google-login'){el.disabled=true;await googleLogin(el.dataset.intent);return;}
-  if(action==='google-link'){el.disabled=true;await googleLogin('link');return;}
   if(action==='auth-retry'){await boot();return;}
   if(action==='navigate'){location.hash=id;return;}
   if(action==='close-dialog'){$('#confirm-dialog').close();$('#transcript-dialog')?.close();return;}

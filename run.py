@@ -16,10 +16,9 @@ if __name__=='__main__':
     try:server=make_server(args.port)
     except (OSError,ValueError) as exc:
         sys.exit(f'Could not start the server: {exc}. Try python3 run.py --port 8001')
-    shown=server.faculty_password if server.faculty_password_source=='default' else '(set by TWINVERSE_FACULTY_PASSWORD)'
     dev=server.developer_password if not os.environ.get('TWINVERSE_DEVELOPER_PASSWORD') else '(set by TWINVERSE_DEVELOPER_PASSWORD)'
     address=server.public_origin or f'http://127.0.0.1:{args.port}'
-    print(f'\nTwinVerse is ready at {address}\nSynthetic sample workspace • Optional AWS services\n\nFaculty password: {shown}\nDeveloper password: {dev}\n\nPress Ctrl+C to stop.\n',flush=True)
+    print(f'\nTwinVerse is ready at {address}\nCreate an account as Medical student or Faculty.\nAccount storage: {server.auth.mode}\nDeveloper password: {dev}\n\nPress Ctrl+C to stop.\n',flush=True)
     storage=server.cloud_storage.status()
     print('Approval storage: '+('AWS (PostgreSQL + S3)' if storage['enabled'] else 'local SQLite'),flush=True)
     if storage['errors']:print('Cloud setup: '+' '.join(storage['errors']))

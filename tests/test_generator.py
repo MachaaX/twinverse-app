@@ -263,7 +263,7 @@ class GeneratorApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
-        cls.server = make_server(0, Path(cls.temp.name) / 'g.sqlite3', verbose=False, faculty_password=TOKEN)
+        cls.server = make_server(0, Path(cls.temp.name) / 'g.sqlite3', verbose=False,auth_store=False, faculty_password=TOKEN)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True);cls.thread.start()
         cls.base = f'http://127.0.0.1:{cls.server.server_port}'
 

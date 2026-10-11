@@ -95,6 +95,17 @@ class StorageTests(unittest.TestCase):
         client.generate_db_auth_token.assert_called_once_with(
             DBHostname='database.example', Port=5432, DBUsername='app', Region='us-east-1')
 
+    def test_ssh_tunnel_keeps_real_hostname_for_tls_and_iam_signing(self):
+        storage = CloudStorage({**ENV, 'TWINVERSE_PG_AUTH': 'iam', 'PGHOSTADDR': '127.0.0.1'})
+        client = Mock(); client.generate_db_auth_token.return_value = 'temporary-token'
+        storage._aws_client = Mock(return_value=client)
+        driver = Mock()
+        with patch.dict('sys.modules', {'psycopg': driver}):
+            storage._connect()
+        self.assertEqual(driver.connect.call_args.kwargs['host'], 'database.example')
+        self.assertEqual(driver.connect.call_args.kwargs['hostaddr'], '127.0.0.1')
+        self.assertEqual(client.generate_db_auth_token.call_args.kwargs['DBHostname'], 'database.example')
+
     def test_iam_connection_failure_does_not_expose_token(self):
         storage = CloudStorage({**ENV, 'TWINVERSE_PG_AUTH': 'iam'})
         storage._iam_token = Mock(return_value='SECRET-IAM-TOKEN')
@@ -170,7 +181,7 @@ class CloudPublishApiTests(unittest.TestCase):
         self.storage.publish = Mock(side_effect=lambda p, files: {
             'provider': 'aws', 'patient_id': p['id'], 'version': p['version'],
             'file_count': len(files), 'saved_at': p['approved_at']})
-        self.server = make_server(0, Path(self.temp.name)/'test.sqlite3', verbose=False,
+        self.server = make_server(0, Path(self.temp.name)/'test.sqlite3', verbose=False,auth_store=False,
                                   faculty_password='test-token', cloud_storage=self.storage)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()

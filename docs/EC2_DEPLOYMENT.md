@@ -37,7 +37,7 @@
   activating the release.
 - Check `https://44.246.200.136/api/health`: its `release` field contains the
   deployed commit SHA. Refresh the website after that SHA matches your commit.
-  Faculty/developer access needs a new sign-in after a restart.
+  Account login survives restarts; the separate developer unlock needs a new password entry.
 
 ## Server access and logs
 
@@ -71,12 +71,8 @@
   hashes, and MIME types matched. The test case and its cloud copies were removed.
   The file is readable only by root;
   systemd supplies the values to the app. It is outside all releases and Git.
-- Sign-in passwords are generated directly on EC2. View the two
-  `TWINVERSE_FACULTY_PASSWORD` / `TWINVERSE_DEVELOPER_PASSWORD` values there with
-  `sudoedit /etc/twinverse/app.env`. As requested, these passwords stay on EC2;
-  they were not downloaded into a local `.env.hosted` file. Use the faculty
-  password when signing in as Faculty, or the developer password for developer
-  access. The public deployment rejects the repository's default passwords.
+- Personal Faculty and Medical student accounts are created through **Sign up**, with their own passwords or Google identities. Password hashes and sessions use new tables in the existing PostgreSQL database. The old shared faculty password does not log in to an account. The separate developer password stays in `/etc/twinverse/app.env` and requires a faculty account first.
+- Google credentials are in the root-only environment file. Hosted Google login additionally needs an HTTPS domain and its registered callback; the current public IP cannot be used as a Google OAuth callback. Local Google sign-in uses the callback described in [AUTH_SETUP.md](AUTH_SETUP.md).
 - When workshop credentials expire, get a fresh matching access key, secret key,
   and session token. On EC2, edit only those three values and restart:
 

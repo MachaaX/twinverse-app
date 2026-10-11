@@ -144,8 +144,10 @@ def build_release(repository, sha):
     python = str(release / '.venv/bin/python')
     try:
         build('python3', '-m', 'venv', str(release / '.venv'))
-        build(python, '-m', 'pip', 'install', '--disable-pip-version-check',
-              '-r', 'requirements.txt', '-r', 'requirements-cloud.txt')
+        requirements = ['-r', 'requirements.txt', '-r', 'requirements-cloud.txt']
+        if (release / 'requirements-auth.txt').is_file():
+            requirements += ['-r', 'requirements-auth.txt']
+        build(python, '-m', 'pip', 'install', '--disable-pip-version-check', *requirements)
         build(python, '-m', 'unittest', 'discover', '-s', 'tests', '-v')
         build('node', 'tests/test_frontend.cjs')
         (release / '.release').write_text(sha + '\n')

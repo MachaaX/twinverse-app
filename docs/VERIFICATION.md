@@ -19,7 +19,7 @@ The frontend checks execute the view generators against real sample-derived fixt
 2. Open Omar, ask for cholesterol results, and confirm the chart updates.
 3. Reload; confirm the same conversation remains.
 4. Finish; open evidence; inspect the transcript.
-5. Switch to Faculty, enter a rating and explanation, save, then reload.
+5. Log in with a Faculty account, reopen the encounter from history, enter a rating and explanation, save, then reload.
 6. Open Patient Studio, change a draft, save, approve, and publish.
 7. Create a new patient and start it from the library.
 8. Attach a small synthetic text record, republish, and verify request-based download.

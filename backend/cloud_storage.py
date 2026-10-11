@@ -46,7 +46,7 @@ class CloudStorage:
         self.pg_region = env.get('TWINVERSE_PG_REGION') or self.region
         self.errors = []
         self.pg = {key: env.get(name, '').strip() for key, name in (
-            ('host', 'PGHOST'), ('port', 'PGPORT'), ('dbname', 'PGDATABASE'),
+            ('host', 'PGHOST'), ('hostaddr', 'PGHOSTADDR'), ('port', 'PGPORT'), ('dbname', 'PGDATABASE'),
             ('user', 'PGUSER'), ('sslmode', 'PGSSLMODE'), ('sslrootcert', 'PGSSLROOTCERT'))}
         # Preserve whitespace in passwords. libpq can also use a .pgpass file.
         if self.pg_auth == 'password' and env.get('PGPASSWORD') is not None:

@@ -1,4 +1,4 @@
-"""Local-only HTTP API and static frontend; Python standard library only."""
+"""Loopback HTTP API, static frontend, and persistent account authorization."""
 import base64
 import copy
 import hashlib
@@ -14,7 +14,7 @@ from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 
 # Optional: boto3 for Amazon Polly TTS
 try:
@@ -27,6 +27,7 @@ from .seed import ROOT
 from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
 from . import generator, dialogue
 from .cloud_storage import CloudStorage, CloudStorageError
+from .auth import AuthStore, AuthError, GoogleLogin, SESSION_SECONDS, csrf_token
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
@@ -159,7 +160,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         if getattr(self,'new_token',None):
             secure='; Secure' if self.server.public_origin.startswith('https://') else ''
-            self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; SameSite=Strict{secure}')
+            policy=f'SameSite=Lax; Max-Age={SESSION_SECONDS}' if self.server.auth else 'SameSite=Strict'
+            self.send_header('Set-Cookie',f'twinverse_session={self.new_token}; Path=/; HttpOnly; {policy}{secure}')
         for k,v in (headers or {}).items():self.send_header(k,v)
         self.end_headers();self.wfile.write(data)
 
@@ -192,6 +194,18 @@ class Handler(BaseHTTPRequestHandler):
                 try:body=json.loads(self.rfile.read(length) or b'{}')
                 except (ValueError,UnicodeDecodeError):raise APIError(400,'Invalid JSON.')
                 if not isinstance(body,dict):raise APIError(400,'JSON body must be an object.')
+            if self.path_only=='/api/health' and method=='GET':
+                return self.send({'status':'ok','engine':ENGINE_VERSION,'llm_connected':False,'release':self.server.release})
+            if self.server.auth:self.session()
+            else:
+                with self.store.lock:self.session()
+            if self.server.auth:
+                if method in ('POST','PUT','DELETE'):
+                    supplied=self.headers.get('X-CSRF-Token','')
+                    if not secrets.compare_digest(supplied,self.csrf):raise APIError(403,'Your session changed. Refresh the page and try again.')
+                if self.path_only.startswith('/api/auth/') or self.path_only=='/api/session':
+                    return self.account_route(method,body)
+                if not self.user:raise APIError(401,'Sign in to access your workspace.')
             if method=='POST' and self.path_only in ('/api/generator/generate','/api/generator/test'):
                 return self.slow_generator_call(body)
             turn=re.fullmatch(r'/api/encounters/([^/]+)/turns',self.path_only)
@@ -199,9 +213,9 @@ class Handler(BaseHTTPRequestHandler):
             publish=re.fullmatch(r'/api/patients/([^/]+)/publish',self.path_only)
             if method=='POST' and publish:return self.publish_case(publish.group(1),body)
             with self.server.store.lock:
-                self.session()
                 self.route(method,body)
         except APIError as e:self.send({'error':e.message},e.status)
+        except AuthError as e:self.send({'error':e.message},e.status)
         except (ValueError,TypeError,KeyError) as e:self.send({'error':str(e)},400)
         except Exception:
             import traceback;traceback.print_exc()
@@ -213,6 +227,14 @@ class Handler(BaseHTTPRequestHandler):
     def session(self):
         c=SimpleCookie();c.load(self.headers.get('Cookie',''))
         token=c['twinverse_session'].value if 'twinverse_session' in c else ''
+        if self.server.auth:
+            valid=bool(re.fullmatch(r'[A-Za-z0-9_-]{43}',token))
+            self.user=self.server.auth.lookup(token) if valid else None
+            if not valid:token=secrets.token_urlsafe(32);self.new_token=token
+            self.token=token;self.csrf=csrf_token(token)
+            self.role=('faculty' if self.user['role']=='faculty' else 'student') if self.user else None
+            self.owner_id=self.user['id'] if self.user else None
+            return
         row=self.store.db.execute('SELECT role FROM sessions WHERE token=?',(token,)).fetchone()
         if not row:
             token=secrets.token_urlsafe(32);self.new_token=token
@@ -220,6 +242,70 @@ class Handler(BaseHTTPRequestHandler):
             self.role='student'
         else:self.role=row['role']
         self.token=token
+        self.owner_id=token
+
+    def account_status(self):
+        return {'authenticated':bool(self.user),'user':self.user,'role':self.role,
+                'csrf_token':self.csrf,'developer':self.token in self.server.dev_sessions,
+                'google_available':self.server.google.available,'mode':'accounts'}
+
+    def sign_in(self,user):
+        old=self.token
+        token=self.server.auth.create_session(user['id'],previous_token=old)
+        self.server.dev_sessions.discard(old)
+        self.token=token;self.new_token=token;self.csrf=csrf_token(token);self.user=user
+        self.role='faculty' if user['role']=='faculty' else 'student';self.owner_id=user['id']
+
+    def auth_rate_limit(self):
+        # Use the proxy-set IP when hosted; rotating anonymous cookies cannot bypass this.
+        ip=self.headers.get('X-Real-IP',self.client_address[0]) if self.server.public_origin else self.client_address[0]
+        key='auth:'+ip;current=time.time()
+        with self.store.lock:
+            attempts=self.server.auth_attempts
+            for old in list(attempts):
+                if attempts[old][1]<current-600:attempts.pop(old,None)
+            count,started=attempts.get(key,(0,current))
+            if count>=30:raise APIError(429,'Too many sign-in attempts. Try again in ten minutes.')
+            attempts[key]=(count+1,started)
+
+    def account_route(self,method,b):
+        path=self.path_only
+        if path=='/api/session':
+            if method!='GET':raise APIError(405,'Account roles are set at signup. Use login or logout.')
+            return self.send(self.account_status())
+        if path=='/api/auth/config' and method=='GET':
+            return self.send({'google_available':self.server.google.available})
+        if path=='/api/auth/logout' and method=='POST':
+            self.server.auth.logout(self.token);self.server.dev_sessions.discard(self.token)
+            self.token=secrets.token_urlsafe(32);self.new_token=self.token;self.csrf=csrf_token(self.token)
+            self.user=None;self.role=None;self.owner_id=None
+            return self.send(self.account_status())
+        if path in ('/api/auth/signup','/api/auth/login','/api/auth/google/start') and method=='POST':
+            self.auth_rate_limit()
+            if path.endswith('/google/start'):
+                origin=self.server.public_origin or 'http://'+self.headers.get('Host','')
+                url=self.server.google.start(self.server.auth,self.token,b.get('intent','login'),b.get('role'),self.user,origin)
+                return self.send({'url':url})
+            if path.endswith('/signup'):
+                user=self.server.auth.signup(b.get('name'),b.get('email'),b.get('password'),b.get('role'))
+            else:user=self.server.auth.login(b.get('email'),b.get('password'))
+            self.sign_in(user)
+            return self.send(self.account_status(),201 if path.endswith('/signup') else 200)
+        if path=='/api/auth/google/callback' and method=='GET':
+            values=parse_qs(urlparse(self.path).query)
+            get=lambda key:values.get(key,[''])[0] if len(values.get(key,[]))<=1 else ''
+            try:
+                state=self.server.auth.consume_oauth(get('state'),self.token)
+                if get('error'):raise AuthError(401,'Google sign-in was cancelled.')
+                claims=self.server.google.claims(get('code'),state)
+                user=self.server.auth.google_user(claims,state,self.user)
+                self.sign_in(user)
+                return self.send(b'',303,headers={'Location':'/#cases'})
+            except AuthError as exc:
+                # Only a safe application error is placed in the fragment, never OAuth tokens.
+                from urllib.parse import urlencode
+                return self.send(b'',303,headers={'Location':'/#login?'+urlencode({'error':exc.message})})
+        raise APIError(404,'Authentication endpoint not found.')
 
     def check_faculty_password(self,supplied,expected=None,key=None):
         failures=self.server.login_failures;key=key or self.token;expected=expected or self.server.faculty_password
@@ -232,6 +318,7 @@ class Handler(BaseHTTPRequestHandler):
         failures.pop(key,None)
 
     def developer(self):
+        if self.server.auth:self.faculty()
         if self.token not in self.server.dev_sessions:raise APIError(403,'Unlock the Developer tab with the developer password.')
 
     def developer_data(self):
@@ -256,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
     def slow_generator_call(self,b):
         """Bedrock calls can take a minute, so they run without holding the store lock."""
         with self.server.store.lock:
-            self.session();self.faculty()
+            self.faculty()
         try:
             if self.path_only.endswith('/test'):return self.send(generator.test_connection())
             req=b.get('request')
@@ -290,7 +377,7 @@ class Handler(BaseHTTPRequestHandler):
     def generative_turn(self,eid,b):
         """AI replies run outside the store lock; the turn is recorded before and after."""
         with self.server.store.lock:
-            self.session();e=self.encounter(eid)
+            e=self.encounter(eid)
             # AI with guardrails is the default; patients set to "scripted" use approved wording only.
             if e['profile'].get('dialogue_mode','generative')!='generative':return self.route('POST',b)
             if e['status']!='active':raise APIError(409,'This encounter is finished. Start a new attempt.')
@@ -332,7 +419,7 @@ class Handler(BaseHTTPRequestHandler):
                     e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
 
     def faculty(self):
-        if self.role!='faculty':raise APIError(403,'Switch to the Faculty demo workspace for this action.')
+        if self.role!='faculty':raise APIError(403,'A faculty account is required for this action.')
 
     def case(self,id):
         c=self.store.get('cases',id)
@@ -342,7 +429,7 @@ class Handler(BaseHTTPRequestHandler):
     def encounter(self,id):
         e=self.store.get('encounters',id)
         if not e:raise APIError(404,'Encounter not found.')
-        if e['owner']!=self.token and self.role!='faculty':raise APIError(403,'This encounter belongs to another browser session.')
+        if e['owner']!=self.owner_id and self.role!='faculty':raise APIError(403,'This encounter belongs to another user.')
         return e
 
     def attachments(self,case_id):
@@ -353,7 +440,7 @@ class Handler(BaseHTTPRequestHandler):
     def publish_case(self,pid,b):
         """Snapshot under the local lock; perform cloud IO without blocking readers."""
         with self.store.lock:
-            self.session();self.faculty();c=self.case(pid)
+            self.faculty();c=self.case(pid)
             if pid in self.server.publishing_cases:raise APIError(409,'This patient is being approved. Wait for the save to finish.')
             if b.get('approved') is not True:raise APIError(422,'Confirm faculty review before publishing.')
             if 'draft_version' in b and b['draft_version']!=c['draft']['version']:
@@ -365,6 +452,8 @@ class Handler(BaseHTTPRequestHandler):
             p.pop('cloud_storage',None)
             p.update(status='published',version=c['draft']['version']+1,approved_at=now(),
                      approval='Local faculty demo review',attachment_ids=[a['id'] for a in attachments])
+            if self.server.auth:
+                p.update(approval='Faculty account review',approved_by={'id':self.user['id'],'name':self.user['name']})
             files=[]
             if self.server.cloud_storage.enabled:
                 files=[(json.loads(row['metadata']),bytes(row['content'])) for row in
@@ -478,6 +567,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.role=b['role'];self.store.db.execute('UPDATE sessions SET role=? WHERE token=?',(self.role,self.token));self.store.db.commit()
             return self.send({'role':self.role,'developer':self.token in self.server.dev_sessions,'mode':'local-demo','faculty_login':'password','authentication':'Faculty view requires the shared demo password.'})
         if parts==['developer','login'] and method=='POST':
+            if self.server.auth:self.faculty()
             self.check_faculty_password(b.get('password'),self.server.developer_password,'dev:'+self.token)
             self.server.dev_sessions.add(self.token);return self.send({'developer':True})
         if parts==['developer','logout'] and method=='POST':
@@ -565,7 +655,7 @@ class Handler(BaseHTTPRequestHandler):
         if parts==['encounters'] and method=='GET':
             rows=[]
             for e in self.store.all('encounters'):
-                if self.role=='faculty' or e['owner']==self.token:
+                if self.role=='faculty' or e['owner']==self.owner_id:
                     rows.append({'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'turns':sum(m['role']=='student' for m in e['messages']),'feedback_status':(e.get('feedback') or {}).get('status'),'released':bool(e.get('released_feedback')),'release_pending':bool(e.get('feedback')) and not (e.get('feedback') or {}).get('released')})
             return self.send({'encounters':sorted(rows,key=lambda x:x['started_at'],reverse=True)})
         if parts==['encounters'] and method=='POST':
@@ -573,7 +663,7 @@ class Handler(BaseHTTPRequestHandler):
             if not p:raise APIError(422,'Publish this patient before starting an encounter.')
             p=copy.deepcopy(p)
             a=[x for x in self.attachments(p['id']) if x['id'] in p.get('attachment_ids',[]) and x['kind']=='artifact']
-            e={'id':uid(),'owner':self.token,'profile':p,'rubric':copy.deepcopy(RUBRIC),'status':'active','started_at':now(),'messages':[],'events':[],'disclosed':[f['id'] for f in p['facts'] if f['release']=='initial'],'attachments':a,'released_artifacts':[x['id'] for x in a if x['release']=='initial'],'requests':[],'feedback':None,'review_history':[]}
+            e={'id':uid(),'owner':self.owner_id,'profile':p,'rubric':copy.deepcopy(RUBRIC),'status':'active','started_at':now(),'messages':[],'events':[],'disclosed':[f['id'] for f in p['facts'] if f['release']=='initial'],'attachments':a,'released_artifacts':[x['id'] for x in a if x['release']=='initial'],'requests':[],'feedback':None,'review_history':[]}
             e['clock_started_at']=None  # the student opens the conversation; the timer starts then
             event(e,'encounter_started',profile_version=p['version'])
             for fid in e['disclosed']:event(e,'fact_available',fact_id=fid,reason='baseline')
@@ -608,6 +698,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not e.get('feedback'):raise APIError(409,'Finish the encounter before reviewing it.')
                 if b.get('review_version')!=e['feedback']['review_version']:raise APIError(409,'Feedback has changed. Reload before reviewing.')
                 reviewer=str(b.get('reviewer','')).strip()
+                if self.server.auth:reviewer=self.user['name']
                 if not reviewer:raise APIError(422,'Enter the reviewer name.')
                 updated=apply_review(e['feedback'],b.get('ratings',[]),{m['id'] for m in e['messages']},reviewer,b.get('summary'))
                 e['review_history'].append(e['feedback']);e['feedback']=updated
@@ -618,6 +709,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not e.get('feedback'):raise APIError(409,'Finish the encounter before releasing feedback.')
                 if b.get('review_version')!=e['feedback']['review_version']:raise APIError(409,'Feedback has changed. Reload before releasing.')
                 reviewer=str(b.get('reviewer') or e['feedback'].get('reviewer','')).strip()
+                if self.server.auth:reviewer=self.user['name']
                 if not reviewer:raise APIError(422,'Enter the reviewer name.')
                 try:e['feedback']=release_feedback(e['feedback'],reviewer)
                 except ValueError as err:raise APIError(422,str(err))
@@ -627,7 +719,7 @@ class Handler(BaseHTTPRequestHandler):
             if parts[2:]==['rating'] and method=='POST':
                 kind=b.get('kind')
                 if kind=='student':
-                    if self.role=='faculty' and e['owner']!=self.token:raise APIError(403,'Only the student who ran this encounter can rate the conversation.')
+                    if self.role=='faculty' and e['owner']!=self.owner_id:raise APIError(403,'Only the student who ran this encounter can rate the conversation.')
                     if e['status']!='completed':raise APIError(409,'Finish the encounter before rating it.')
                     rating=clean_rating(b)
                 elif kind=='auto_score':
@@ -635,6 +727,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not e.get('feedback'):raise APIError(409,'Finish the encounter before rating the automatic score.')
                     rating={**clean_rating(b),'by':str(b.get('reviewer') or e['feedback'].get('reviewer') or 'Faculty').strip()[:80],'auto_total':(e['feedback'].get('auto_score') or {}).get('total')}
                 else:raise APIError(422,'Rate the conversation or the automatic score.')
+                if self.server.auth:rating['by']=self.user['name']
                 e.setdefault('ratings',{})[kind]=rating;event(e,'rating_saved',rating_kind=kind,stars=rating['stars'])
                 self.save_encounter(e);return self.send(public_encounter(e,self.role))
             if parts[2:]==['export'] and method=='GET':
@@ -703,14 +796,14 @@ class Handler(BaseHTTPRequestHandler):
         if not p.is_relative_to(FRONTEND.resolve()) or not p.is_file():raise APIError(404,'File not found.')
         return self.send(p.read_bytes(),content_type=mimetypes.guess_type(p.name)[0] or 'application/octet-stream')
 
-def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None,public_origin=None):
+def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_storage=None,public_origin=None,auth_store=None):
     public_origin=(public_origin if public_origin is not None else os.environ.get('TWINVERSE_PUBLIC_ORIGIN','')).rstrip('/')
     if public_origin:
         origin=urlparse(public_origin)
         if (origin.scheme not in ('http','https') or not origin.netloc or origin.path
             or origin.query or origin.fragment or origin.username or origin.password):
             raise ValueError('TWINVERSE_PUBLIC_ORIGIN must be an http(s) origin, without a path or credentials.')
-        if ((faculty_password or load_faculty_password()[0])==DEFAULT_FACULTY_PASSWORD
+        if (auth_store is False and (faculty_password or load_faculty_password()[0])==DEFAULT_FACULTY_PASSWORD
             or load_developer_password()==DEFAULT_DEVELOPER_PASSWORD):
             raise ValueError('Set private TWINVERSE_FACULTY_PASSWORD and TWINVERSE_DEVELOPER_PASSWORD before hosting.')
     s=ThreadingHTTPServer(('127.0.0.1',port),Handler)
@@ -719,10 +812,13 @@ def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_
     s.release=release_file.read_text().strip() if release_file.is_file() else 'local'
     s.store=Store(db_path or os.environ.get('TWINVERSE_DB_PATH') or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
     s.cloud_storage=cloud_storage if cloud_storage is not None else CloudStorage()
+    # False is an explicit legacy adapter for pre-account regression tests only.
+    s.auth=None if auth_store is False else auth_store or AuthStore(s.store,s.cloud_storage)
+    s.google=GoogleLogin()
     s.publishing_cases=set()
     s.faculty_password,s.faculty_password_source=(faculty_password,'test') if faculty_password else load_faculty_password()
-    s.login_failures={};s.report_times={};s.dev_sessions=set()  # developer access never survives a restart
+    s.login_failures={};s.auth_attempts={};s.report_times={};s.dev_sessions=set()
     s.developer_password=load_developer_password()
-    # Faculty access never survives a restart: every browser must enter the password again.
-    s.store.db.execute("UPDATE sessions SET role='student'");s.store.db.commit()
+    # Only the explicit legacy regression adapter resets its shared demo role.
+    if not s.auth:s.store.db.execute("UPDATE sessions SET role='student'");s.store.db.commit()
     return s

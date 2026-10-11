@@ -31,7 +31,7 @@ class AppTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp=tempfile.TemporaryDirectory()
-        cls.server=make_server(0,Path(cls.temp.name)/'test.sqlite3',verbose=False,faculty_password=TOKEN)
+        cls.server=make_server(0,Path(cls.temp.name)/'test.sqlite3',verbose=False,auth_store=False,faculty_password=TOKEN)
         cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
         cls.base=f'http://127.0.0.1:{cls.server.server_port}'
         cls.omar=next(p for p in seed_profiles() if p['name']=='Omar Sinclair')
@@ -195,7 +195,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(Client(self.base).call('/api/session','POST',{'role':'faculty','password':TOKEN})[0],200)
     def test_31_restart_signs_out_faculty(self):
         c=Client(self.base);c.call('/api/session','POST',{'role':'faculty','password':TOKEN})
-        restarted=make_server(0,Path(self.temp.name)/'test.sqlite3',verbose=False,faculty_password=TOKEN)
+        restarted=make_server(0,Path(self.temp.name)/'test.sqlite3',verbose=False,auth_store=False,faculty_password=TOKEN)
         try:
             row=restarted.store.db.execute("SELECT COUNT(*) FROM sessions WHERE role='faculty'").fetchone()[0];self.assertEqual(row,0)
         finally:restarted.server_close();restarted.store.db.close()
@@ -296,7 +296,7 @@ class AppTests(unittest.TestCase):
     def test_41_deleted_patients_do_not_return_on_restart(self):
         with tempfile.TemporaryDirectory() as temp:
             db=Path(temp)/'delete.sqlite3'
-            server=make_server(0,db,verbose=False,faculty_password=TOKEN)
+            server=make_server(0,db,verbose=False,auth_store=False,faculty_password=TOKEN)
             thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
             try:
                 client=Client(f'http://127.0.0.1:{server.server_port}')
@@ -306,7 +306,7 @@ class AppTests(unittest.TestCase):
                 self.assertEqual(client.call('/api/patients')[1]['patients'],[])
             finally:
                 server.shutdown();server.server_close();thread.join();server.store.db.close()
-            restarted=make_server(0,db,verbose=False,faculty_password=TOKEN)
+            restarted=make_server(0,db,verbose=False,auth_store=False,faculty_password=TOKEN)
             try:
                 self.assertTrue(all(c.get('deleted_at') for c in restarted.store.all('cases')))
                 self.assertEqual(len(restarted.store.all('cases')),8)

@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#174e43"/><path d="M29 12h6v17h17v6H35v17h-6V35H12v-6h17z" fill="#dcef9e"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="PatientZero">
+  <rect width="128" height="128" rx="30" fill="#153e35"/>
+  <path d="M39 104 V30 H64 a21 21 0 0 1 0 42 H39" fill="none" stroke="#e7f0c9" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="93" cy="92" rx="11" ry="14" fill="none" stroke="#f07a52" stroke-width="7"/>
+</svg>

@@ -24,7 +24,7 @@ except ImportError:
     POLLY_AVAILABLE = False
 from .store import Store
 from .seed import ROOT
-from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, ENGINE_VERSION
+from .engine import reply, assess, apply_review, release_feedback, includes, is_inquiry, is_records_request, artifacts_requested, ENGINE_VERSION
 from . import generator, dialogue
 from .cloud_storage import CloudStorage, CloudStorageError
 from .auth import AuthStore, AuthError, GoogleLogin, SESSION_SECONDS, csrf_token
@@ -441,10 +441,10 @@ class Handler(BaseHTTPRequestHandler):
         for fid in r['fact_ids']:
             if fid not in e['disclosed']:
                 e['disclosed'].append(fid);event(e,'fact_disclosed',fact_id=fid,turn_id=tid)
-        if is_inquiry(text) and r['kind']!='boundary':
-            for a in e['attachments']:
-                if a['id'] not in e['released_artifacts'] and any(includes(text,k) for k in a['keywords']):
-                    e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
+        if is_records_request(text) and r['kind']!='boundary':
+            waiting=[a for a in e['attachments'] if a['id'] not in e['released_artifacts'] and a.get('release')=='question']
+            for a in artifacts_requested(text,waiting):
+                e['released_artifacts'].append(a['id']);event(e,'artifact_released',artifact_id=a['id'],turn_id=tid)
 
     def faculty(self):
         if self.role!='faculty':raise APIError(403,'A faculty account is required for this action.')

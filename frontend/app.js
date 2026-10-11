@@ -616,10 +616,11 @@ async function sendQuestion(capture=null){
      }
    }
    if(epoch!==S.epoch||S.route!=='encounter/'+activeId)return;
-   const requestId=crypto.randomUUID();
+   const requestId=crypto.randomUUID();const docsBefore=(S.encounter.artifacts||[]).length;
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:requestId});
    if(S.route!=='encounter/'+activeId||epoch!==S.epoch)return;
    S.encounter=r;
+   if((r.artifacts||[]).length>docsBefore)toast('New document released. Open it in the chart under Documents.');
    if(capture){
      const turn=r.messages.find(m=>m.role==='student'&&m.request_id===requestId);
      try{

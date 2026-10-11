@@ -129,6 +129,16 @@ class AppTests(unittest.TestCase):
         _,e=self.turn(e,'Could you show records?');self.assertEqual(len(e['artifacts']),1)
         status,raw=self.client.call('/api/encounters/'+e['id']+'/artifacts/'+a['id']);self.assertEqual(status,200);self.assertEqual(raw,b'SYNTHETIC ATTACHMENT')
         self.assertEqual(self.client.call('/api/encounters/'+e['id']+'/artifacts/'+source['id'])[0],403)
+    def test_42_artifact_release_is_forgiving(self):
+        p=self.new_case()
+        payload={'name':'mri.txt','content':base64.b64encode(b'MRI').decode(),'kind':'artifact','release':'question','keywords':['mri brain','optic neuritis']}
+        self.client.call('/api/patients/'+p['id']+'/attachments','POST',payload)
+        payload.update(name='labs.txt',keywords=['lab results']);self.client.call('/api/patients/'+p['id']+'/attachments','POST',payload)
+        self.client.call('/api/patients/'+p['id']+'/publish','POST',{'approved':True})
+        self.client.call('/api/session','POST',{'role':'student'});e=self.start(p['id'])
+        _,e=self.turn(e,'How have you been sleeping?','r1');self.assertEqual(e['artifacts'],[])
+        _,e=self.turn(e,'Can I see the results of your brain MRI?','r2');self.assertEqual([a['name'] for a in e['artifacts']],['mri.txt'])
+        _,e=self.turn(e,'Let me take a look at your results.','r3');self.assertEqual(len(e['artifacts']),2)
     def test_18_cross_origin_blocked(self):
         self.assertEqual(self.client.call('/api/session','POST',{'role':'faculty','password':TOKEN},headers={'Origin':'https://evil.invalid'})[0],403)
     def test_19_no_static_path_escape(self):

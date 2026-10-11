@@ -28,6 +28,23 @@ def includes(text, phrase):
     """Whole-token prefix matching for intentionally stemmed keywords."""
     return bool(re.search(r'\b' + re.escape(normalize(phrase)) + r'\w*\b', normalize(text)))
 
+GENERIC_RECORDS = r'\b(results?|records?|reports?|labs?|lab work|blood ?work|tests?|testing|scans?|imaging|paperwork|documents?|files?|chart)\b'
+
+def artifact_matches(text, keywords):
+    """Every word of one trigger phrase appears in the question (any order, plurals ok)."""
+    t = normalize(text)
+    return any(words and all(re.search(r'\b' + re.escape(w) + r'\w*\b', t) for w in words)
+               for words in (normalize(k).split() for k in keywords))
+
+def artifacts_requested(text, artifacts):
+    """Files named by the question; a general request for results or records releases them all."""
+    named = [a for a in artifacts if artifact_matches(text, a.get('keywords', []))]
+    return named or (artifacts if re.search(GENERIC_RECORDS, normalize(text)) else [])
+
+def is_records_request(text):
+    """Questions plus requests like "can I see" or "let me look at" your results."""
+    return is_inquiry(text) or bool(re.search(r'\b(see|look at|share|pull up|bring|have)\b', normalize(text)))
+
 def is_inquiry(text):
     t = normalize(text)
     if re.search(r'\b(not asking|do not ask|don t ask|won t ask|will not ask)\b', t):

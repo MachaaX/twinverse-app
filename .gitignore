@@ -10,3 +10,4 @@ __pycache__/
 certs/
 .vscode/
 data/speech-audio/
+/recovery/

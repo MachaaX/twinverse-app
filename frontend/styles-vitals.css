@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fafbf7;
+  background: var(--surface-soft);
 }
 
 .vitals-header .icon {
@@ -52,13 +52,13 @@
 }
 
 .vital-item:hover:not(:disabled) {
-  background: #f7f9f3;
+  background: var(--surface-soft);
   border-color: var(--green);
   transform: translateX(2px);
 }
 
 .vital-item.locked {
-  background: #fafbf8;
+  background: var(--surface-soft);
   color: var(--muted);
   cursor: not-allowed;
   opacity: 0.5;
@@ -70,8 +70,8 @@
 }
 
 .vital-item.measured {
-  background: #f0f4e9;
-  border-color: #d4ddc7;
+  background: var(--accent-soft);
+  border-color: #d2e5e9;
 }
 
 .vital-item.measuring {
@@ -86,7 +86,7 @@
   }
   50% {
     transform: scale(1.02);
-    background: #eef2e6;
+    background: var(--accent-soft);
   }
 }
 
@@ -177,8 +177,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: #f7f9f3;
-  border: 1px solid #e6ebe0;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -232,7 +232,7 @@
   flex: 1;
   min-height: 450px;
   position: relative;
-  background: #f9fbf4;
+  background: var(--surface-soft);
 }
 
 .avatar-controls-bar {

@@ -404,7 +404,7 @@ export class Avatar3D {
       : `<div class="avatar-fallback-placeholder" style="width:200px;height:200px;border-radius:50%;background:var(--green);color:white;display:grid;place-items:center;font-size:64px;font-weight:600;">${this.config.name.split(' ').map(n => n[0]).join('')}</div>`;
 
     this.container.querySelector('.avatar-3d-wrapper').innerHTML = `
-      <div class="avatar-fallback" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;background:linear-gradient(135deg,#e8eddf 0%,#d4ddc7 100%);">
+      <div class="avatar-fallback" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;background:linear-gradient(135deg,#e4edf2 0%,#d2e5e9 100%);">
         ${fallbackHTML}
         <p style="margin-top:20px;font-size:11px;color:var(--muted);text-align:center;">3D model unavailable - using 2D mode</p>
       </div>

@@ -2,6 +2,8 @@
 import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
 import { voiceInput } from './components/VoiceInput.js';
+import { emotionDetector } from './components/EmotionDetector.js';
+import { vitalsPanel } from './components/VitalsPanel.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -21,10 +23,17 @@ const paths = {
  sound:'M11 5L6 9H3v6h3l5 4z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14',
  mic:'M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8',
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
- flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'
+ flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+ heart:'M20.8 5.6a5.5 5.5 0 0 0-7.8 0l-1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1 7.8 7.8 7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z',
+ activity:'M22 12h-4l-3 9L9 3l-3 9H2',
+ thermometer:'M14 15V5a2 2 0 1 0-4 0v10a4 4 0 1 0 4 0z',
+ wind:'M9.6 10H4 M14 18H4 M20 6H4 M17 10a3 3 0 1 1 0 6',
+ droplet:'M12 2.7c-1.8 2.3-5 6.5-5 9.3a5 5 0 1 0 10 0c0-2.8-3.2-7-5-9.3z',
+ scale:'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
+ lock:'M19 11h-1V7a6 6 0 0 0-12 0v4H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M8 11V7a4 4 0 0 1 8 0v4'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
-const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, epoch:0};
+const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
 const main = $('#main');
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
@@ -45,6 +54,125 @@ function generationTime(value){
 const initials=(s)=>s.split(' ').map(x=>x[0]).slice(0,2).join('');
 function portrait(p,cls=''){return p.image?`<img class="${cls}" src="${esc(p.image)}" alt="Organizer-provided synthetic portrait of ${esc(p.name)}" loading="lazy">`:`<div class="placeholder-portrait ${cls}">${esc(initials(p.name || 'New Patient'))}</div>`;}
 
+// Create tear effect overlay
+function createTearEffect(){
+  const tearContainer = document.createElement('div');
+  tearContainer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:999;overflow:hidden;';
+
+  // Create realistic tear drops - single tears from each eye
+  const tears = [
+    { left: '43%', delay: 0 },     // Left eye tear
+    { left: '57%', delay: 0.3 },   // Right eye tear
+    { left: '44%', delay: 1.0 },   // Second left tear
+    { left: '56%', delay: 1.3 }    // Second right tear
+  ];
+
+  tears.forEach((tearPos, i) => {
+    const tear = document.createElement('div');
+    tear.style.cssText = `
+      position:absolute;
+      top:40%;
+      left:${tearPos.left};
+      width:8px;
+      height:12px;
+      background:linear-gradient(to bottom, rgba(200,220,255,0.9), rgba(150,180,220,0.95));
+      border-radius:50% 50% 50% 50% / 30% 30% 70% 70%;
+      animation:tearDrop 2.5s ease-out ${tearPos.delay}s forwards;
+      box-shadow:inset 0 1px 2px rgba(255,255,255,0.5), 0 2px 6px rgba(0,0,0,0.3);
+      transform:translateY(0) scaleY(1);
+      filter:blur(0.3px);
+    `;
+    tearContainer.appendChild(tear);
+  });
+
+  // Red watery eyes effect
+  const redEyes = document.createElement('div');
+  redEyes.style.cssText = `
+    position:absolute;
+    top:38%;
+    left:40%;
+    width:20%;
+    height:5%;
+    background:radial-gradient(ellipse, rgba(255,100,100,0.4), transparent);
+    filter:blur(3px);
+    animation:fadeInOut 3s ease-in-out;
+  `;
+  tearContainer.appendChild(redEyes);
+
+  // Add CSS animations
+  if(!document.getElementById('tear-animation-style')){
+    const style = document.createElement('style');
+    style.id = 'tear-animation-style';
+    style.textContent = `
+      @keyframes tearDrop {
+        0% {
+          transform: translateY(0) scaleY(1);
+          opacity: 0;
+        }
+        5% {
+          opacity: 0.95;
+          transform: translateY(0) scaleY(1.1);
+        }
+        15% {
+          transform: translateY(10px) scaleY(1.2);
+        }
+        100% {
+          transform: translateY(200px) scaleY(1.8);
+          opacity: 0;
+        }
+      }
+      @keyframes fadeInOut {
+        0% { opacity: 0; }
+        20% { opacity: 1; }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  return tearContainer;
+}
+
+// Vitals Panel UI
+function vitalsUI(){
+  const vitals = ['heartRate', 'bloodPressure', 'temperature', 'respiratoryRate', 'oxygenSaturation', 'weight'];
+
+  return `
+    <div class="vitals-panel">
+      <div class="vitals-header">
+        ${icon('activity')}
+        <span>Vitals</span>
+      </div>
+      <div class="vitals-list">
+        ${vitals.map(key => {
+          const status = vitalsPanel.getVitalStatus(key);
+          const vital = vitalsPanel.vitals[key];
+          const isLocked = !status.unlocked;
+          const isMeasured = status.measured;
+
+          return `
+            <button
+              type="button"
+              class="vital-item ${isLocked ? 'locked' : ''} ${isMeasured ? 'measured' : ''}"
+              data-action="measure-vital"
+              data-vital="${key}"
+              ${isLocked ? 'disabled' : ''}
+              title="${isLocked ? 'Ask about ' + vital.fullName.toLowerCase() + ' to unlock' : vital.fullName}"
+            >
+              <div class="vital-left">
+                ${icon(vital.icon)}
+                <span class="vital-label">${vital.name}</span>
+              </div>
+              ${isLocked ? `<span class="vital-lock">${icon('lock')}</span>` : ''}
+              ${isMeasured ? `<span class="vital-value">${status.value}<small>${status.unit}</small></span>` : `<span class="vital-measure">${icon('plus')}</span>`}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
 // Input mode UI (chat vs voice)
 function inputModeUI(){
   if(!voiceInput.isAvailable()){
@@ -141,7 +269,11 @@ async function route(){
      if(S.role!=='faculty')throw new Error('Sign in to the Faculty view to see ratings and reports.');
      const [rep,sum]=await Promise.all([api('/reports'),api('/ratings/summary')]);view=feedbackView(rep.reports,sum);
    }else if(page==='encounter'||page==='report'){
-     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));view=page==='report'?reportView():encounterView();
+     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));
+     // Reset vitals panel for new encounter
+     vitalsPanel.reset();
+     S.measuredVitals = [];
+     view=page==='report'?reportView():encounterView();
    }else if(page==='reviews'){S.encounters=(await api('/encounters')).encounters;view=historyView();}
    else if(page==='rubric'){view=rubricView();}
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
@@ -220,14 +352,49 @@ async function saveCase(publish=false){
 function encounterView(){const e=S.encounter;const p=e.patient;
  return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}<button class="btn btn-small" data-action="toggle-transcript" id="transcript-toggle">${icon('history')} View transcript</button></div></div>
  <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
+ ${vitalsUI()}
  <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
  <dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
 }
 function messagesView(){if(!S.encounter.messages.length)return `<div class="transcript-start">${icon('send')}<div><strong>You start the conversation.</strong><p>Introduce yourself and your role, then ask what brings ${esc(S.encounter.patient.name.split(' ')[0])} in today. The timer starts with your first message.</p></div></div>`;return S.encounter.messages.map(m=>`<article class="message ${m.role}" id="message-${esc(m.id)}"><div class="message-meta"><strong>${m.role==='student'?'You':esc(S.encounter.patient.name.split(' ')[0])}</strong><span>${esc(m.id)} · ${new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div class="message-bubble">${esc(m.text).replace(/\n/g,'<br>')}</div>${m.role==='patient'?`<div class="message-label">${icon(m.kind==='not_provided'?'info':'shield')}${m.kind==='generative'?'AI reply · checked against approved facts'+(m.cached?' · consistent answer':''):m.kind==='scripted_fallback'?'Approved wording (AI reply not used)':m.kind==='profile'?'Approved sample wording':m.kind==='not_provided'?'Not provided in sample':'Scripted sample response'}</div>`:''}</article>`).join('');}
 function chartView(){const e=S.encounter;
+ if(S.chartTab==='findings'){
+   const list=e.findings||[];
+   const measured = vitalsPanel.getMeasuredVitals();
+   let html = '';
+
+   // Show measured vitals
+   if(measured.length > 0){
+     html += `<div class="vitals-measured-section"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
+   }
+
+   // Show clinical findings
+   if(list.length > 0){
+     html += `<div style="margin-top:${measured.length > 0 ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Clinical Findings</h4><ul class="findings-list">${list.map(f=>`<li class="finding">${icon('info')}<div><strong>${esc(f.text)}</strong><p>Added ${date(f.at)}${f.source?` · Source: ${esc(f.source)}`:''}</p></div></li>`).join('')}</ul></div>`;
+   }
+
+   // Show baseline patient records (always)
+   const hasContent = measured.length > 0 || list.length > 0;
+   html += `<div style="margin-top:${hasContent ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Patient Information</h4>${e.records.map(f=>`<article class="record-card" style="padding:12px 0;border-bottom:1px solid var(--line)"><h3 style="font-size:12px;font-weight:600;margin-bottom:6px">${esc(f.label)}</h3><p style="font-size:11px;color:#637360;line-height:1.7;white-space:pre-line">${esc(f.record)}</p><div style="font-size:9px;color:#899681;margin-top:7px;display:flex;align-items:center;gap:5px">${icon('shield')} ${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}</div>`;
+
+   return html;
+ }
  if(S.chartTab==='documents')return e.artifacts.length?e.artifacts.map(a=>`<div class="attachment-row">${icon('file')}<div><strong>${esc(a.name)}</strong><small>Released clinical artifact · ${(a.size/1024).toFixed(0)} KB</small></div><button class="btn btn-small" data-action="open-artifact" data-id="${a.id}">${icon('down')}Open</button></div>`).join('')+`<p class="chart-note">Opening a document is logged separately from its release.</p>`:`<div class="empty-state">${icon('file')}<h3>No documents available yet</h3><p>Attached clinical artifacts appear when their release rules are met. The original sample includes narrative notes, not individual patient lab PDFs.</p></div>`;
  if(S.chartTab==='timeline')return e.events.map(v=>{const f=e.records.find(f=>f.id===v.fact_id);const labels={encounter_started:'Encounter started',fact_available:'Baseline information available',student_turn:'Question recorded',fact_disclosed:'Clinical information disclosed',artifact_released:'Document released',artifact_opened:'Document opened',encounter_finished:'Encounter completed',assessment_created:'Observations generated',faculty_review_saved:'Faculty review saved',guardrail_blocked:'Approved wording used instead of an AI reply',rating_saved:'Rating saved',feedback_released:'Score released to student'};return `<div class="timeline-item"><div><strong>${esc(labels[v.type]||v.type)}</strong>${f?`<div>${esc(f.label)}</div>`:''}<small>${date(v.timestamp)}${v.turn_id?' · '+esc(v.turn_id):''}</small></div></div>`;}).join('');
- return `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ // Default view - show baseline patient records AND measured vitals
+ const measured = vitalsPanel.getMeasuredVitals();
+ let html = `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>`;
+
+ // Show measured vitals in default view
+ if(measured.length > 0){
+   html += `<div class="vitals-measured-section" style="margin-bottom:20px"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
+ }
+
+ // Show baseline medical records
+ html += `${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ return html;
 }
 function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
@@ -324,6 +491,35 @@ async function sendVoiceQuestion(text){
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
  try{
+   // Check if any vitals should be unlocked based on conversation
+   const conversationText = (S.encounter.messages || []).map(m => m.text).join(' ') + ' ' + text;
+   const unlocked = vitalsPanel.checkForUnlocks(conversationText);
+   if(unlocked.length > 0){
+     console.log('[Vitals] Unlocked:', unlocked.join(', '));
+     // Update vitals UI
+     setTimeout(() => {
+       const vitalsContainer = $('.vitals-panel');
+       if(vitalsContainer){
+         vitalsContainer.outerHTML = vitalsUI();
+       }
+     }, 500);
+   }
+
+   // Detect emotion in student's question BEFORE sending
+   const reaction = emotionDetector.getAvatarReaction(text);
+   console.log('[Emotion] Detected:', reaction.emotion, 'Mood:', reaction.mood);
+
+   // Show avatar reaction to student's tone
+   if(S.avatarEnabled && S.avatar && S.avatar.head && reaction.detected && reaction.mood !== 'neutral'){
+     console.log('[Emotion] Setting avatar mood to:', reaction.mood);
+     try {
+       S.avatar.head.setMood(reaction.mood);
+       // Brief pause to show the emotional reaction
+       await new Promise(resolve => setTimeout(resolve, 800));
+     } catch(err) {
+       console.warn('[Emotion] Failed to set mood:', err);
+     }
+   }
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
    if(S.route!=='encounter/'+activeId)return;
    S.encounter=r;
@@ -544,6 +740,57 @@ document.addEventListener('click',async event=>{
   if(action==='start'){el.disabled=true;const e=await api('/encounters','POST',{patient_id:id});S.chartTab='findings';location.hash='encounter/'+e.id;return;}
   if(action==='starter'){$('#question').value=el.dataset.text;$('#question').focus();return;}
   if(action==='chart-tab'){S.chartTab=id;$$('.chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.id===id);b.setAttribute('aria-selected',b.dataset.id===id);});$('#chart-body').innerHTML=chartView();return;}
+  if(action==='measure-vital'){
+    const vitalKey = el.dataset.vital;
+    console.log('[Vitals] Measuring:', vitalKey);
+
+    // Build patient context from actual case data
+    const patient = S.encounter.patient;
+    const records = S.encounter.records || [];
+    const allText = records.map(r => (r.label + ' ' + r.record).toLowerCase()).join(' ');
+    const messages = S.encounter.messages || [];
+    const conversationText = messages.map(m => m.text.toLowerCase()).join(' ');
+    const fullText = allText + ' ' + conversationText;
+
+    // Parse patient conditions from case data and conversation
+    const patientContext = {
+      id: patient.id,
+      age: patient.age,
+      gender: patient.gender,
+      // Detect conditions from chief complaint and medical history
+      chestPain: /chest pain|chest discomfort|cardiac|angina/i.test(fullText),
+      cardiac: /heart|cardiac|coronary|myocardial/i.test(fullText),
+      anxious: /anxious|anxiety|panic|worried|nervous/i.test(fullText),
+      panic: /panic attack|panic disorder/i.test(fullText),
+      fever: /fever|febrile|temperature|hot|chills/i.test(fullText),
+      infection: /infection|infected|sepsis/i.test(fullText),
+      pain: /pain|ache|hurt|discomfort/i.test(fullText),
+      shortnessOfBreath: /shortness of breath|dyspnea|difficulty breathing|can't breathe|short of breath/i.test(fullText),
+      respiratory: /respiratory|lung|pulmonary|breathing/i.test(fullText),
+      asthma: /asthma|wheezing|wheeze/i.test(fullText),
+      copd: /copd|emphysema|chronic bronchitis/i.test(fullText),
+      hypertension: /hypertension|high blood pressure|htn/i.test(fullText),
+      headache: /headache|head pain|migraine/i.test(fullText)
+    };
+
+    console.log('[Vitals] Patient context:', patientContext);
+
+    const result = vitalsPanel.measureVital(vitalKey, patientContext);
+    if(result){
+      S.measuredVitals.push(result);
+      el.classList.add('measuring');
+      setTimeout(() => {
+        el.classList.remove('measuring');
+        el.classList.add('measured');
+        const vitalsContainer = $('.vitals-panel');
+        if(vitalsContainer) vitalsContainer.outerHTML = vitalsUI();
+        const chartBody = $('#chart-body');
+        if(chartBody) chartBody.innerHTML = chartView();
+        toast(`${result.fullName} measured: ${result.value} ${result.unit}`);
+      }, 1500);
+    }
+    return;
+  }
   if(action==='finish'){dialog(`<h2>Ready to reflect?</h2><p>Finishing saves this conversation and generates evidence-based observations. You can review the transcript or start a fresh attempt afterward.</p><div class="dialog-actions">${button('Keep practicing','close-dialog','','btn')}${button('Finish & review','confirm-finish',id,'btn-primary','check')}</div>`);return;}
   if(action==='confirm-finish'){el.disabled=true;S.encounter=await api('/encounters/'+id+'/finish','POST',{});$('#confirm-dialog').close();location.hash='report/'+id;return;}
   if(action==='evidence'){evidence(id);return;}

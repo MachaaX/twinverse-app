@@ -15,6 +15,7 @@ export class Avatar3D {
       modelPath: config.modelPath || null,
       imageUrl: config.imageUrl || null,
       enableLipSync: config.enableLipSync !== false,
+      language: config.language || 'en',
       ...config
     };
 
@@ -22,6 +23,7 @@ export class Avatar3D {
     this.isSpeaking = false;
     this.head = null;
     this.subtitleElement = null;
+    this.currentLanguage = 'en';
 
     this.init();
   }
@@ -71,9 +73,10 @@ export class Avatar3D {
 
       console.log('[Avatar3D] Creating TalkingHead instance...');
       // Create TalkingHead instance with lipsync modules (critical!)
+      // Support multiple languages for lip-sync
       this.head = new TalkingHead(this.viewElement, {
         ttsEndpoint: '/api/tts',
-        lipsyncModules: ['en'],
+        lipsyncModules: ['en', 'es', 'fr', 'de', 'pt', 'it'],
         cameraView: 'upper',
         audioVolume: 1.0  // Ensure volume is set
       });
@@ -147,9 +150,59 @@ export class Avatar3D {
   }
 
   /**
-   * Speak text with lip-sync and subtitles using Amazon Polly
+   * Set language for speech synthesis
+   * @param {string} language - Language code (e.g., 'en', 'es', 'fr')
    */
-  async speak(text, emotion = 'neutral') {
+  setLanguage(language) {
+    this.currentLanguage = language;
+    console.log('[Avatar3D] Language set to:', language);
+  }
+
+  /**
+   * Get voice ID based on language and gender
+   */
+  getVoiceForLanguage(language, gender) {
+    const voiceMap = {
+      'en': {
+        'male': 'Matthew',
+        'female': 'Joanna'
+      },
+      'es': {
+        'male': 'Miguel',
+        'female': 'Lucia'
+      },
+      'fr': {
+        'male': 'Mathieu',
+        'female': 'Lea'
+      },
+      'de': {
+        'male': 'Hans',
+        'female': 'Vicki'
+      },
+      'pt': {
+        'male': 'Ricardo',
+        'female': 'Vitoria'
+      },
+      'it': {
+        'male': 'Giorgio',
+        'female': 'Bianca'
+      }
+    };
+
+    const genderKey = (gender || '').toLowerCase() === 'male' ? 'male' : 'female';
+    return voiceMap[language]?.[genderKey] || voiceMap['en'][genderKey];
+  }
+
+  /**
+   * Speak text with lip-sync and subtitles using Amazon Polly
+   * @param {string} text - Text to speak
+   * @param {string} emotion - Emotion for mood
+   * @param {string} language - Language code (optional, uses current language if not provided)
+   */
+  async speak(text, emotion = 'neutral', language = null) {
+    // Use provided language or current language
+    const speakLanguage = language || this.currentLanguage;
+    console.log('[Avatar3D] Speaking in language:', speakLanguage);
     if (!this.isInitialized || !this.head) {
       console.warn('[Avatar3D] Not initialized, falling back to TTS only');
       if (ttsService.isAvailable()) {
@@ -185,15 +238,15 @@ export class Avatar3D {
       // Get audio and timing from Amazon Polly
       console.log('[Avatar3D] Fetching audio from Polly TTS...');
 
-      // Select voice based on gender
-      const gender = (this.config.gender || '').toLowerCase();
-      const voice = gender === 'male' ? 'Matthew' : 'Joanna';
-      console.log('[Avatar3D] Using voice:', voice, 'for gender:', gender);
+      // Select voice based on language and gender
+      const gender = this.config.gender;
+      const voice = this.getVoiceForLanguage(speakLanguage, gender);
+      console.log('[Avatar3D] Using voice:', voice, 'for language:', speakLanguage, 'and gender:', gender);
 
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice })
+        body: JSON.stringify({ text, voice, language: speakLanguage })
       });
 
       if (!response.ok) {
@@ -222,19 +275,23 @@ export class Avatar3D {
         console.log('[Avatar3D] Audio decoded, duration:', audioBuffer.duration, 'seconds');
 
         // Use TalkingHead's speakAudio for precise lip-sync
+        // Use appropriate lip-sync language
+        const lipsyncLang = speakLanguage === 'pt' ? 'pt' : speakLanguage;
+        console.log('[Avatar3D] Using lipsyncLang:', lipsyncLang);
+
         await this.head.speakAudio({
           audio: audioBuffer,  // AudioBuffer object
           words: data.words || [],
           wtimes: data.wtimes || [],
           wdurations: data.wdurations || [],
-          lipsyncLang: 'en'
+          lipsyncLang: lipsyncLang
         });
 
         console.log('[Avatar3D] ✓ Polly speech with lip-sync complete');
       } else {
         // Polly unavailable: browser voice, with lip-sync driven by estimated word timings
         console.log('[Avatar3D] Polly unavailable, using browser TTS with estimated lip-sync');
-        await this.speakWithBrowserVoice(text, emotion);
+        await this.speakWithBrowserVoice(text, emotion, speakLanguage);
       }
 
       this.onSpeechEnd();
@@ -245,7 +302,7 @@ export class Avatar3D {
       // Fallback to browser TTS on error
       try {
         console.log('[Avatar3D] Falling back to browser TTS');
-        await this.speakWithBrowserVoice(text, emotion);
+        await this.speakWithBrowserVoice(text, emotion, speakLanguage);
       } catch (fallbackErr) {
         console.error('[Avatar3D] Fallback TTS also failed:', fallbackErr);
       }
@@ -260,9 +317,12 @@ export class Avatar3D {
    * the voice starts, and re-sync to the spoken word if the estimate drifts.
    * Lip-sync from Amazon Polly (server /api/tts) is more precise when available.
    */
-  async speakWithBrowserVoice(text, emotion = 'neutral') {
+  async speakWithBrowserVoice(text, emotion = 'neutral', language = 'en') {
     if (!ttsService.isAvailable()) return;
     const rate = { empathetic: 0.9, concerned: 0.85, cheerful: 1.1 }[emotion] || 1.0;
+
+    // Set voice language for browser TTS
+    ttsService.setLanguage(language);
     const tokens = [...text.matchAll(/\S+/g)].map(m => ({ word: m[0], index: m.index }));
     const syllables = w => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, '').match(/[aeiouy]+/g) || []).length);
     const pause = w => /[.!?]["')\]]*$/.test(w) ? 380 : /[,;:]["')\]]*$/.test(w) ? 180 : 0;
@@ -287,7 +347,8 @@ export class Avatar3D {
         const ctx = this.head.audioCtx;
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const silent = ctx.createBuffer(1, Math.max(1, Math.ceil(ctx.sampleRate * (t + 200) / 1000)), ctx.sampleRate);
-        this.head.speakAudio({ audio: silent, words, wtimes, wdurations }, { lipsyncLang: 'en' });
+        const lipsyncLang = language === 'pt' ? 'pt' : language;
+        this.head.speakAudio({ audio: silent, words, wtimes, wdurations }, { lipsyncLang });
       }
       plan = { started: performance.now(), starts };
     };

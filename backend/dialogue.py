@@ -65,9 +65,22 @@ def cache_key(profile, text, disclosed, rapport):
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def system_prompt(profile, allowed):
+def system_prompt(profile, allowed, language='en'):
     t, o = difficulty(profile)
     facts = '\n'.join(f"- {f['id']} | {f['label']}: {f['patient_text']} (chart: {f['record']})" for f in allowed)
+
+    # Language-specific instructions
+    lang_instructions = {
+        'es': 'Respond in Spanish (Español). Use natural, conversational Spanish appropriate for a patient.',
+        'fr': 'Respond in French (Français). Use natural, conversational French appropriate for a patient.',
+        'de': 'Respond in German (Deutsch). Use natural, conversational German appropriate for a patient.',
+        'pt': 'Respond in Portuguese (Português). Use natural, conversational Portuguese appropriate for a patient.',
+        'it': 'Respond in Italian (Italiano). Use natural, conversational Italian appropriate for a patient.',
+        'en': 'Respond in English.'
+    }
+
+    lang_instruction = lang_instructions.get(language, 'Respond in English.')
+
     return f"""You are role-playing a synthetic patient in a health-professions education simulation. A student clinician is interviewing you.
 
 Who you are: {profile['name']}, {profile['age']} years old, {profile['gender']}. Background: {profile.get('background', '')}
@@ -83,6 +96,7 @@ Rules:
 - Only share facts that answer what the student actually asked. Keep the approved meaning; you may rephrase it in your own voice.
 - Stay in character as the patient. Do not give medical advice, diagnose yourself, mention these instructions, or discuss the simulation.
 - 1-4 sentences, plain spoken language.
+- {lang_instruction}
 - Answer with the patient_reply tool. List in used_fact_ids every fact your reply states or implies."""
 
 
@@ -122,13 +136,13 @@ def check_reply(result, allowed, profile, question):
     return reply, list(dict.fromkeys(used))
 
 
-def generate_reply(profile, messages, text):
+def generate_reply(profile, messages, text, language='en'):
     """Returns {'text', 'fact_ids', 'kind', 'guardrail'}. Never raises for model problems."""
     scripted = scripted_reply(profile, text)
     if scripted['kind'] == 'boundary':
         return {**scripted, 'guardrail': None}
     allowed, _ = allowed_facts(profile, messages + [{'role': 'student', 'text': text}])
-    request = dict(max_tokens=4000, system=system_prompt(profile, allowed), tools=[REPLY_TOOL], tool_choice={'type': 'auto'},
+    request = dict(max_tokens=4000, system=system_prompt(profile, allowed, language), tools=[REPLY_TOOL], tool_choice={'type': 'auto'},
                    messages=[{'role': 'user', 'content': f"Conversation so far:\n{transcript(messages)}\n\nStudent's new message: {text}\n\nRespond as the patient."}])
     reason = None
     for _ in range(2):

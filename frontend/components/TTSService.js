@@ -9,6 +9,7 @@ class TTSService {
     this.voice = null;
     this.speaking = false;
     this.currentUtterance = null;
+    this.currentLanguage = 'en';
 
     // Initialize voices
     this.voices = [];
@@ -22,18 +23,46 @@ class TTSService {
 
   loadVoices() {
     this.voices = this.synthesis.getVoices();
+    this.selectVoiceForLanguage(this.currentLanguage);
+  }
 
-    // Prefer natural-sounding English voices
+  /**
+   * Select appropriate voice for language
+   */
+  selectVoiceForLanguage(language) {
+    // Map language codes to browser voice language prefixes
+    const langMap = {
+      'en': 'en',
+      'es': 'es',
+      'fr': 'fr',
+      'de': 'de',
+      'pt': 'pt',
+      'it': 'it'
+    };
+
+    const langPrefix = langMap[language] || 'en';
+
+    // Prefer natural-sounding voices for the language
     const preferred = this.voices.find(v =>
-      v.lang.startsWith('en') && (
+      v.lang.startsWith(langPrefix) && (
         v.name.includes('Natural') ||
         v.name.includes('Enhanced') ||
         v.name.includes('Premium')
       )
     );
 
-    // Fallback to any English voice
-    this.voice = preferred || this.voices.find(v => v.lang.startsWith('en')) || this.voices[0];
+    // Fallback to any voice in that language
+    this.voice = preferred || this.voices.find(v => v.lang.startsWith(langPrefix)) || this.voices[0];
+
+    console.log('[TTSService] Selected voice:', this.voice?.name, 'for language:', language);
+  }
+
+  /**
+   * Set language for speech synthesis
+   */
+  setLanguage(language) {
+    this.currentLanguage = language;
+    this.selectVoiceForLanguage(language);
   }
 
   /**

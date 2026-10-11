@@ -409,14 +409,14 @@ class Handler(BaseHTTPRequestHandler):
             # AI with guardrails is the default; patients set to "scripted" use approved wording only.
             if e['profile'].get('dialogue_mode','generative')!='generative':return self.route('POST',b)
             if e['status']!='active':raise APIError(409,'This encounter is finished. Start a new attempt.')
-            text=b.get('text','');rid=b.get('request_id','')
+            text=b.get('text','');rid=b.get('request_id','');language=b.get('language','en')
             if not isinstance(text,str) or not text.strip() or len(text)>4000:raise APIError(422,'Enter a question of 1–4000 characters.')
             if not isinstance(rid,str) or not rid or len(rid)>100:raise APIError(422,'A unique request ID is required.')
             if rid in e['requests']:return self.send(public_encounter(e,self.role))
             if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
             if e.get('pending_turn'):raise APIError(409,'The patient is still answering the previous question.')
             text=text.strip();tid='t'+str(len(e['messages']))
-            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now(),'request_id':rid});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp'];e['pending_turn']=tid
+            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now(),'request_id':rid,'language':language});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp'];e['pending_turn']=tid
             event(e,'student_turn',turn_id=tid);self.save_encounter(e)
             profile=e['profile'];history=copy.deepcopy(e['messages'][:-1])
             key=dialogue.cache_key(profile,text,e['disclosed'],dialogue.rapport_established(e['messages']))
@@ -424,7 +424,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if row:r=json.loads(row['value'])
             elif not generator.live_status()['live_available']:r=dialogue.fallback(profile,history,text,None,keep_kind=True)  # no key: scripted, still guarded
-            else:r=dialogue.generate_reply(profile,history,text)
+            else:r=dialogue.generate_reply(profile,history,text,language)
         except Exception:
             import traceback;traceback.print_exc()
             r=dialogue.fallback(profile,history,text,'AI reply failed unexpectedly; scripted wording used.')
@@ -517,9 +517,25 @@ class Handler(BaseHTTPRequestHandler):
             # Amazon Polly TTS with word timing for lip-sync
             text=b.get('text') or b.get('input') or ''
             voice=b.get('voice','Joanna')
+            language=b.get('language','en')
             if not text or len(text)>3000:raise APIError(422,'Text required (max 3000 chars)')
 
-            print(f'[TTS] POLLY_AVAILABLE={POLLY_AVAILABLE}', flush=True)
+            # Supported multilingual voices
+            SUPPORTED_VOICES = {
+                'en': ['Joanna', 'Ruth', 'Kendra', 'Matthew', 'Stephen', 'Joey'],
+                'es': ['Lucia', 'Mia', 'Miguel', 'Andres'],
+                'fr': ['Lea', 'Celine', 'Mathieu'],
+                'de': ['Vicki', 'Marlene', 'Hans'],
+                'pt': ['Vitoria', 'Ines', 'Ricardo'],
+                'it': ['Bianca', 'Carla', 'Giorgio']
+            }
+
+            # Validate voice for language
+            valid_voices = []
+            for voices in SUPPORTED_VOICES.values():
+                valid_voices.extend(voices)
+
+            print(f'[TTS] POLLY_AVAILABLE={POLLY_AVAILABLE}, Language: {language}, Voice: {voice}', flush=True)
             if not POLLY_AVAILABLE:
                 # Fallback: return minimal response
                 print('[TTS] boto3 not available, returning empty', flush=True)
@@ -534,13 +550,17 @@ class Handler(BaseHTTPRequestHandler):
                     config=config
                 )
 
-                print(f'[TTS] Requesting audio for: "{text[:50]}..."', flush=True)
+                # Use standard engine for all voices to ensure compatibility
+                engine = 'neural' if voice in valid_voices else 'standard'
+                validated_voice = voice if voice in valid_voices else 'Joanna'
+
+                print(f'[TTS] Requesting audio for: "{text[:50]}..." using voice: {validated_voice}, engine: {engine}', flush=True)
                 # Get audio
                 audio_response=polly.synthesize_speech(
                     Text=text,
                     OutputFormat='mp3',
-                    VoiceId=voice if voice in ['Joanna','Ruth','Kendra','Matthew','Stephen','Joey'] else 'Joanna',
-                    Engine='neural'
+                    VoiceId=validated_voice,
+                    Engine=engine
                 )
                 audio_bytes=audio_response['AudioStream'].read()
                 audio_b64=base64.b64encode(audio_bytes).decode('utf-8')
@@ -551,8 +571,8 @@ class Handler(BaseHTTPRequestHandler):
                 marks_response=polly.synthesize_speech(
                     Text=text,
                     OutputFormat='json',
-                    VoiceId=voice if voice in ['Joanna','Ruth','Kendra','Matthew','Stephen','Joey'] else 'Joanna',
-                    Engine='neural',
+                    VoiceId=validated_voice,
+                    Engine=engine,
                     SpeechMarkTypes=['word']
                 )
                 marks_data=marks_response['AudioStream'].read().decode('utf-8')

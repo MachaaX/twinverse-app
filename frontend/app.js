@@ -36,7 +36,7 @@ const paths = {
  lock:'M19 11h-1V7a6 6 0 0 0-12 0v4H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M8 11V7a4 4 0 0 1 8 0v4'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
-const S = {user:null,csrf:'',googleAvailable:false,developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
+const S = {user:null,csrf:'',googleAvailable:false,developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0, detectedLanguage:'en'};
 const main = $('#main');
 S.speech=[];S.speechOptIn=false;S.speechMayDelete=false;S.speechError='';S.voiceRun=null;S.videoMode=false;S.cameraRequest=null;
 let speechTimer;
@@ -492,10 +492,29 @@ async function startVoiceInput(){
  run.started=true;updateVoiceUI();
  voiceInput.startListening({
    onStart:()=>{if(current())updateVoiceUI();},
-   onResult:(transcript,isFinal)=>{
+   onResult:(transcript,isFinal,detectedLang)=>{
      if(!current())return;
      const el=$('#voice-transcript');if(el)el.textContent=transcript;
-     if(isFinal)run.text=transcript;
+     if(isFinal){
+       run.text=transcript;
+       // Store detected language for avatar response
+       if(detectedLang){
+         S.detectedLanguage=detectedLang;
+         console.log('[App] Detected language:', detectedLang);
+         // Update avatar language
+         if(S.avatar){
+           S.avatar.setLanguage(detectedLang);
+         }
+       }
+     }
+   },
+   onLanguageDetected:(lang)=>{
+     if(!current())return;
+     S.detectedLanguage=lang;
+     console.log('[App] Language detected callback:', lang);
+     if(S.avatar){
+       S.avatar.setLanguage(lang);
+     }
    },
    onEnd:async()=>{
      if(!current())return;
@@ -617,7 +636,7 @@ async function sendQuestion(capture=null){
    }
    if(epoch!==S.epoch||S.route!=='encounter/'+activeId)return;
    const requestId=crypto.randomUUID();const docsBefore=(S.encounter.artifacts||[]).length;
-   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:requestId});
+   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:requestId,language:S.detectedLanguage});
    if(S.route!=='encounter/'+activeId||epoch!==S.epoch)return;
    S.encounter=r;
    if((r.artifacts||[]).length>docsBefore)toast('New document released. Open it in the chart under Documents.');
@@ -640,9 +659,19 @@ async function sendQuestion(capture=null){
    const last=r.messages.at(-1);
    if(last&&last.role==='patient'){
      if(S.avatar&&S.avatarEnabled){
-       try{await S.avatar.speak(last.text,last.emotion||'neutral');}
-       catch(avatarErr){console.error('Avatar speech error:',avatarErr);if(ttsService.isAvailable())await ttsService.speak(last.text,{},last.emotion||'neutral');}
+       try{
+         // Use detected language for avatar speech
+         await S.avatar.speak(last.text,last.emotion||'neutral',S.detectedLanguage);
+       }
+       catch(avatarErr){
+         console.error('Avatar speech error:',avatarErr);
+         if(ttsService.isAvailable()){
+           ttsService.setLanguage(S.detectedLanguage);
+           await ttsService.speak(last.text,{},last.emotion||'neutral');
+         }
+       }
      }else if(ttsService.isAvailable()){
+       ttsService.setLanguage(S.detectedLanguage);
        await ttsService.speak(last.text,{},last.emotion||'neutral');
      }
    }

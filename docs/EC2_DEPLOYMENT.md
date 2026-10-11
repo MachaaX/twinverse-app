@@ -1,5 +1,12 @@
 # EC2 hosting and continuous deployment
 
+> **Demo recovery update, 11 October 2026:** account/approved-version storage now
+> uses PostgreSQL 16 on the existing EC2 instance after an Aurora gateway outage.
+> See [DEMO_DATABASE_SETUP.md](DEMO_DATABASE_SETUP.md) for current database
+> settings and backups. Historical RDS/IAM instructions below describe the
+> previous configuration; AWS credentials are still needed for S3/Bedrock, but
+> no longer for this demo's PostgreSQL login.
+
 - **Website:** `https://patientzero.me` (the old `https://44.246.200.136` redirects here).
 - **Server:** `i-068fa2275326642f9` (`twinverse`), Ubuntu 24.04, `us-west-2`.
 - **GitHub source:** [MachaaX/twinverse-app](https://github.com/MachaaX/twinverse-app), branch `main`.

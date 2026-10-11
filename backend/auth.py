@@ -136,10 +136,18 @@ class AuthStore:
                 def configure(connection):
                     connection.row_factory = dict_row
 
+                def reconnect_failed(pool):
+                    # A managed gateway can be unavailable longer than the pool's
+                    # reconnect window. Start another bounded recovery cycle so
+                    # the warm connection recovers without a request or restart.
+                    if not pool.closed:
+                        pool.check()
+
                 self._pool = ConnectionPool(connection_class=AccountConnection,
                     min_size=1, max_size=4, num_workers=2, timeout=90,
-                    max_waiting=64, max_lifetime=600, max_idle=120,
+                    max_waiting=64, max_lifetime=3600, max_idle=120,
                     configure=configure, check=ConnectionPool.check_connection,
+                    reconnect_failed=reconnect_failed,
                     name='account-storage', open=True)
             return self._pool
 

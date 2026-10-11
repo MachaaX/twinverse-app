@@ -1,5 +1,10 @@
 # Connect faculty approvals to AWS PostgreSQL and S3
 
+> **Current demo, 11 October 2026:** PostgreSQL runs on the existing EC2 server
+> following the Aurora gateway outage. See [DEMO_DATABASE_SETUP.md](DEMO_DATABASE_SETUP.md)
+> for that configuration. S3 behavior remains as described here; the IAM database
+> instructions below apply to the previous Aurora endpoint.
+
 With AWS storage enabled, **Approve & publish** copies attached files (TXT, PDF,
 images, and other supported uploads) to S3 and commits the approved patient profile
 plus its file manifest to PostgreSQL. Publication becomes available locally only
@@ -29,11 +34,14 @@ authentication credential.
   hostname and each attempt generates a fresh IAM token. Queries and transactions
   are never replayed by this connection retry.
 - PostgreSQL accounts use a shared pool of 1–4 connections, with a health check
-  before each transaction, ten-minute maximum connection lifetime and two-minute
+  before each transaction, one-hour maximum connection lifetime and two-minute
   idle cleanup. Healthy sessions reuse their authenticated connection rather than
   opening a new gateway/TLS/IAM connection for every request. New connections
   still generate fresh IAM tokens. Failed transactions are rolled back, never
   replayed; PostgreSQL remains the account source of truth.
+  After a prolonged outage exhausts a reconnect window, the pool begins another
+  bounded background recovery cycle until connectivity returns or the app shuts
+  down. This does not retry SQL or make an unavailable gateway healthy.
 - The hosted express database uses Aurora's internet access gateway. If one
   gateway address fails while others work, check that DNS returns the complete
   address list. EC2's database-only DNS routing is in

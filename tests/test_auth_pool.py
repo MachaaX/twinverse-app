@@ -58,6 +58,20 @@ class AccountPoolTests(unittest.TestCase):
         self.context.__exit__.assert_called_once()
         self.assertIs(self.context.__exit__.call_args.args[1], failure)
 
+    def test_long_outage_restarts_recovery_without_a_new_request(self):
+        self.auth._postgres_pool()
+        callback = self.constructor.call_args.kwargs['reconnect_failed']
+        self.pool.closed = False
+        callback(self.pool)
+        self.pool.check.assert_called_once_with()
+
+    def test_shutdown_does_not_restart_recovery(self):
+        self.auth._postgres_pool()
+        callback = self.constructor.call_args.kwargs['reconnect_failed']
+        self.pool.closed = True
+        callback(self.pool)
+        self.pool.check.assert_not_called()
+
     def test_duplicate_identity_keeps_conflict_response(self):
         import psycopg
         self.connection.execute.side_effect = psycopg.errors.UniqueViolation('private email')

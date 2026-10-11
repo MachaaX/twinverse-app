@@ -103,7 +103,7 @@ class AccountsTests(unittest.TestCase):
         self.assertEqual(self.client.call('/api/auth/signup', 'POST', body)[0], 409)
 
     def test_anonymous_access_denied_and_student_cannot_forge_role(self):
-        for path in ('/api/patients', '/api/encounters', '/api/rubric', '/api/developer/data'):
+        for path in ('/api/patients', '/api/encounters', '/api/rubric', '/api/developer/data', '/api/student-metrics'):
             self.assertEqual(self.client.call(path)[0], 401)
         self.signup()
         self.assertEqual(self.client.call('/api/patients')[0], 200)
@@ -145,6 +145,37 @@ class AccountsTests(unittest.TestCase):
         status, rated = self.client.call(path+'/rating', 'POST', {'kind': 'auto_score', 'stars': 4, 'reviewer': 'Forged name'})
         self.assertEqual(status, 200)
         self.assertEqual(rated['ratings']['auto_score']['by'], user['name'])
+
+    def test_faculty_student_metrics_group_saved_scores_newest_first(self):
+        faculty = self.signup('faculty', email='faculty@example.test')
+        student_client = self.new_client()
+        student = self.signup(client=student_client, email='student@example.test')
+        empty_client = self.new_client()
+        empty = self.signup(client=empty_client, email='empty@example.test')
+        patient = student_client.call('/api/patients')[1]['patients'][0]
+        completed = []
+        for _ in range(2):
+            status, encounter = student_client.call('/api/encounters', 'POST', {'patient_id': patient['id']})
+            self.assertEqual(status, 201)
+            status, encounter = student_client.call('/api/encounters/'+encounter['id']+'/finish', 'POST', {})
+            self.assertEqual(status, 200)
+            completed.append(encounter)
+            ratings = [{'key': domain['key'], 'score': 4, 'review_note': 'Reviewed.', 'evidence_ids': []}
+                       for domain in encounter['feedback']['domains']]
+            status, reviewed = self.client.call('/api/encounters/'+encounter['id']+'/review', 'POST', {
+                'review_version': encounter['feedback']['review_version'], 'ratings': ratings})
+            self.assertEqual(status, 200, reviewed)
+
+        self.assertEqual(student_client.call('/api/student-metrics')[0], 403)
+        status, result = self.client.call('/api/student-metrics')
+        self.assertEqual(status, 200, result)
+        folders = {item['id']: item for item in result['students']}
+        self.assertEqual(set(folders), {student['id'], empty['id']})
+        self.assertEqual(folders[student['id']]['name'], student['name'])
+        charts = folders[student['id']]['encounters']
+        self.assertEqual([item['id'] for item in charts], [item['id'] for item in reversed(completed)])
+        self.assertTrue(all(domain['score'] == 4 for domain in charts[0]['domains']))
+        self.assertEqual(folders[empty['id']]['encounters'], [])
 
     def test_login_survives_restart_logout_revokes_copied_cookie(self):
         user = self.signup()

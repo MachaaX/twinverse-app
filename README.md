@@ -38,6 +38,7 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 - Sign in with a Faculty account to create/edit cases, set fact-release rules, add learning checkpoints, attach files, validate structure, and publish.
 - Run a newly published case through the same engine without code changes.
 - Enter faculty ratings from 1–4 or N/A, explain each rating, link real turn IDs, and save a versioned review.
+- Open **Student metrics** in the Faculty workspace to browse each medical student's saved rubric charts, newest encounter first.
 - Download authorized clinical artifacts and export student-safe encounter JSON.
 - Review the original source materials from the Faculty workspace.
 

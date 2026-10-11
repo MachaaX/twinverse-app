@@ -244,10 +244,10 @@ function initializeAvatar(){
   }
 }
 function navigation(){
- const r=S.route.split('/')[0];const links=S.user?[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio'],['generate','send','Generate patients']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['feedback','star','Feedback & reports'],['resources','file','Source materials'],['developer','code','Developer']]:[])]:[];
+ const r=S.route.split('/')[0];const links=S.user?[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio'],['generate','send','Generate patients'],['metrics','activity','Student metrics']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['feedback','star','Feedback & reports'],['resources','file','Source materials'],['developer','code','Developer']]:[])]:[];
  $('#navigation').innerHTML=links.map(([key,ic,label])=>`<a class="nav-link ${r===key || key==='reviews'&&r==='report'?'active':''}" href="#${key}" aria-label="${label}">${icon(ic)}<span>${label}</span>${r===key?'<i class="nav-dot"></i>':''}</a>`).join('');
  accountControls();
- const labels={login:'Sign in',signup:'Create an account',cases:'Practice library',studio:'Patient Studio',generate:'Generate patients',feedback:'Feedback & reports',developer:'Developer',reviews:'Encounter history',report:'Encounter feedback',encounter:'Patient encounter',rubric:'Assessment rubric',resources:'Source materials'};
+ const labels={login:'Sign in',signup:'Create an account',cases:'Practice library',studio:'Patient Studio',generate:'Generate patients',metrics:'Student metrics',feedback:'Feedback & reports',developer:'Developer',reviews:'Encounter history',report:'Encounter feedback',encounter:'Patient encounter',rubric:'Assessment rubric',resources:'Source materials'};
  $('#page-label').textContent=labels[r] || 'Workspace';
  $('#report-slot').innerHTML=S.user?reportButton():'';
 }
@@ -291,7 +291,7 @@ async function route(){
  let target=location.hash.slice(1) || 'cases';const requested=target.split('?')[0];
  if(!S.user){S.route=requested==='signup'?'signup':'login';++S.epoch;navigation();main.innerHTML=authView(S.route==='signup');return;}
  if(requested==='login'||requested==='signup'){location.hash='cases';target='cases';}
- if(S.role!=='faculty'&&['studio','generate','feedback','resources','developer'].includes(target.split('/')[0])){
+ if(S.role!=='faculty'&&['studio','generate','metrics','feedback','resources','developer'].includes(target.split('/')[0])){
    S.route=target;++S.epoch;navigation();main.innerHTML=notice('This page requires a faculty account.','error')+button('Back to library','navigate','cases','btn-primary','back');return;
  }
  if(S.dirty && target!==S.route && !confirm('Leave without saving your case edits?')){location.hash=S.route;return;}
@@ -312,6 +312,11 @@ async function route(){
      S.genStatus=await api('/generator/status');view=generatorView();
    }else if(page==='developer'){
      view=S.developer?developerView(await api('/developer/data')):developerLoginView();
+   }else if(page==='metrics'){
+     if(S.role!=='faculty')throw new Error('A faculty account is required to view student metrics.');
+     const students=(await api('/student-metrics')).students;
+     if(id){const student=students.find(item=>item.id===decodeURIComponent(id));view=student?studentMetricsFolderView(student):notice('This student folder is unavailable.','error')+button('All student metrics','navigate','metrics','btn-primary','back');}
+     else view=studentMetricsView(students);
    }else if(page==='feedback'){
      if(S.role!=='faculty')throw new Error('Sign in to the Faculty view to see ratings and reports.');
      const [rep,sum]=await Promise.all([api('/reports'),api('/ratings/summary')]);view=feedbackView(rep.reports,sum);
@@ -620,13 +625,26 @@ function qualityView(q){if(!q||!q.turns)return '';const s=q.student,p=q.patient;
  <div class="tone-row">${q.turns.map(t=>`<button type="button" class="tone-chip tone-${t.tone}" data-action="evidence" data-id="${esc(t.turn_id)}" title="${esc(t.tone+(t.warm.length?' · '+t.warm.join(', '):'')+(t.cold.length?' · '+t.cold.join(', '):''))}">${esc(t.turn_id)}</button>`).join('')}<span class="small muted">warm · neutral · cold</span></div>
  <ul class="small">${q.summary.map(x=>`<li>${esc(x)}</li>`).join('')}${p.guarded_replies.length?`<li>Guarded patient replies: ${p.guarded_replies.map(id=>turnChip(id)).join('')}</li>`:''}</ul></div></section>`;}
 function checkpointsView(r){return `<div class="section-heading"><h2>Case learning checkpoints</h2><span class="small muted">Rule-based observations</span></div><div class="checkpoint-list">${r.checkpoints.map(c=>`<article class="checkpoint"><div class="checkpoint-top">${icon(c.status==='observed'?'check':'dot')}<h3>${esc(c.label)}</h3></div><p>${c.status==='observed'?'Relevant question and patient disclosure recorded.':c.status==='partial'?'Some relevant information was elicited.':esc(c.suggestion)}</p>${c.evidence_ids.length?button('Inspect evidence','evidence',c.evidence_ids.join(','),'btn-small btn-ghost','eye'):badge(c.status==='manual_review'?'Manual review':'Not observed','neutral')}</article>`).join('')}</div>`;}
-function scoreHistogram(r, faculty){
+function scoreHistogram(r, faculty, title='Candidate rubric scores', description=`${faculty?'Saved ratings, or suggested ratings while reviewing':'Released faculty ratings'} - one bar per rubric category`){
  const scores=(r.domains||[]).map(d=>{
   const value=d.score!==null&&d.score!==undefined?d.score:(faculty?d.suggested_score:null);
   return {name:d.name,value:Number.isInteger(value)&&value>=0&&value<=4?value:null,na:value==='N/A'};
  });
  const hasScores=scores.some(d=>d.value!==null);
- return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">Candidate rubric scores</h2><p class="small muted">${faculty?'Saved ratings, or suggested ratings while reviewing':'Released faculty ratings'} - one bar per rubric category</p></div><span class="badge neutral">Scale: 0 to 4</span></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
+ return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">${esc(title)}</h2><p class="small muted">${esc(description)}</p></div><span class="badge neutral">Scale: 0 to 4</span></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
+}
+function studentMetricsView(students){
+ const count=students.reduce((total,student)=>total+student.encounters.length,0);
+ const latest=student=>student.encounters[0]?.started_at;
+ const stat=(value,label)=>`<div class="stat"><strong>${value}</strong><span>${label}</span></div>`;
+ return heading('FACULTY WORKSPACE','Student metrics','Review each student’s rubric scores across completed encounters.')+
+ `<div class="stats-row">${stat(students.length,'Student folders')}${stat(count,'Saved score charts')}</div><section class="panel"><div class="panel-header"><h2>Student folders</h2>${badge(students.length+' students','neutral')}</div>${students.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>STUDENT</th><th>SAVED CHARTS</th><th>MOST RECENT</th><th></th></tr></thead><tbody>${students.map(student=>`<tr><td><strong>${esc(student.name)}</strong></td><td>${student.encounters.length}</td><td class="small">${latest(student)?date(latest(student)):'No scored encounters'}</td><td>${button('Open folder','navigate','metrics/'+encodeURIComponent(student.id),'btn-small','arrow')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><h3>No student accounts yet</h3></div>'}</section>`;
+}
+function studentMetricsFolderView(student){
+ const encounters=student.encounters;
+ return heading('FACULTY / STUDENT METRICS',student.name,'Saved rubric score charts, newest encounter first.',button('All students','navigate','metrics','btn','back'))+
+ (encounters.length?encounters.map(encounter=>scoreHistogram(encounter,true,`${encounter.patient_name} · ${date(encounter.started_at)}`,`${encounter.released?'Released faculty ratings':'Faculty review · '+(encounter.status||'in progress')} - ${encounter.total==null?'Total pending':encounter.total+' / '+(encounter.available_points??28)} points`)).join(''):
+ `<div class="empty-state"><h3>No scored encounters yet</h3><p>Charts appear here after this student finishes an encounter.</p></div>`);
 }
 function reportView(){const e=S.encounter,r=e.feedback;if(!r)return notice('This encounter is still in progress. Finish it to generate observations.')+button('Continue encounter','navigate','encounter/'+e.id,'btn-primary','arrow');
  const faculty=S.role==='faculty';

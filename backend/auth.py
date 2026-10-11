@@ -182,6 +182,11 @@ class AuthStore:
                 WHERE s.token_hash=? AND s.expires_at>?''', (digest(token), int(time.time()))).fetchone()
         return public_user(dict(row)) if row else None
 
+    def students(self):
+        with self.connection() as connection:
+            rows = connection.execute("SELECT id,name FROM twinverse_users WHERE role='medical-student' ORDER BY name,id").fetchall()
+        return [{'id': row['id'], 'name': row['name']} for row in rows]
+
     def logout(self, token):
         with self.connection() as connection:
             connection.execute('DELETE FROM twinverse_auth_sessions WHERE token_hash=?', (digest(token),))

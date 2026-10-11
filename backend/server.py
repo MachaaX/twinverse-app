@@ -658,6 +658,32 @@ class Handler(BaseHTTPRequestHandler):
                 if self.role=='faculty' or e['owner']==self.owner_id:
                     rows.append({'id':e['id'],'patient':brief(e['profile']),'status':e['status'],'started_at':e['started_at'],'turns':sum(m['role']=='student' for m in e['messages']),'feedback_status':(e.get('feedback') or {}).get('status'),'released':bool(e.get('released_feedback')),'release_pending':bool(e.get('feedback')) and not (e.get('feedback') or {}).get('released')})
             return self.send({'encounters':sorted(rows,key=lambda x:x['started_at'],reverse=True)})
+        if parts==['student-metrics'] and method=='GET':
+            self.faculty()
+            students={row['id']:{**row,'encounters':[]} for row in (self.server.auth.students() if self.server.auth else [])}
+            for encounter in self.store.all('encounters'):
+                owner=encounter.get('owner')
+                if not owner:
+                    continue
+                if owner not in students:
+                    if self.server.auth:
+                        continue
+                    students[owner]={'id':owner,'name':'Student account','encounters':[]}
+                feedback=encounter.get('feedback') or {}
+                if not feedback:
+                    continue
+                students[owner]['encounters'].append({
+                    'id':encounter['id'],'patient_name':encounter['profile'].get('name','Patient'),
+                    'started_at':encounter['started_at'],'ended_at':encounter.get('ended_at'),
+                    'status':feedback.get('status','awaiting_release'),
+                    'released':bool(encounter.get('released_feedback')),
+                    'total':feedback.get('total'),'available_points':feedback.get('available_points'),
+                    'domains':[{'id':d.get('id'),'key':d.get('key'),'name':d.get('name'),
+                                'score':d.get('score'),'suggested_score':d.get('suggested_score')}
+                               for d in feedback.get('domains',[])]})
+            for student in students.values():
+                student['encounters'].sort(key=lambda item:item['started_at'],reverse=True)
+            return self.send({'students':sorted(students.values(),key=lambda item:item['name'].casefold())})
         if parts==['encounters'] and method=='POST':
             c=self.case(b.get('patient_id',''));p=c.get('published')
             if not p:raise APIError(422,'Publish this patient before starting an encounter.')

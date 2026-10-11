@@ -25,10 +25,18 @@ export class VoiceRecorder {
   constructor(){this.generation=0;this.session=null;}
   isAvailable(){return !!(window.isSecureContext&&navigator.mediaDevices?.getUserMedia&&window.AudioContext&&window.AudioWorkletNode);}
   get active(){return !!this.session;}
-  async start({isPatientPlaying=()=>false,onLimit=()=>{}}={}) {
+  async start({isPatientPlaying=()=>false,onLimit=()=>{},audioStream=null}={}) {
     this.cancel();const generation=this.generation;
-    if(!this.isAvailable())throw new Error('Audio coaching needs HTTPS and a browser with microphone recording support.');
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+    if(!this.isAvailable()){
+      audioStream?.getTracks().forEach(track=>track.stop());
+      throw new Error('Audio coaching needs HTTPS and a browser with microphone recording support.');
+    }
+    // A caller-supplied stream must contain only audio and is owned by this turn.
+    if(audioStream?.getVideoTracks().length){
+      audioStream.getTracks().forEach(track=>track.stop());
+      throw new Error('Video tracks cannot be recorded.');
+    }
+    const stream=audioStream||await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
     if(generation!==this.generation){stream.getTracks().forEach(track=>track.stop());return false;}
     const session={stream,chunks:[],samples:0,overlap:0,context:null,node:null,timer:null,finishing:null,cancelled:false};
     this.session=session;

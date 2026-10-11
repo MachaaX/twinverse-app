@@ -51,4 +51,15 @@ const source=fs.readFileSync(path.join(__dirname,'../frontend/components/VoiceRe
  rejectModule(new Error('Old worklet failed'));
  await assert.rejects(old,/Old worklet failed/);assert.equal(recorder.active,true);recorder.cancel();
  console.log('PASS A late worklet failure cannot cancel a newer recording');
+ let audioStops=0;
+ const audioOnly={getVideoTracks:()=>[],getTracks:()=>[{stop(){audioStops++;}}]};
+ grant=Promise.reject(new Error('Must not acquire another microphone'));
+ // Consume this deliberately rejected permission promise; provided audio skips it.
+ grant.catch(()=>{});
+ await recorder.start({audioStream:audioOnly});node.port.onmessage({data:{pcm:new Float32Array(48000)}});
+ assert.ok(await recorder.stop());assert.equal(audioStops,1);grant=null;
+ const mixed={getVideoTracks:()=>[{}],getTracks:()=>[{stop(){audioStops++;}}]};
+ await assert.rejects(recorder.start({audioStream:mixed}),/Video tracks cannot be recorded/);
+ assert.equal(recorder.active,false);assert.equal(audioStops,2);
+ console.log('PASS Camera audio uses the supplied audio-only stream; recorder rejects video tracks.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

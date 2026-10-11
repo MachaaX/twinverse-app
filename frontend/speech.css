@@ -14,3 +14,7 @@
 .speech-clip p,.speech-clip li {font-size:13px;line-height:1.6;}
 .speech-clip summary {font-size:13px;cursor:pointer;}
 .recording-status {font-size:12px;color:#a32e25;}
+.student-video-preview{position:absolute;top:12px;right:12px;width:var(--camera-preview-size,0px);height:var(--camera-preview-size,0px);object-fit:cover;transform:scaleX(-1);border-radius:12px;border:2px solid #fff;box-shadow:0 3px 12px #153e3526;z-index:4;background:#153e35;pointer-events:none}
+.student-video-preview[hidden]{display:none}
+.camera-status{font-size:12px;color:var(--green);margin-bottom:4px}
+.camera-privacy{margin-bottom:12px}

@@ -3,6 +3,7 @@ import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
 import { voiceInput } from './components/VoiceInput.js';
 import { voiceRecorder } from './components/VoiceRecorder.js';
+import { videoPreview } from './components/VideoPreview.js';
 import { emotionDetector } from './components/EmotionDetector.js';
 import { vitalsPanel } from './components/VitalsPanel.js';
 
@@ -13,6 +14,7 @@ const paths = {
  library:'M3 5h7v14H3z M14 5h7v14h-7z M6 8h1 M17 8h1',
  studio:'M4 20h16 M7 16l-3 1 1-3L16 3l4 4z M13 6l4 4',
  history:'M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2',
+ camera:'M4 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M16 9l6-3v12l-6-3',
  file:'M14 2H5v20h14V7z M14 2v6h5 M8 12h8 M8 16h6',
  arrow:'M5 12h14 M13 6l6 6-6 6',back:'M19 12H5 M11 6l-6 6 6 6',
  plus:'M12 5v14 M5 12h14',search:'M21 21l-6-6 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
@@ -36,7 +38,7 @@ const paths = {
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
 const S = {user:null,csrf:'',googleAvailable:false,developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
 const main = $('#main');
-S.speech=[];S.speechOptIn=false;S.speechMayDelete=false;S.speechError='';S.voiceRun=null;
+S.speech=[];S.speechOptIn=false;S.speechMayDelete=false;S.speechError='';S.voiceRun=null;S.videoMode=false;S.cameraRequest=null;
 let speechTimer;
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
@@ -183,27 +185,31 @@ function vitalsUI(){
     </div>
   `;
 }
-// Input mode UI (chat vs voice)
+// Camera mode shares voice input and optional audio-only coaching.
 function inputModeUI(){
   if(!voiceInput.isAvailable()){
     // Voice not supported, show only chat
     return `
-      <form class="avatar-input-section" id="chat-form" style="display:flex">
+      <div id="encounter-input-modes"><form class="avatar-input-section" id="chat-form" style="display:flex">
         <textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea>
         <button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button>
-      </form>
+      </form></div>
     `;
   }
 
   return `
-    <div class="input-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px;padding:4px;background:#f5f7f2;border-radius:8px;position:relative;z-index:10;">
+    <div id="encounter-input-modes"><div class="input-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px;padding:4px;background:#f5f7f2;border-radius:8px;position:relative;z-index:10;">
       <button type="button" class="mode-btn ${!S.voiceMode?'active':''}" data-action="toggle-input-mode" data-mode="chat" style="flex:1;padding:8px;border:none;border-radius:6px;background:${!S.voiceMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${!S.voiceMode?'600':'400'};pointer-events:auto;">
         ${icon('send')} Chat Mode
       </button>
-      <button type="button" class="mode-btn ${S.voiceMode?'active':''}" data-action="toggle-input-mode" data-mode="voice" style="flex:1;padding:8px;border:none;border-radius:6px;background:${S.voiceMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${S.voiceMode?'600':'400'};pointer-events:auto;">
+      <button type="button" class="mode-btn ${S.voiceMode&&!S.videoMode?'active':''}" data-action="toggle-input-mode" data-mode="voice" style="flex:1;padding:8px;border:none;border-radius:6px;background:${S.voiceMode&&!S.videoMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${S.voiceMode&&!S.videoMode?'600':'400'};pointer-events:auto;">
         ${icon('mic')} Voice Mode
       </button>
+      <button type="button" class="mode-btn ${S.videoMode?'active':''}" data-action="toggle-input-mode" data-mode="video" ${videoPreview.isAvailable()?'':'disabled'} style="flex:1;padding:8px;border:none;border-radius:6px;background:${S.videoMode?'white':'transparent'};cursor:pointer;font-size:12px;font-weight:${S.videoMode?'600':'400'};pointer-events:auto;">
+        ${icon('camera')} Video Mode
+      </button>
     </div>
+    ${S.videoMode?'<p id="camera-status" class="camera-status" role="status">Opening camera and microphone…</p><p class="small muted camera-privacy">Your video stays on this device. Only audio is saved if you opt into delivery coaching below.</p>':''}
     <form class="avatar-input-section" id="chat-form" style="display:${!S.voiceMode?'flex':'none'}">
       <textarea id="question" maxlength="4000" placeholder="Ask your patient a question…" aria-label="Your question" rows="2" required></textarea>
       <button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button>
@@ -218,7 +224,7 @@ function inputModeUI(){
       <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
         ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
       </div>
-    </div>
+    </div></div>
   `;
 }
 
@@ -269,7 +275,7 @@ function closeAccountMenu(){const menu=$('#account-menu'),trigger=$('[data-actio
 function clearWorkspace(){
  clearTimeout(speechTimer);S.speech=[];S.speechOptIn=false;S.speechError='';
  ++S.epoch;S.dirty=false;S.developer=false;S.patients=[];S.encounters=[];S.encounter=null;S.editor=null;S.attachments=[];S.validation=null;S.stars={};S.genBrief=null;S.genRequest=null;S.genCheck=null;S.genStatus=null;S.storageStatus=null;S.sending=false;S.query='';S.filter='all';S.measuredVitals=[];vitalsPanel.reset();
- stopVoiceInput();if(S.avatar){S.avatar.stop();S.avatar.destroy();S.avatar=null;}if('speechSynthesis' in window)window.speechSynthesis.cancel();
+ stopVoiceInput();stopCameraPreview();S.voiceMode=false;if(S.avatar){S.avatar.stop();S.avatar.destroy();S.avatar=null;}if('speechSynthesis' in window)window.speechSynthesis.cancel();
  $('#transcript-dialog')?.close();$('#confirm-dialog')?.close();
 }
 function applySession(session){S.user=session.user||null;S.role=session.role||null;S.csrf=session.csrf_token||'';S.googleAvailable=!!session.google_available;S.developer=!!session.developer;}
@@ -296,7 +302,7 @@ async function googleLogin(intent){
 function heading(kicker,title,desc,action=''){return `<div class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(desc)}</p></div>${action}</div>`;}
 async function route(){
  let target=location.hash.slice(1) || 'cases';const requested=target.split('?')[0];
- stopVoiceInput();clearTimeout(speechTimer);S.avatar?.stop();ttsService.stop?.();
+ stopVoiceInput();stopCameraPreview();clearTimeout(speechTimer);S.avatar?.stop();ttsService.stop?.();
  if(!S.user){S.route=requested==='signup'?'signup':'login';++S.epoch;navigation();main.innerHTML=authView(S.route==='signup');return;}
  if(requested==='login'||requested==='signup'){location.hash='cases';target='cases';}
  if(S.role!=='faculty'&&['studio','generate','metrics','feedback','resources','developer'].includes(target.split('/')[0])){
@@ -416,7 +422,7 @@ async function saveCase(publish=false){
 }
 function encounterView(){const e=S.encounter;const p=e.patient;
  return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}<button class="btn btn-small" data-action="toggle-transcript" id="transcript-toggle">${icon('history')} View transcript</button></div></div>
- <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
+ <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div><video id="student-video" class="student-video-preview" autoplay muted playsinline aria-label="Your camera preview, visible only on your device" hidden></video></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
  ${vitalsUI()}
  <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
  ${speechPanel()}<dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
@@ -469,17 +475,18 @@ setInterval(updateClock,1000);
 // permission or recognition result cannot send audio into another workspace.
 async function startVoiceInput(){
  if(S.sending||S.isListening||!voiceInput.isAvailable())return;
+ if(S.videoMode&&!videoPreview.active){toast('Wait for camera permission before speaking.',true);return;}
  const run={epoch:S.epoch,id:S.encounter.id,user:S.user?.id,text:'',failed:false,started:false};
  S.voiceRun=run;S.isListening=true;updateVoiceUI();
  const current=()=>S.voiceRun===run&&S.epoch===run.epoch&&S.user?.id===run.user&&S.route==='encounter/'+run.id;
  if(S.speechOptIn){
    try{
-     await voiceRecorder.start({isPatientPlaying:()=>!!(S.avatar?.isSpeaking||ttsService.speaking),onLimit:()=>{
+     await voiceRecorder.start({audioStream:S.videoMode?videoPreview.audioForTurn():null,isPatientPlaying:()=>!!(S.avatar?.isSpeaking||ttsService.speaking),onLimit:()=>{
        if(current()){voiceInput.stopListening();toast('Recording reached 90 seconds. Continue with another speaking turn.');}
      }});
    }catch(error){if(current()){stopVoiceInput();toast(error.message,true);}return;}
  }
- if(!current()){voiceRecorder.cancel();return;}
+ if(!current())return;
  run.started=true;updateVoiceUI();
  voiceInput.startListening({
    onStart:()=>{if(current())updateVoiceUI();},
@@ -506,13 +513,34 @@ function stopVoiceInput(){
  const active=S.isListening;
  S.voiceRun=null;voiceInput.stopListening();voiceRecorder.cancel();S.isListening=false;if(active)updateVoiceUI();
 }
+function stopCameraPreview(){S.cameraRequest=null;S.videoMode=false;videoPreview.stop();}
+function refreshInputModes(){const el=$('#encounter-input-modes');if(el)el.outerHTML=inputModeUI();updateVoiceUI();}
+async function setInputMode(mode){
+ if(!['chat','voice','video'].includes(mode)||S.route!=='encounter/'+S.encounter?.id||S.encounter.status!=='active')return;
+ const context=S.avatar?.head?.audioCtx;if(context?.state==='suspended')context.resume().catch(()=>{});
+ stopVoiceInput();stopCameraPreview();S.voiceMode=mode!=='chat';S.videoMode=mode==='video';refreshInputModes();
+ if(!S.videoMode)return;
+ const request={epoch:S.epoch,user:S.user?.id,route:S.route};S.cameraRequest=request;
+ const current=()=>S.cameraRequest===request&&S.videoMode&&S.epoch===request.epoch&&S.user?.id===request.user&&S.route===request.route;
+ const lost=()=>{if(current()){stopVoiceInput();stopCameraPreview();refreshInputModes();toast('Camera or microphone disconnected. Voice and Chat modes are still available.',true);}};
+ try{
+   const ready=await videoPreview.start($('#student-video'),{onEnded:lost});
+   if(!current()||!ready)return;
+   $('#camera-status').textContent='Camera preview on · video is never uploaded or saved';updateVoiceUI();
+ }catch(error){
+   if(!current())return;
+   stopCameraPreview();refreshInputModes();
+   const message=error.name==='NotAllowedError'?'Camera or microphone permission was denied. Allow access in Chrome to use Video mode.':error.name==='NotFoundError'?'No camera or microphone was found. Connect a device to use Video mode.':error.name==='NotReadableError'?'Your camera or microphone is busy. Close other apps and try again.':'Camera preview could not start. Try again or use Voice or Chat mode.';
+   toast(message,true);
+ }
+}
 function toggleVoiceInput(){
  if(S.isListening){if(S.voiceRun?.started)voiceInput.stopListening();else stopVoiceInput();}
  else startVoiceInput();
 }
 function updateVoiceUI(){
  const button=$('[data-action="toggle-voice"]'),status=$('#recording-status');
- if(button){button.classList.toggle('listening',S.isListening);button.style.background=S.isListening?'#e74c3c':'#1e584b';button.innerHTML=icon('mic')+(S.isListening?'Stop listening':'Tap to Speak');button.disabled=S.sending||!!S.voiceRun?.ending;}
+ if(button){button.classList.toggle('listening',S.isListening);button.style.background=S.isListening?'#e74c3c':'#1e584b';button.innerHTML=icon('mic')+(S.isListening?'Stop listening':'Tap to Speak');button.disabled=S.sending||!!S.voiceRun?.ending||(S.videoMode&&!videoPreview.active);}
  if(status)status.textContent=S.isListening?(voiceRecorder.active?'Recording microphone · stop to finish this turn':S.speechOptIn?'Opening microphone…':'Recognizing speech · audio is not stored'):'';
  const consent=$('#speech-consent');if(consent)consent.disabled=S.isListening||S.sending;
 }
@@ -790,33 +818,7 @@ document.addEventListener('click',async event=>{
   if(action==='navigate'){location.hash=id;return;}
   if(action==='close-dialog'){$('#confirm-dialog').close();$('#transcript-dialog')?.close();return;}
   if(action==='toggle-transcript'){$('#transcript-dialog')?.showModal();return;}
-  if(action==='toggle-input-mode'){
-    console.log('[toggle-input-mode] Clicked, mode:', el.dataset.mode);
-    const mode = el.dataset.mode;
-    S.voiceMode = (mode === 'voice');
-
-    // Resume audio context on first user interaction
-    if(S.avatar && S.avatar.head && S.avatar.head.audioCtx){
-      if(S.avatar.head.audioCtx.state === 'suspended'){
-        console.log('[Audio] Resuming AudioContext');
-        S.avatar.head.audioCtx.resume().catch(e => console.warn('[Audio] Resume failed:', e));
-      }
-    }
-
-    if(!S.voiceMode && S.isListening){
-      stopVoiceInput();
-    }
-
-    // Re-render the input UI
-    const inputSection = $('#chat-form')?.parentElement;
-    if(inputSection){
-      const newHTML = inputModeUI();
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = newHTML;
-      inputSection.innerHTML = tempDiv.innerHTML;
-    }
-    return;
-  }
+  if(action==='toggle-input-mode'){await setInputMode(el.dataset.mode);return;}
   if(action==='delete-speech'){
     if(!confirm('Delete this recording? The transcript and measurements will remain saved.'))return;
     await api('/encounters/'+S.encounter.id+'/speech/'+encodeURIComponent(id)+'/audio','DELETE');
@@ -892,7 +894,7 @@ document.addEventListener('click',async event=>{
     return;
   }
   if(action==='finish'){dialog(`<h2>Ready to reflect?</h2><p>Finishing saves this conversation and generates evidence-based observations. You can review the transcript or start a fresh attempt afterward.</p><div class="dialog-actions">${button('Keep practicing','close-dialog','','btn')}${button('Finish & review','confirm-finish',id,'btn-primary','check')}</div>`);return;}
-  if(action==='confirm-finish'){el.disabled=true;S.encounter=await api('/encounters/'+id+'/finish','POST',{});$('#confirm-dialog').close();location.hash='report/'+id;return;}
+  if(action==='confirm-finish'){el.disabled=true;stopVoiceInput();stopCameraPreview();refreshInputModes();S.encounter=await api('/encounters/'+id+'/finish','POST',{});$('#confirm-dialog').close();location.hash='report/'+id;return;}
   if(action==='evidence'){evidence(id);return;}
   if(action==='open-artifact'){const eId=S.encounter.id;const response=await fetch('/api/encounters/'+eId+'/artifacts/'+id);if(!response.ok)throw new Error((await response.json()).error);const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=S.encounter.artifacts.find(x=>x.id===id).name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);S.encounter=await api('/encounters/'+eId);$('#chart-body').innerHTML=chartView();return;}
   if(action==='gen-test'){el.disabled=true;const box=$('#gen-check');box.innerHTML='<div class="loading-state"><span class="spinner"></span>Testing Claude models on Bedrock…</div>';
@@ -988,5 +990,5 @@ window.addEventListener('hashchange',route);
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeAccountMenu();});
 window.addEventListener('beforeunload',event=>{if(S.dirty){event.preventDefault();event.returnValue='';}});
 async function boot(){try{applySession(await api('/session'));if(S.user)S.rubric=await api('/rubric');await route();}catch(err){main.innerHTML=notice(esc(err.message),'error')+button('Try again','auth-retry','','btn-primary');}}
-window.addEventListener('pagehide',()=>{stopVoiceInput();clearTimeout(speechTimer);});
+window.addEventListener('pagehide',()=>{stopVoiceInput();stopCameraPreview();clearTimeout(speechTimer);});
 boot();

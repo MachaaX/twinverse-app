@@ -27,12 +27,14 @@ const vitalsPanel=vm.runInNewContext(fs.readFileSync(path.join(root,'frontend/co
 const emotionDetector={getAvatarReaction:()=>({emotion:'neutral',mood:'neutral',detected:false})};
 const avatarMocks={vitalsPanel,emotionDetector,Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}},voiceInput:{isAvailable:()=>false,startListening(){},stopListening(){}}};
 avatarMocks.voiceRecorder={isAvailable:()=>false,cancel(){},active:false};
+avatarMocks.videoPreview={isAvailable:()=>false,stop(){},active:false};
 const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON,URLSearchParams});
 const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
 vm.runInContext("S.user={id:'faculty-1',name:'Test Faculty',email:'faculty@example.test',role:'faculty'};S.patients=fixture.patients;S.rubric=fixture.rubric;S.encounter=fixture.encounter;",context);
 const run=code=>vm.runInContext(code,context);
 require('./test_voice_recorder.cjs');
+require('./test_video_preview.cjs');
 let count=0;
 function check(name,fn){fn();count++;console.log('PASS',name);}
 check('Eight patient cards render',()=>assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,8));
@@ -121,6 +123,23 @@ check('Recording requires a separate unchecked opt-in',()=>{
  avatarMocks.voiceInput.isAvailable=()=>false;avatarMocks.voiceRecorder.isAvailable=()=>false;
 });
 console.log(`${count} frontend render checks passed.`);
+
+(async()=>{
+ let resolveOld,cancels=0,starts=0,recognitions=0;
+ const pending=new Promise(r=>resolveOld=r);
+ const ui={style:{},classList:{toggle(){}},addEventListener(){}};
+ const sandbox=vm.createContext({...avatarMocks,
+  voiceInput:{isAvailable:()=>true,stopListening(){},startListening(){recognitions++;}},
+  voiceRecorder:{start:()=>++starts===1?pending:Promise.resolve(true),cancel(){cancels++;},active:true},
+  document:{querySelector:()=>ui,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},
+  location:{hash:'#encounter/test'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON,URLSearchParams});
+ vm.runInContext(source,sandbox);vm.runInContext("S.user={id:'s'};S.encounter={id:'test',status:'active'};S.route='encounter/test';S.speechOptIn=true;",sandbox);
+ const older=vm.runInContext('startVoiceInput()',sandbox);
+ vm.runInContext('stopVoiceInput()',sandbox);await vm.runInContext('startVoiceInput()',sandbox);
+ const before=cancels;resolveOld(false);await older;
+ assert.equal(cancels,before);assert.equal(recognitions,1);assert.equal(vm.runInContext('S.isListening',sandbox),true);
+ console.log('PASS A stale microphone setup cannot cancel a newer Voice/Video speaking turn.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
 
 (async()=>{
  let releaseReaction,requests=0;

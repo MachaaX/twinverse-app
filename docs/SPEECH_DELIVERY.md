@@ -2,6 +2,28 @@
 
 In an encounter, select **Voice** and check **Record my speaking turns for delivery coaching** before speaking. Stop listening to end a turn; the browser also ends a turn when speech recognition finishes. Each clip is capped at 90 seconds. Longer encounters use multiple clips. Recording is off by default and resets for another encounter or account. Navigation, logout and recognition errors discard the current unsent clip and release the microphone.
 
+## Video mode
+
+Select **Video Mode** during an active encounter and allow camera and microphone
+access in Chrome. A muted, mirrored camera preview appears at the upper right of
+the patient animation frame. It is square with rounded corners and uses at most
+1/16 (6.25%) of that frame's area, including after resizing.
+
+Camera frames stay in a live browser preview: no video recording, snapshots,
+uploads, storage, or visual analysis. The browser separates the microphone
+tracks using [`getAudioTracks()`](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/getAudioTracks).
+If the student checks the existing audio-coaching consent box, each speaking
+turn records an audio-only clone as a PCM WAV through the same S3/PostgreSQL
+pipeline and seven-day retention rules described below. The preview remains
+active between turns; switching to Voice/Chat, leaving the encounter, finishing,
+logging out, or closing the page stops its camera and microphone tracks. Reopening
+an encounter requires selecting Video Mode again. Denied permission, missing
+devices, or disconnection leave Voice and Chat modes available.
+
+Video mode adds no emotion or empathy inference from voice or appearance. Audio
+coaching uses the objective delivery measurements below; communication and empathy
+feedback still comes from transcript evidence and faculty review.
+
 The encounter and feedback pages show estimated words per minute, quiet gaps of at least 0.5 seconds, recording length, peak level/clipping and approximate microphone overlap with patient playback. Students can replay their recordings and delete them early. Faculty can review students' recordings but cannot delete or replace them. Audio results are available as personal coaching before official feedback is released.
 
 These are measurements for reflection, not emotion, empathy or personality classifications. There are no audio-derived labels such as “rude” or “empathetic”, and no additional score. Existing transcript-based rubric suggestions and faculty review/release are unchanged. Pace uses browser-recognized words divided by an energy-based span; quiet gaps can include pauses, noise suppression or microphone artifacts. Playback overlap is browser timing, not proof of interruption. No normative pace or volume threshold is used to grade students.

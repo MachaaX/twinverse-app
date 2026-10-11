@@ -235,4 +235,4 @@
 }
 
 /* Logo palette: maroon headings, red brand name, navy text, light-blue surfaces. */
-h1,h2,.page-heading h1{color:var(--green)}.brand>span{color:var(--brand-red)}.brand .brand-tagline,.brand .brand-tagline span{color:var(--navy)}
+h1,h2,.page-heading h1{color:var(--green)}.brand>span{color:var(--green)}.brand .brand-tagline,.brand .brand-tagline span{color:var(--navy)}

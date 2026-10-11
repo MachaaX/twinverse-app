@@ -666,12 +666,14 @@ async function sendQuestion(capture=null){
        catch(avatarErr){
          console.error('Avatar speech error:',avatarErr);
          if(ttsService.isAvailable()){
-           ttsService.setLanguage(S.detectedLanguage);
+           const patientGender=S.encounter?.patient?.gender;
+           ttsService.setLanguage(S.detectedLanguage,patientGender);
            await ttsService.speak(last.text,{},last.emotion||'neutral');
          }
        }
      }else if(ttsService.isAvailable()){
-       ttsService.setLanguage(S.detectedLanguage);
+       const patientGender=S.encounter?.patient?.gender;
+       ttsService.setLanguage(S.detectedLanguage,patientGender);
        await ttsService.speak(last.text,{},last.emotion||'neutral');
      }
    }

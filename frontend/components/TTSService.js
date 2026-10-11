@@ -10,6 +10,7 @@ class TTSService {
     this.speaking = false;
     this.currentUtterance = null;
     this.currentLanguage = 'en';
+    this.preferredGender = null;
 
     // Initialize voices
     this.voices = [];
@@ -27,9 +28,9 @@ class TTSService {
   }
 
   /**
-   * Select appropriate voice for language
+   * Select appropriate voice for language and gender
    */
-  selectVoiceForLanguage(language) {
+  selectVoiceForLanguage(language, gender = null) {
     // Map language codes to browser voice language prefixes
     const langMap = {
       'en': 'en',
@@ -41,28 +42,78 @@ class TTSService {
     };
 
     const langPrefix = langMap[language] || 'en';
+    const normalizedGender = gender ? String(gender).toLowerCase().trim() : this.preferredGender;
 
-    // Prefer natural-sounding voices for the language
-    const preferred = this.voices.find(v =>
-      v.lang.startsWith(langPrefix) && (
+    // Filter voices by language
+    const langVoices = this.voices.filter(v => v.lang.startsWith(langPrefix));
+
+    if (langVoices.length === 0) {
+      this.voice = this.voices[0];
+      console.log('[TTSService] No voices found for language, using default:', this.voice?.name);
+      return;
+    }
+
+    let selectedVoice = null;
+
+    // Try to match gender if specified
+    if (normalizedGender) {
+      // Gender hints in voice names (common patterns)
+      const isMaleVoice = (v) => {
+        const name = v.name.toLowerCase();
+        return name.includes('male') || name.includes('man') ||
+               ['david', 'daniel', 'jorge', 'thomas', 'james', 'paul', 'mark', 'diego', 'carlos', 'juan'].some(n => name.includes(n));
+      };
+
+      const isFemaleVoice = (v) => {
+        const name = v.name.toLowerCase();
+        return name.includes('female') || name.includes('woman') ||
+               ['samantha', 'victoria', 'kate', 'karen', 'monica', 'paulina', 'susan', 'alice', 'fiona'].some(n => name.includes(n));
+      };
+
+      if (normalizedGender === 'male') {
+        // Prefer male voices
+        selectedVoice = langVoices.find(v => isMaleVoice(v)) ||
+                       langVoices.find(v => !isFemaleVoice(v)) ||
+                       langVoices[0];
+      } else {
+        // Prefer female voices
+        selectedVoice = langVoices.find(v => isFemaleVoice(v)) ||
+                       langVoices.find(v => !isMaleVoice(v)) ||
+                       langVoices[0];
+      }
+    }
+
+    // If no gender match or no gender specified, prefer natural-sounding voices
+    if (!selectedVoice) {
+      selectedVoice = langVoices.find(v =>
         v.name.includes('Natural') ||
         v.name.includes('Enhanced') ||
         v.name.includes('Premium')
-      )
-    );
+      ) || langVoices[0];
+    }
 
-    // Fallback to any voice in that language
-    this.voice = preferred || this.voices.find(v => v.lang.startsWith(langPrefix)) || this.voices[0];
+    this.voice = selectedVoice;
 
-    console.log('[TTSService] Selected voice:', this.voice?.name, 'for language:', language);
+    console.log('[TTSService] Selected voice:', this.voice?.name, 'for language:', language, 'gender:', normalizedGender);
   }
 
   /**
    * Set language for speech synthesis
    */
-  setLanguage(language) {
+  setLanguage(language, gender = null) {
     this.currentLanguage = language;
-    this.selectVoiceForLanguage(language);
+    if (gender) {
+      this.preferredGender = String(gender).toLowerCase().trim();
+    }
+    this.selectVoiceForLanguage(language, gender || this.preferredGender);
+  }
+
+  /**
+   * Set preferred gender for voice selection
+   */
+  setGender(gender) {
+    this.preferredGender = String(gender || '').toLowerCase().trim();
+    this.selectVoiceForLanguage(this.currentLanguage, this.preferredGender);
   }
 
   /**

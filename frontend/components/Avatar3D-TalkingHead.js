@@ -62,8 +62,10 @@ export class Avatar3D {
       name: this.config.name,
       gender: this.config.gender,
       patientId: this.config.patientId,
-      modelPath: modelPath
+      modelPath: modelPath,
+      language: this.config.language
     });
+    console.log('[Avatar3D] ⚠️ Gender value type:', typeof this.config.gender, 'Value:', JSON.stringify(this.config.gender));
 
     try {
       // Load TalkingHead library (local copy for CSP compliance)
@@ -189,8 +191,15 @@ export class Avatar3D {
       }
     };
 
-    const genderKey = (gender || '').toLowerCase() === 'male' ? 'male' : 'female';
-    return voiceMap[language]?.[genderKey] || voiceMap['en'][genderKey];
+    // Normalize gender to lowercase and handle variations
+    const normalizedGender = String(gender || '').toLowerCase().trim();
+    const genderKey = normalizedGender === 'male' ? 'male' : 'female';
+
+    const selectedVoice = voiceMap[language]?.[genderKey] || voiceMap['en'][genderKey];
+
+    console.log('[Avatar3D] Voice selection - Language:', language, 'Gender:', gender, 'Normalized:', normalizedGender, 'Key:', genderKey, 'Voice:', selectedVoice);
+
+    return selectedVoice;
   }
 
   /**
@@ -206,6 +215,7 @@ export class Avatar3D {
     if (!this.isInitialized || !this.head) {
       console.warn('[Avatar3D] Not initialized, falling back to TTS only');
       if (ttsService.isAvailable()) {
+        ttsService.setLanguage(speakLanguage, this.config.gender);
         await ttsService.speak(text, {}, emotion);
       }
       return;
@@ -240,8 +250,9 @@ export class Avatar3D {
 
       // Select voice based on language and gender
       const gender = this.config.gender;
+      console.log('[Avatar3D] ⚠️ About to select voice - Gender from config:', JSON.stringify(gender), 'Type:', typeof gender);
       const voice = this.getVoiceForLanguage(speakLanguage, gender);
-      console.log('[Avatar3D] Using voice:', voice, 'for language:', speakLanguage, 'and gender:', gender);
+      console.log('[Avatar3D] ✓ Final voice selection - Voice:', voice, 'Language:', speakLanguage, 'Gender:', gender);
 
       const response = await fetch('/api/tts', {
         method: 'POST',
@@ -321,8 +332,8 @@ export class Avatar3D {
     if (!ttsService.isAvailable()) return;
     const rate = { empathetic: 0.9, concerned: 0.85, cheerful: 1.1 }[emotion] || 1.0;
 
-    // Set voice language for browser TTS
-    ttsService.setLanguage(language);
+    // Set voice language and gender for browser TTS
+    ttsService.setLanguage(language, this.config.gender);
     const tokens = [...text.matchAll(/\S+/g)].map(m => ({ word: m[0], index: m.index }));
     const syllables = w => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, '').match(/[aeiouy]+/g) || []).length);
     const pause = w => /[.!?]["')\]]*$/.test(w) ? 380 : /[,;:]["')\]]*$/.test(w) ? 180 : 0;

@@ -23,7 +23,14 @@ const paths = {
  sound:'M11 5L6 9H3v6h3l5 4z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14',
  mic:'M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8',
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
- flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'
+ flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+ heart:'M20.8 5.6a5.5 5.5 0 0 0-7.8 0l-1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1 7.8 7.8 7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z',
+ activity:'M22 12h-4l-3 9L9 3l-3 9H2',
+ thermometer:'M14 15V5a2 2 0 1 0-4 0v10a4 4 0 1 0 4 0z',
+ wind:'M9.6 10H4 M14 18H4 M20 6H4 M17 10a3 3 0 1 1 0 6',
+ droplet:'M12 2.7c-1.8 2.3-5 6.5-5 9.3a5 5 0 1 0 10 0c0-2.8-3.2-7-5-9.3z',
+ scale:'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
+ lock:'M19 11h-1V7a6 6 0 0 0-12 0v4H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M8 11V7a4 4 0 0 1 8 0v4'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
 const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
@@ -134,10 +141,10 @@ function vitalsUI(){
   return `
     <div class="vitals-panel">
       <div class="vitals-header">
-        <span class="vitals-icon">🩺</span>
-        <h4>Vital Signs</h4>
+        ${icon('activity')}
+        <span>Vitals</span>
       </div>
-      <div class="vitals-grid">
+      <div class="vitals-list">
         ${vitals.map(key => {
           const status = vitalsPanel.getVitalStatus(key);
           const vital = vitalsPanel.vitals[key];
@@ -147,16 +154,18 @@ function vitalsUI(){
           return `
             <button
               type="button"
-              class="vital-btn ${isLocked ? 'locked' : ''} ${isMeasured ? 'measured' : ''}"
+              class="vital-item ${isLocked ? 'locked' : ''} ${isMeasured ? 'measured' : ''}"
               data-action="measure-vital"
               data-vital="${key}"
               ${isLocked ? 'disabled' : ''}
-              title="${isLocked ? 'Ask patient relevant questions to unlock' : vital.name}"
+              title="${isLocked ? 'Ask about ' + vital.fullName.toLowerCase() + ' to unlock' : vital.fullName}"
             >
-              <span class="vital-icon">${vital.icon}</span>
-              <span class="vital-name">${vital.name}</span>
-              ${isLocked ? '<span class="lock-icon">🔒</span>' : ''}
-              ${isMeasured ? `<span class="vital-value">${status.value} ${status.unit}</span>` : ''}
+              <div class="vital-left">
+                ${icon(vital.icon)}
+                <span class="vital-label">${vital.name}</span>
+              </div>
+              ${isLocked ? `<span class="vital-lock">${icon('lock')}</span>` : ''}
+              ${isMeasured ? `<span class="vital-value">${status.value}<small>${status.unit}</small></span>` : `<span class="vital-measure">${icon('plus')}</span>`}
             </button>
           `;
         }).join('')}
@@ -261,7 +270,11 @@ async function route(){
      if(S.role!=='faculty')throw new Error('Sign in to the Faculty view to see ratings and reports.');
      const [rep,sum]=await Promise.all([api('/reports'),api('/ratings/summary')]);view=feedbackView(rep.reports,sum);
    }else if(page==='encounter'||page==='report'){
-     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));view=page==='report'?reportView():encounterView();
+     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));
+     // Reset vitals panel for new encounter
+     vitalsPanel.reset();
+     S.measuredVitals = [];
+     view=page==='report'?reportView():encounterView();
    }else if(page==='reviews'){S.encounters=(await api('/encounters')).encounters;view=historyView();}
    else if(page==='rubric'){view=rubricView();}
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
@@ -350,17 +363,39 @@ function chartView(){const e=S.encounter;
    const list=e.findings||[];
    const measured = vitalsPanel.getMeasuredVitals();
    let html = '';
+
+   // Show measured vitals
    if(measured.length > 0){
-     html += `<div class="vitals-measured-section"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 12px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item"><span class="vital-icon">${v.icon}</span><div class="vital-info"><strong>${v.name}</strong><span class="vital-measured-value">${v.value} ${v.unit}</span></div></li>`).join('')}</ul></div>`;
+     html += `<div class="vitals-measured-section"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
    }
+
+   // Show clinical findings
    if(list.length > 0){
-     html += `<div style="margin-top:${measured.length > 0 ? '24px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 12px 0;letter-spacing:0.5px">Clinical Findings</h4><ul class="findings-list">${list.map(f=>`<li class="finding">${icon('info')}<div><strong>${esc(f.text)}</strong><p>Added ${date(f.at)}${f.source?` · Source: ${esc(f.source)}`:''}</p></div></li>`).join('')}</ul></div>`;
+     html += `<div style="margin-top:${measured.length > 0 ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Clinical Findings</h4><ul class="findings-list">${list.map(f=>`<li class="finding">${icon('info')}<div><strong>${esc(f.text)}</strong><p>Added ${date(f.at)}${f.source?` · Source: ${esc(f.source)}`:''}</p></div></li>`).join('')}</ul></div>`;
    }
-   return html || `<div class="empty-state" style="padding:40px 20px;text-align:center;color:var(--muted)">${icon('file')}<h3 style="color:var(--ink);margin:15px 0 8px;font-size:15px">No findings yet</h3><p style="font-size:11px">As you converse with the patient, new findings will appear here.</p></div>`;
+
+   // Show baseline patient records (always)
+   const hasContent = measured.length > 0 || list.length > 0;
+   html += `<div style="margin-top:${hasContent ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Patient Information</h4>${e.records.map(f=>`<article class="record-card" style="padding:12px 0;border-bottom:1px solid var(--line)"><h3 style="font-size:12px;font-weight:600;margin-bottom:6px">${esc(f.label)}</h3><p style="font-size:11px;color:#637360;line-height:1.7;white-space:pre-line">${esc(f.record)}</p><div style="font-size:9px;color:#899681;margin-top:7px;display:flex;align-items:center;gap:5px">${icon('shield')} ${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}</div>`;
+
+   return html;
  }
  if(S.chartTab==='documents')return e.artifacts.length?e.artifacts.map(a=>`<div class="attachment-row">${icon('file')}<div><strong>${esc(a.name)}</strong><small>Released clinical artifact · ${(a.size/1024).toFixed(0)} KB</small></div><button class="btn btn-small" data-action="open-artifact" data-id="${a.id}">${icon('down')}Open</button></div>`).join('')+`<p class="chart-note">Opening a document is logged separately from its release.</p>`:`<div class="empty-state">${icon('file')}<h3>No documents available yet</h3><p>Attached clinical artifacts appear when their release rules are met. The original sample includes narrative notes, not individual patient lab PDFs.</p></div>`;
  if(S.chartTab==='timeline')return e.events.map(v=>{const f=e.records.find(f=>f.id===v.fact_id);const labels={encounter_started:'Encounter started',fact_available:'Baseline information available',student_turn:'Question recorded',fact_disclosed:'Clinical information disclosed',artifact_released:'Document released',artifact_opened:'Document opened',encounter_finished:'Encounter completed',assessment_created:'Observations generated',faculty_review_saved:'Faculty review saved',guardrail_blocked:'Approved wording used instead of an AI reply',rating_saved:'Rating saved',feedback_released:'Score released to student'};return `<div class="timeline-item"><div><strong>${esc(labels[v.type]||v.type)}</strong>${f?`<div>${esc(f.label)}</div>`:''}<small>${date(v.timestamp)}${v.turn_id?' · '+esc(v.turn_id):''}</small></div></div>`;}).join('');
- return `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ // Default view - show baseline patient records AND measured vitals
+ const measured = vitalsPanel.getMeasuredVitals();
+ let html = `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>`;
+
+ // Show measured vitals in default view
+ if(measured.length > 0){
+   html += `<div class="vitals-measured-section" style="margin-bottom:20px"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
+ }
+
+ // Show baseline medical records
+ html += `${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ return html;
 }
 function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
@@ -710,7 +745,39 @@ document.addEventListener('click',async event=>{
   if(action==='measure-vital'){
     const vitalKey = el.dataset.vital;
     console.log('[Vitals] Measuring:', vitalKey);
-    const result = vitalsPanel.measureVital(vitalKey, { anxious: false, fever: false });
+
+    // Build patient context from actual case data
+    const patient = S.encounter.patient;
+    const records = S.encounter.records || [];
+    const allText = records.map(r => (r.label + ' ' + r.record).toLowerCase()).join(' ');
+    const messages = S.encounter.messages || [];
+    const conversationText = messages.map(m => m.text.toLowerCase()).join(' ');
+    const fullText = allText + ' ' + conversationText;
+
+    // Parse patient conditions from case data and conversation
+    const patientContext = {
+      id: patient.id,
+      age: patient.age,
+      gender: patient.gender,
+      // Detect conditions from chief complaint and medical history
+      chestPain: /chest pain|chest discomfort|cardiac|angina/i.test(fullText),
+      cardiac: /heart|cardiac|coronary|myocardial/i.test(fullText),
+      anxious: /anxious|anxiety|panic|worried|nervous/i.test(fullText),
+      panic: /panic attack|panic disorder/i.test(fullText),
+      fever: /fever|febrile|temperature|hot|chills/i.test(fullText),
+      infection: /infection|infected|sepsis/i.test(fullText),
+      pain: /pain|ache|hurt|discomfort/i.test(fullText),
+      shortnessOfBreath: /shortness of breath|dyspnea|difficulty breathing|can't breathe|short of breath/i.test(fullText),
+      respiratory: /respiratory|lung|pulmonary|breathing/i.test(fullText),
+      asthma: /asthma|wheezing|wheeze/i.test(fullText),
+      copd: /copd|emphysema|chronic bronchitis/i.test(fullText),
+      hypertension: /hypertension|high blood pressure|htn/i.test(fullText),
+      headache: /headache|head pain|migraine/i.test(fullText)
+    };
+
+    console.log('[Vitals] Patient context:', patientContext);
+
+    const result = vitalsPanel.measureVital(vitalKey, patientContext);
     if(result){
       S.measuredVitals.push(result);
       el.classList.add('measuring');
@@ -721,7 +788,7 @@ document.addEventListener('click',async event=>{
         if(vitalsContainer) vitalsContainer.outerHTML = vitalsUI();
         const chartBody = $('#chart-body');
         if(chartBody) chartBody.innerHTML = chartView();
-        toast(`${result.name} measured: ${result.value} ${result.unit}`);
+        toast(`${result.fullName} measured: ${result.value} ${result.unit}`);
       }, 1500);
     }
     return;

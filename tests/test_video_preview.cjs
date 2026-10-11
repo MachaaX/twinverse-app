@@ -24,14 +24,18 @@ const source=fs.readFileSync(path.join(__dirname,'../frontend/components/VideoPr
  assert.ok(await preview.start(video));assert.ok(constraints.video&&constraints.audio);
  assert.equal(video.srcObject.getAudioTracks().length,0);assert.equal(video.srcObject.getVideoTracks().length,1);
  for(const bounds of [{width:600,height:500},{width:200,height:200},{width:1500,height:350},{width:120,height:600}]){
-  dimensions=bounds;observer.fn();assert.ok(video.style.size**2/(bounds.width*bounds.height)<=1/16);
+  dimensions=bounds;observer.fn();assert.ok(video.style.size**2/(bounds.width*bounds.height)<=.08);
+  assert.ok(video.style.size<=Math.min(bounds.width,bounds.height)-24);
+  if(Math.sqrt(bounds.width*bounds.height*.08)<=Math.min(bounds.width,bounds.height)-24){
+   assert.ok(video.style.size>=Math.sqrt(bounds.width*bounds.height*.08)-1);
+  }
  }
  const audio=preview.audioForTurn();assert.equal(audio.getVideoTracks().length,0);
  assert.notEqual(audio.getAudioTracks()[0],stream.getAudioTracks()[0]);audio.getTracks().forEach(t=>t.stop());
  assert.equal(stream.getAudioTracks()[0].readyState,'live');assert.equal(stream.getVideoTracks()[0].readyState,'live');
  preview.stop();assert.equal(video.srcObject,null);assert.equal(video.hidden,true);assert.equal(preview.active,false);
  assert.ok(observer.disconnected);assert.ok(stream.getTracks().every(t=>t.readyState==='ended'));
- console.log('PASS Camera preview stays video-only, audio clones stay audio-only, size <=1/16, all owned tracks stop.');
+ console.log('PASS Camera preview stays video-only, audio clones stay audio-only, size targets 8% within frame bounds, all owned tracks stop.');
  let resolve;grant=new Promise(r=>resolve=r);const pending=preview.start(video);preview.stop();stream=fresh();resolve(stream);
  assert.equal(await pending,false);assert.ok(stream.getTracks().every(t=>t.readyState==='ended'));grant=null;
  console.log('PASS Late camera permission cannot reactivate capture after navigation.');

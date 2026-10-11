@@ -18,9 +18,9 @@ export class VideoPreview {
       const frame=video.parentElement;
       const resize=()=>{
         const {width,height}=frame.getBoundingClientRect();
-        // A square <= a quarter of either dimension is <= 1/16 frame area.
-        const size=Math.max(0,Math.floor(Math.min(width,height)*.25));
-        video.style.setProperty('--camera-preview-size',Math.min(160,size)+'px');
+        // Size the square from frame area; retain the 12px inset on narrow frames.
+        const size=Math.max(0,Math.floor(Math.min(Math.sqrt(width*height*.08),width-24,height-24)));
+        video.style.setProperty('--camera-preview-size',size+'px');
       };
       resize();
       session.observer=new ResizeObserver(resize);session.observer.observe(frame);

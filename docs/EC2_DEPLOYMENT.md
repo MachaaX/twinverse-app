@@ -1,6 +1,6 @@
 # EC2 hosting and continuous deployment
 
-- **Website:** `https://44.246.200.136`.
+- **Website:** `https://patientzero.me` (the old `https://44.246.200.136` redirects here).
 - **Server:** `i-068fa2275326642f9` (`twinverse`), Ubuntu 24.04, `us-west-2`.
 - **GitHub source:** [MachaaX/twinverse-app](https://github.com/MachaaX/twinverse-app), branch `main`.
 - **Flow:** push to `main` → GitHub Actions runs backend/frontend checks → EC2
@@ -35,7 +35,7 @@
   After **TwinVerse CI** succeeds, allow roughly two minutes plus dependency
   installation time for deployment. Production also repeats the tests before
   activating the release.
-- Check `https://44.246.200.136/api/health`: its `release` field contains the
+- Check `https://patientzero.me/api/health`: its `release` field contains the
   deployed commit SHA. Refresh the website after that SHA matches your commit.
   Account login survives restarts; the separate developer unlock needs a new password entry.
 
@@ -133,14 +133,16 @@
   HTTP redirects to HTTPS; the backend validates the configured public origin
   and uses secure session cookies. Secrets/configuration are never served as
   static files.
-- A trusted Let's Encrypt IP-address certificate is renewed automatically by
+- Trusted Let's Encrypt certificates cover `patientzero.me`, `www.patientzero.me`,
+  and the legacy IP redirect. They are renewed automatically by
   `twinverse-certbot.timer`, with an Nginx reload after successful renewal.
-  IP certificates are short-lived; renewal checks run twice daily.
+  The legacy IP certificate is short-lived; renewal checks run twice daily.
   [Let's Encrypt IP certificate setup](https://letsencrypt.org/2026/03/11/shorter-certs-certbot.html)
 - The current public IP can change if the instance is stopped/started unless
-  the account owner associates a stable address. If it changes, update
-  `TWINVERSE_PUBLIC_ORIGIN`, rerun the installer with the new IP, and use the
-  new HTTPS address. No extra AWS instance/address was provisioned by this setup.
+  the account owner associates a stable address. If it changes, update the domain's
+  A record and the legacy IP redirect/certificate. The public origin and Google
+  callback remain on the domain. No extra AWS instance/address was provisioned
+  by this setup. See the [domain setup walkthrough](DOMAIN_SETUP.md).
 - Changes to the deployment controller, systemd units, or Nginx/HTTPS setup need
   an installer update on EC2; ordinary app changes deploy automatically.
 

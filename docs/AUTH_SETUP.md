@@ -59,8 +59,8 @@
 ## Google on EC2
 
 - The supplied Google credentials are saved in `/etc/twinverse/app.env` with root-only permissions.
-- You chose local Google sign-in for now. Email/password accounts work with the EC2 HTTPS IP address once this uncommitted feature is deployed. Google sign-in remains disabled there until you have a domain: [Google rejects public IP redirect hosts](https://developers.google.com/identity/protocols/oauth2/web-server#redirect-uri-validation-rules).
-- Later, point your domain at EC2, configure HTTPS and `TWINVERSE_PUBLIC_ORIGIN=https://YOUR_DOMAIN`, register `https://YOUR_DOMAIN/api/auth/google/callback` in the Google client, and set `TWINVERSE_GOOGLE_REDIRECT_URI` to exactly that URL in `/etc/twinverse/app.env`. Restart `twinverse` after changing its environment.
+- The public app is now `https://patientzero.me`. EC2 has trusted HTTPS and sets `TWINVERSE_PUBLIC_ORIGIN=https://patientzero.me` and `TWINVERSE_GOOGLE_REDIRECT_URI=https://patientzero.me/api/auth/google/callback`. The old IP and `www` redirect to this canonical address.
+- The Google Web application client now registers exactly `https://patientzero.me/api/auth/google/callback`, preserving the local callback. Google sign-in is enabled by the app, and an anonymous browser reaches Google's sign-in page without callback or client errors. Completing registration or login requires your interactive Google sign-in. Follow the [domain and Google setup walkthrough](DOMAIN_SETUP.md). Existing accounts remain in PostgreSQL; sign in again on the new domain because IP-address cookies do not transfer.
 
 ## Verification
 

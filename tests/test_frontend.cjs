@@ -26,11 +26,13 @@ const node={innerHTML:'',addEventListener(){},classList:{},hidden:false};
 const vitalsPanel=vm.runInNewContext(fs.readFileSync(path.join(root,'frontend/components/VitalsPanel.js'),'utf8').replace(/^export /gm,'')+'\nvitalsPanel;', {console});
 const emotionDetector={getAvatarReaction:()=>({emotion:'neutral',mood:'neutral',detected:false})};
 const avatarMocks={vitalsPanel,emotionDetector,Avatar3D:class{speak(){}stop(){}destroy(){}},ttsService:{isAvailable:()=>false,speak:async()=>{}},voiceInput:{isAvailable:()=>false,startListening(){},stopListening(){}}};
+avatarMocks.voiceRecorder={isAvailable:()=>false,cancel(){},active:false};
 const context=vm.createContext({...avatarMocks,fixture,document:{querySelector:()=>node,querySelectorAll:()=>[],addEventListener(){}},window:{addEventListener(){}},location:{hash:'#cases'},setInterval(){},setTimeout(){},clearTimeout(){},console,structuredClone,Date,Set,JSON,URLSearchParams});
 const source=fs.readFileSync(path.join(root,'frontend/app.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/\nboot\(\);\s*$/,'');
 vm.runInContext(source,context);
 vm.runInContext("S.user={id:'faculty-1',name:'Test Faculty',email:'faculty@example.test',role:'faculty'};S.patients=fixture.patients;S.rubric=fixture.rubric;S.encounter=fixture.encounter;",context);
 const run=code=>vm.runInContext(code,context);
+require('./test_voice_recorder.cjs');
 let count=0;
 function check(name,fn){fn();count++;console.log('PASS',name);}
 check('Eight patient cards render',()=>assert.equal((run('patientCards()').match(/class="patient-card"/g)||[]).length,8));
@@ -100,6 +102,24 @@ check('Anonymous users have no workspace navigation or report button',()=>{
  run("S.user={id:'faculty-1',name:'Test Faculty',email:'faculty@example.test'};");
 });
 
+check('Optional audio feedback stays separate from the rubric and escapes evidence',()=>{
+ run(`S.speechMayDelete=true;S.speech=[{id:'clip',turn_id:'t1',status:'ready',audio_available:true,audio_deleted:false,expires_at:4102444800,measurements:{duration_seconds:6,estimated_words_per_minute:144,quiet_gaps:[{start_seconds:2.5,duration_seconds:1}],patient_playback_overlap_seconds:0,word_count:12,speech_span_seconds:5,peak_dbfs:-12,clipped_sample_percent:0,observations:['<img src=x onerror=alert(1)>'],limitations:'Approximate measurements only.'}}];`);
+ let html=run('speechPanel()');assert.ok(html.includes('144 words/min'));assert.ok(html.includes('preload="none"'));
+ assert.ok(html.includes('/api/encounters/test/speech/clip/audio'));assert.ok(html.includes('data-action="delete-speech"'));
+ assert.ok(html.includes('&lt;img'));assert.ok(!html.includes('<img src=x'));
+ run("S.role='student';S.encounter=fixture.student_pending;");
+ html=run('reportView()');assert.ok(html.includes('Speech delivery coaching'));assert.ok(html.includes('Submitted for faculty review'));
+ assert.ok(!html.includes('score-number'));assert.ok(!html.includes('data-key="score"'));
+ run("S.speechMayDelete=false;");assert.ok(!run('speechPanel()').includes('data-action="delete-speech"'));
+ run("S.speech=[];S.role='faculty';S.encounter=fixture.encounter;");
+});
+check('Recording requires a separate unchecked opt-in',()=>{
+ avatarMocks.voiceInput.isAvailable=()=>true;avatarMocks.voiceRecorder.isAvailable=()=>true;
+ run("S.speechMayDelete=true;S.speechOptIn=false;");
+ const html=run('inputModeUI()');assert.ok(html.includes('id="speech-consent"'));
+ assert.ok(!/id="speech-consent"[^>]*checked/.test(html));assert.ok(html.includes('7 days'));
+ avatarMocks.voiceInput.isAvailable=()=>false;avatarMocks.voiceRecorder.isAvailable=()=>false;
+});
 console.log(`${count} frontend render checks passed.`);
 
 (async()=>{

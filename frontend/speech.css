@@ -1,0 +1,16 @@
+.speech-consent {display:block;font-size:13px;line-height:1.5;text-align:left;max-width:560px;}
+.speech-consent input {width:auto;margin-right:8px;}
+.speech-consent small {display:block;margin:4px 0 0 25px;color:var(--muted);}
+.speech-panel {margin-top:24px;}
+.speech-panel .panel-content {padding:20px 24px;}
+.speech-panel h3 {font-size:15px;margin:0 0 12px;}
+.speech-clip {border-top:1px solid var(--line);padding:18px 0;}
+.speech-clip:last-child {padding-bottom:0;}
+.speech-values {display:flex;flex-wrap:wrap;gap:16px;margin:12px 0;}
+.speech-values div {flex:1;min-width:130px;}
+.speech-values dt {font-size:12px;color:var(--muted);}
+.speech-values dd {margin:3px 0;font-weight:600;}
+.speech-clip audio {display:block;max-width:100%;margin:12px 0;}
+.speech-clip p,.speech-clip li {font-size:13px;line-height:1.6;}
+.speech-clip summary {font-size:13px;cursor:pointer;}
+.recording-status {font-size:12px;color:#a32e25;}

@@ -28,6 +28,7 @@ from .engine import reply, assess, apply_review, release_feedback, includes, is_
 from . import generator, dialogue
 from .cloud_storage import CloudStorage, CloudStorageError
 from .auth import AuthStore, AuthError, GoogleLogin, SESSION_SECONDS, csrf_token
+from .speech import SpeechStore, SpeechError, decode_audio
 
 RUBRIC=json.loads((ROOT/'data/rubric.json').read_text())
 FRONTEND=ROOT/'frontend'
@@ -157,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Referrer-Policy','same-origin')
-        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         if getattr(self,'new_token',None):
             secure='; Secure' if self.server.public_origin.startswith('https://') else ''
             policy=f'SameSite=Lax; Max-Age={SESSION_SECONDS}' if self.server.auth else 'SameSite=Strict'
@@ -206,6 +207,8 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path_only.startswith('/api/auth/') or self.path_only=='/api/session':
                     return self.account_route(method,body)
                 if not self.user:raise APIError(401,'Sign in to access your workspace.')
+            speech=re.fullmatch(r'/api/encounters/([^/]+)/speech(?:/([^/]+)/audio)?',self.path_only)
+            if speech:return self.speech_route(method,body,*speech.groups())
             if method=='POST' and self.path_only in ('/api/generator/generate','/api/generator/test'):
                 return self.slow_generator_call(body)
             turn=re.fullmatch(r'/api/encounters/([^/]+)/turns',self.path_only)
@@ -216,6 +219,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.route(method,body)
         except APIError as e:self.send({'error':e.message},e.status)
         except AuthError as e:self.send({'error':e.message},e.status)
+        except SpeechError as e:self.send({'error':e.message},e.status)
         except (ValueError,TypeError,KeyError) as e:self.send({'error':str(e)},400)
         except Exception:
             import traceback;traceback.print_exc()
@@ -223,6 +227,30 @@ class Handler(BaseHTTPRequestHandler):
 
     @property
     def store(self):return self.server.store
+
+    def speech_route(self,method,body,eid,clip_id):
+        # Authorize against the encounter before accessing private storage.
+        with self.store.lock:
+            encounter=self.encounter(eid)
+            owner=encounter['owner']==self.owner_id
+            if method in ('POST','DELETE') and not owner:
+                raise APIError(403,'Only the owner can record or delete audio for this encounter.')
+            turn=next((m for m in encounter['messages'] if m['id']==body.get('turn_id') and m['role']=='student'),None)
+        speech=self.server.speech
+        if not clip_id and method=='GET':
+            return self.send({'clips':[speech.public(j) for j in speech.jobs(eid)],'may_delete':owner,'retention_days':7})
+        if not clip_id and method=='POST':
+            if body.get('consent') is not True:raise APIError(422,'Opt in before storing a recording.')
+            if not turn:raise APIError(422,'The recording must belong to an existing student message.')
+            clip=speech.enqueue(encounter,turn,decode_audio(body.get('content')),body.get('overlap_ms',0))
+            return self.send(clip,202)
+        job=speech.get(eid,clip_id) if clip_id else None
+        if not job:raise APIError(404,'Recording not found.')
+        if method=='GET':return self.send(speech.audio(job),content_type='audio/wav')
+        if method=='DELETE':
+            speech.remove_audio(job)
+            return self.send({'deleted':True,'measurements_preserved':True},202)
+        raise APIError(405,'Method not allowed.')
 
     def session(self):
         c=SimpleCookie();c.load(self.headers.get('Cookie',''))
@@ -388,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
             if e.get('pending_turn'):raise APIError(409,'The patient is still answering the previous question.')
             text=text.strip();tid='t'+str(len(e['messages']))
-            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp'];e['pending_turn']=tid
+            e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now(),'request_id':rid});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp'];e['pending_turn']=tid
             event(e,'student_turn',turn_id=tid);self.save_encounter(e)
             profile=e['profile'];history=copy.deepcopy(e['messages'][:-1])
             key=dialogue.cache_key(profile,text,e['disclosed'],dialogue.rapport_established(e['messages']))
@@ -706,7 +734,7 @@ class Handler(BaseHTTPRequestHandler):
                 if rid in e['requests']:return self.send(public_encounter(e,self.role))
                 if len(e['requests'])>=200:raise APIError(422,'This demo supports up to 200 turns per encounter.')
                 text=text.strip();tid='t'+str(len(e['messages']))
-                e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now()});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp']
+                e['messages'].append({'id':tid,'role':'student','text':text,'timestamp':now(),'request_id':rid});e['clock_started_at']=e.get('clock_started_at') or e['messages'][-1]['timestamp']
                 event(e,'student_turn',turn_id=tid)
                 r=reply(e['profile'],text)
                 e['messages'].append({'id':'t'+str(len(e['messages'])),'role':'patient','text':r['text'],'timestamp':now(),'fact_ids':r['fact_ids'],'kind':r['kind'],'reply_to':tid})
@@ -838,6 +866,7 @@ def make_server(port=8000,db_path=None,verbose=True,faculty_password=None,cloud_
     s.release=release_file.read_text().strip() if release_file.is_file() else 'local'
     s.store=Store(db_path or os.environ.get('TWINVERSE_DB_PATH') or ROOT/'data/twinverse.sqlite3');s.verbose=verbose
     s.cloud_storage=cloud_storage if cloud_storage is not None else CloudStorage()
+    s.speech=SpeechStore(s.store,s.cloud_storage)
     # False is an explicit legacy adapter for pre-account regression tests only.
     s.auth=None if auth_store is False else auth_store or AuthStore(s.store,s.cloud_storage)
     s.google=GoogleLogin()

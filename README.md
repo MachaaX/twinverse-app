@@ -12,6 +12,8 @@ Open **http://127.0.0.1:8000** in your browser and choose **Sign up**. Enter you
 
 Google sign-in and PostgreSQL account storage are optional; see the [account and Google setup](docs/AUTH_SETUP.md).
 
+Voice encounters also offer optional [speech delivery coaching](docs/SPEECH_DELIVERY.md): estimated pace, quiet gaps, recording quality and playback overlap, with private replay and early deletion. AWS mode stores audio in S3 and measurements in PostgreSQL. Playback expires after seven days; cleanup retries during outages. These observations do not change faculty rubric scores or infer emotion/empathy from voice.
+
 On Windows:
 
 ```powershell

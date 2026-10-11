@@ -2,6 +2,7 @@
 import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
 import { voiceInput } from './components/VoiceInput.js';
+import { voiceRecorder } from './components/VoiceRecorder.js';
 import { emotionDetector } from './components/EmotionDetector.js';
 import { vitalsPanel } from './components/VitalsPanel.js';
 
@@ -35,6 +36,8 @@ const paths = {
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
 const S = {user:null,csrf:'',googleAvailable:false,developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
 const main = $('#main');
+S.speech=[];S.speechOptIn=false;S.speechMayDelete=false;S.speechError='';S.voiceRun=null;
+let speechTimer;
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
 async function api(path,method='GET',body){
@@ -206,6 +209,8 @@ function inputModeUI(){
       <button type="submit" class="avatar-send-btn" aria-label="Send question">${icon('send')} Send</button>
     </form>
     <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
+      ${voiceRecorder.isAvailable()&&S.speechMayDelete?`<label class="speech-consent"><input type="checkbox" id="speech-consent" ${S.speechOptIn?'checked':''}>Record my speaking turns for delivery coaching<small>Optional · recordings accessible to you and faculty for 7 days, or delete earlier. Measurements stay saved. Maximum 90 seconds per turn; no effect on your rubric score.</small></label>`:'<p class="small muted">Audio recording is unavailable here. Voice input still saves recognized text.</p>'}
+      <span class="recording-status" id="recording-status" role="status"></span>
       <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
         ${icon('mic')}
         <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
@@ -262,6 +267,7 @@ function accountControls(){
 }
 function closeAccountMenu(){const menu=$('#account-menu'),trigger=$('[data-action="account-menu"]');if(menu)menu.hidden=true;if(trigger)trigger.setAttribute('aria-expanded','false');}
 function clearWorkspace(){
+ clearTimeout(speechTimer);S.speech=[];S.speechOptIn=false;S.speechError='';
  ++S.epoch;S.dirty=false;S.developer=false;S.patients=[];S.encounters=[];S.encounter=null;S.editor=null;S.attachments=[];S.validation=null;S.stars={};S.genBrief=null;S.genRequest=null;S.genCheck=null;S.genStatus=null;S.storageStatus=null;S.sending=false;S.query='';S.filter='all';S.measuredVitals=[];vitalsPanel.reset();
  stopVoiceInput();if(S.avatar){S.avatar.stop();S.avatar.destroy();S.avatar=null;}if('speechSynthesis' in window)window.speechSynthesis.cancel();
  $('#transcript-dialog')?.close();$('#confirm-dialog')?.close();
@@ -290,12 +296,14 @@ async function googleLogin(intent){
 function heading(kicker,title,desc,action=''){return `<div class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(desc)}</p></div>${action}</div>`;}
 async function route(){
  let target=location.hash.slice(1) || 'cases';const requested=target.split('?')[0];
+ stopVoiceInput();clearTimeout(speechTimer);
  if(!S.user){S.route=requested==='signup'?'signup':'login';++S.epoch;navigation();main.innerHTML=authView(S.route==='signup');return;}
  if(requested==='login'||requested==='signup'){location.hash='cases';target='cases';}
  if(S.role!=='faculty'&&['studio','generate','metrics','feedback','resources','developer'].includes(target.split('/')[0])){
    S.route=target;++S.epoch;navigation();main.innerHTML=notice('This page requires a faculty account.','error')+button('Back to library','navigate','cases','btn-primary','back');return;
  }
  if(S.dirty && target!==S.route && !confirm('Leave without saving your case edits?')){location.hash=S.route;return;}
+ stopVoiceInput();clearTimeout(speechTimer);
  S.dirty=false;S.route=target;const epoch=++S.epoch;navigation();
  main.innerHTML='<div class="loading-state"><span class="spinner"></span>Loading workspace…</div>';
  try{
@@ -322,7 +330,10 @@ async function route(){
      if(S.role!=='faculty')throw new Error('Sign in to the Faculty view to see ratings and reports.');
      const [rep,sum]=await Promise.all([api('/reports'),api('/ratings/summary')]);view=feedbackView(rep.reports,sum);
    }else if(page==='encounter'||page==='report'){
+     if(S.encounter?.id!==id)S.speechOptIn=false;
      S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));
+     S.speech=[];S.speechError='';
+     await loadSpeech(id);
      // Reset vitals panel for new encounter
      vitalsPanel.reset();
      S.measuredVitals = [];
@@ -332,6 +343,7 @@ async function route(){
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
    else {location.hash='cases';return;}
    if(epoch!==S.epoch)return;main.innerHTML=view;
+   if(page==='encounter'||page==='report')pollSpeech();
    if(page==='encounter'){scrollChat();updateClock();setTimeout(()=>initializeAvatar(),100);}
  }catch(err){if(epoch===S.epoch)main.innerHTML=notice(esc(err.message),'error')+button('Back to library','navigate','cases','btn-primary','back');}
 }
@@ -407,7 +419,7 @@ function encounterView(){const e=S.encounter;const p=e.patient;
  <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
  ${vitalsUI()}
  <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
- <dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
+ ${speechPanel()}<dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
 }
 function messagesView(){if(!S.encounter.messages.length)return `<div class="transcript-start">${icon('send')}<div><strong>You start the conversation.</strong><p>Introduce yourself and your role, then ask what brings ${esc(S.encounter.patient.name.split(' ')[0])} in today. The timer starts with your first message.</p></div></div>`;return S.encounter.messages.map(m=>`<article class="message ${m.role}" id="message-${esc(m.id)}"><div class="message-meta"><strong>${m.role==='student'?'You':esc(S.encounter.patient.name.split(' ')[0])}</strong><span>${esc(m.id)} · ${new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div class="message-bubble">${esc(m.text).replace(/\n/g,'<br>')}</div>${m.role==='patient'?`<div class="message-label">${icon(m.kind==='not_provided'?'info':'shield')}${m.kind==='generative'?'AI reply · checked against approved facts'+(m.cached?' · consistent answer':''):m.kind==='scripted_fallback'?'Approved wording (AI reply not used)':m.kind==='profile'?'Approved sample wording':m.kind==='not_provided'?'Not provided in sample':'Scripted sample response'}</div>`:''}</article>`).join('');}
 function chartView(){const e=S.encounter;
@@ -453,96 +465,96 @@ function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
 setInterval(updateClock,1000);
 
-// Voice input functions
-function startVoiceInput(){
-  if(!voiceInput.isAvailable()){
-    toast('Voice input not supported in this browser', true);
-    return;
-  }
-
-  S.isListening = true;
-  updateVoiceUI();
-
-  let interimTranscript = '';
-
-  voiceInput.startListening({
-    onStart: () => {
-      console.log('[Voice] Started listening');
-      S.isListening = true;
-      updateVoiceUI();
-    },
-    onResult: (transcript, isFinal) => {
-      const transcriptEl = $('#voice-transcript');
-      if(transcriptEl){
-        if(isFinal){
-          console.log('[Voice] Final transcript:', transcript);
-          transcriptEl.textContent = transcript;
-          // Send the question
-          setTimeout(() => sendVoiceQuestion(transcript), 500);
-        }else{
-          interimTranscript = transcript;
-          transcriptEl.innerHTML = `<span style="color:#666;">${esc(transcript)}</span>`;
-        }
-      }
-    },
-    onEnd: () => {
-      console.log('[Voice] Stopped listening');
-      S.isListening = false;
-      updateVoiceUI();
-    },
-    onError: (error) => {
-      console.error('[Voice] Error:', error);
-      S.isListening = false;
-      updateVoiceUI();
-      toast('Voice input error: ' + (error.error || error.message), true);
-    }
-  });
+// Recording is opt-in and scoped to one encounter/account. A late microphone
+// permission or recognition result cannot send audio into another workspace.
+async function startVoiceInput(){
+ if(S.sending||S.isListening||!voiceInput.isAvailable())return;
+ const run={epoch:S.epoch,id:S.encounter.id,user:S.user?.id,text:'',failed:false,started:false};
+ S.voiceRun=run;S.isListening=true;updateVoiceUI();
+ const current=()=>S.voiceRun===run&&S.epoch===run.epoch&&S.user?.id===run.user&&S.route==='encounter/'+run.id;
+ if(S.speechOptIn){
+   try{
+     await voiceRecorder.start({isPatientPlaying:()=>!!(S.avatar?.isSpeaking||ttsService.speaking),onLimit:()=>{
+       if(current()){voiceInput.stopListening();toast('Recording reached 90 seconds. Continue with another speaking turn.');}
+     }});
+   }catch(error){if(current()){stopVoiceInput();toast(error.message,true);}return;}
+ }
+ if(!current()){voiceRecorder.cancel();return;}
+ run.started=true;updateVoiceUI();
+ voiceInput.startListening({
+   onStart:()=>{if(current())updateVoiceUI();},
+   onResult:(transcript,isFinal)=>{
+     if(!current())return;
+     const el=$('#voice-transcript');if(el)el.textContent=transcript;
+     if(isFinal)run.text=transcript;
+   },
+   onEnd:async()=>{
+     if(!current())return;
+     run.ending=true;updateVoiceUI();
+     const capture=await voiceRecorder.stop();
+     if(!current())return;
+     S.isListening=false;S.voiceRun=null;updateVoiceUI();
+     if(run.text&&!run.failed)await sendVoiceQuestion(run.text,capture);
+   },
+   onError:error=>{
+     if(!current())return;
+     run.failed=true;stopVoiceInput();toast('Voice input error: '+(error.error||error.message),true);
+   }
+ });
 }
-
 function stopVoiceInput(){
-  voiceInput.stopListening();
-  S.isListening = false;
-  updateVoiceUI();
+ const active=S.isListening;
+ S.voiceRun=null;voiceInput.stopListening();voiceRecorder.cancel();S.isListening=false;if(active)updateVoiceUI();
 }
-
 function toggleVoiceInput(){
-  if(S.isListening){
-    stopVoiceInput();
-  }else{
-    startVoiceInput();
-  }
+ if(S.isListening){if(S.voiceRun?.started)voiceInput.stopListening();else stopVoiceInput();}
+ else startVoiceInput();
 }
-
 function updateVoiceUI(){
-  const voiceBtn = $('[data-action="toggle-voice"]');
-  const transcriptEl = $('#voice-transcript');
-
-  if(voiceBtn){
-    voiceBtn.className = `voice-btn ${S.isListening?'listening':''}`;
-    voiceBtn.style.borderColor = S.isListening?'#e74c3c':'#1e584b';
-    voiceBtn.style.background = S.isListening?'#e74c3c':'#1e584b';
-    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Tap to Speak'}`;
-  }
-
-  if(transcriptEl && !S.isListening){
-    transcriptEl.innerHTML = '<span style="color:#999;">Tap the button and speak your question</span>';
-  }
+ const button=$('[data-action="toggle-voice"]'),status=$('#recording-status');
+ if(button){button.classList.toggle('listening',S.isListening);button.style.background=S.isListening?'#e74c3c':'#1e584b';button.innerHTML=icon('mic')+(S.isListening?'Stop listening':'Tap to Speak');button.disabled=S.sending||!!S.voiceRun?.ending;}
+ if(status)status.textContent=S.isListening?(voiceRecorder.active?'Recording microphone · stop to finish this turn':S.speechOptIn?'Opening microphone…':'Recognizing speech · audio is not stored'):'';
+ const consent=$('#speech-consent');if(consent)consent.disabled=S.isListening||S.sending;
 }
-
-async function sendVoiceQuestion(text){
-  if(!text || !text.trim()) return;
-
-  // Use the same sendQuestion logic
-  const input = $('#question');
-  if(input){
-    input.value = text;
-    await sendQuestion();
-    input.value = '';
-  }
+async function sendVoiceQuestion(text,capture=null){
+ if(!text?.trim())return;
+ const input=$('#question');if(input){input.value=text;await sendQuestion(capture);}
 }
-
-async function sendQuestion(){
- if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
+async function loadSpeech(id){
+ const epoch=S.epoch;
+ try{const result=await api('/encounters/'+encodeURIComponent(id)+'/speech');
+   if(epoch!==S.epoch||S.encounter?.id!==id)return;
+   S.speech=result.clips;S.speechMayDelete=result.may_delete;S.speechError='';
+ }catch(error){if(epoch===S.epoch){S.speechError=error.message;}}
+}
+function refreshSpeechPanel(){const panel=$('#speech-panel');if(panel)panel.outerHTML=speechPanel();}
+function pollSpeech(){
+ clearTimeout(speechTimer);
+ if(!S.speech.some(clip=>clip.status==='queued'||clip.error||(!clip.audio_deleted&&clip.expires_at*1000<=Date.now())))return;
+ const id=S.encounter?.id,epoch=S.epoch;
+ speechTimer=setTimeout(async()=>{
+   if(epoch!==S.epoch||!['encounter/'+id,'report/'+id].includes(S.route))return;
+   await loadSpeech(id);if(epoch!==S.epoch)return;refreshSpeechPanel();pollSpeech();
+ },5000);
+}
+function speechPanel(){
+ const id=S.encounter?.id;if(!id)return '';
+ return `<section id="speech-panel" class="panel speech-panel"><div class="panel-header"><div><h2>Speech delivery coaching</h2><p class="small muted">For reflection · separate from your faculty rubric score</p></div></div><div class="panel-content">
+ ${S.speechError?notice(esc(S.speechError),'warning'):''}
+ ${!S.speech.length?'<p class="muted">No speaking turns recorded. In Voice mode, opt in before speaking to get audio coaching. Text-only encounters keep the same rubric.</p>':S.speech.map(clip=>{
+   const m=clip.measurements,expires=new Date(clip.expires_at*1000).toLocaleString();
+   return `<article class="speech-clip"><h3>${turnChip(clip.turn_id,'Speaking turn '+clip.turn_id)} ${badge(clip.status==='queued'?'Storage pending':clip.audio_deleted?'Audio deleted':'Measurements saved',clip.status==='queued'?'warning':'neutral')}</h3>
+   <dl class="speech-values"><div><dt>Estimated pace</dt><dd>${m.estimated_words_per_minute==null?'Not enough speech':esc(m.estimated_words_per_minute)+' words/min'}</dd></div><div><dt>Recording length</dt><dd>${esc(m.duration_seconds)} seconds</dd></div><div><dt>Quiet gaps ≥ 0.5 s</dt><dd>${m.quiet_gaps.length}</dd></div><div><dt>Microphone during patient playback</dt><dd>${esc(m.patient_playback_overlap_seconds)} seconds</dd></div></dl>
+   ${m.observations.length?'<ul>'+m.observations.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ul>':''}
+   <details><summary>Measurement details and limits</summary><p>${esc(m.limitations)}</p><p>Recognized words: ${esc(m.word_count)} · Estimated speech span: ${esc(m.speech_span_seconds)} s · Peak: ${esc(m.peak_dbfs)} dBFS · Samples at recording limit: ${esc(m.clipped_sample_percent)}%</p>${m.quiet_gaps.length?'<p>Quiet gaps: '+m.quiet_gaps.map(g=>esc(g.start_seconds)+' s ('+esc(g.duration_seconds)+' s)').join(', ')+'</p>':''}</details>
+   ${clip.error?notice(esc(clip.error),'warning'):''}
+   ${clip.audio_available?`<audio controls preload="none" src="/api/encounters/${encodeURIComponent(id)}/speech/${encodeURIComponent(clip.id)}/audio" aria-label="Recording for ${esc(clip.turn_id)}"></audio><p class="muted">Playback available until ${esc(expires)}.</p>`:`<p class="muted">${clip.audio_deleted||clip.expires_at*1000<=Date.now()?'Audio deleted or expired; measurements remain saved.':'Your recording is being saved. Playback will appear when ready.'}</p>`}
+   ${S.speechMayDelete&&!clip.audio_deleted&&clip.expires_at*1000>Date.now()?button('Delete recording','delete-speech',clip.id,'btn-small','trash'):''}</article>`;
+ }).join('')}
+ </div></section>`;
+}
+async function sendQuestion(capture=null){
+ if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id,epoch=S.epoch;updateVoiceUI();
  try{
    // Check if any vitals should be unlocked based on conversation
    const conversationText = (S.encounter.messages || []).map(m => m.text).join(' ') + ' ' + text;
@@ -573,9 +585,21 @@ async function sendQuestion(){
        console.warn('[Emotion] Failed to set mood:', err);
      }
    }
-   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
-   if(S.route!=='encounter/'+activeId)return;
+   const requestId=crypto.randomUUID();
+   const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:requestId});
+   if(S.route!=='encounter/'+activeId||epoch!==S.epoch)return;
    S.encounter=r;
+   if(capture){
+     const turn=r.messages.find(m=>m.role==='student'&&m.request_id===requestId);
+     try{
+       if(!turn)throw new Error('Could not match this recording to a saved message.');
+       await api('/encounters/'+activeId+'/speech','POST',{...capture,turn_id:turn.id,consent:true});
+       await loadSpeech(activeId);
+       if(epoch!==S.epoch)return;
+       refreshSpeechPanel();pollSpeech();
+     }catch(error){if(epoch===S.epoch)toast('Your text was saved, but audio was not saved: '+error.message,true);}
+   }
+   if(epoch!==S.epoch)return;
    // The avatar layout keeps the transcript in a dialog; the classic layout has #transcript.
    const transcript=$('#transcript-view')||$('#transcript');
    if(transcript)transcript.innerHTML=messagesView();
@@ -590,7 +614,7 @@ async function sendQuestion(){
        await ttsService.speak(last.text,{},last.emotion||'neutral');
      }
    }
- }catch(err){toast(err.message,true);}finally{S.sending=false;submit.disabled=false;input.disabled=false;if(input.isConnected)input.focus();}
+ }catch(err){toast(err.message,true);}finally{if(epoch===S.epoch){S.sending=false;submit.disabled=false;input.disabled=false;updateVoiceUI();if(input.isConnected)input.focus();}}
 }
 function historyStatus(e){
  if(e.status==='active')return ['In progress','neutral'];
@@ -649,7 +673,7 @@ function studentMetricsFolderView(student){
 }
 function reportView(){const e=S.encounter,r=e.feedback;if(!r)return notice('This encounter is still in progress. Finish it to generate observations.')+button('Continue encounter','navigate','encounter/'+e.id,'btn-primary','arrow');
  const faculty=S.role==='faculty';
- const top=heading('ENCOUNTER / REFLECTION','A closer look at your conversation',`${e.patient.name} · ${date(e.started_at)} · Case v${e.patient.version}`,`<div class="button-row"><a class="btn" href="/api/encounters/${e.id}/export">${icon('down')}Export JSON</a>${button('New attempt','start',e.patient.id,'btn-primary','plus')}</div>`);
+ const top=heading('ENCOUNTER / REFLECTION','A closer look at your conversation',`${e.patient.name} · ${date(e.started_at)} · Case v${e.patient.version}`,`<div class="button-row"><a class="btn" href="/api/encounters/${e.id}/export">${icon('down')}Export JSON</a>${button('New attempt','start',e.patient.id,'btn-primary','plus')}</div>`)+speechPanel();
   if(!faculty&&!r.released)return top+scoreHistogram(r,faculty)+notice('<strong>Submitted for faculty review.</strong> Your score and feedback will appear here once your faculty reviewer releases them.')+studentRatingPanel(e)+`<div class="button-row pending-actions">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div>`+checkpointsView(r);
  const observed=r.checkpoints.filter(c=>c.status==='observed').length;
   return top+(faculty?releaseNotice(r):notice(`<strong>Final feedback</strong> released by ${esc(r.released_by)} · ${date(r.released_at)}.${r.update_pending?' Your reviewer is updating this feedback.':''} Scores are a discussion aid, not a pass/fail grade.`))+
@@ -778,6 +802,11 @@ document.addEventListener('click',async event=>{
     }
     return;
   }
+  if(action==='delete-speech'){
+    if(!confirm('Delete this recording? The transcript and measurements will remain saved.'))return;
+    await api('/encounters/'+S.encounter.id+'/speech/'+encodeURIComponent(id)+'/audio','DELETE');
+    await loadSpeech(S.encounter.id);refreshSpeechPanel();pollSpeech();toast('Recording playback removed. Storage cleanup will retry if needed.');return;
+  }
   if(action==='toggle-voice'){
     console.log('[toggle-voice] Clicked');
 
@@ -886,6 +915,7 @@ main.addEventListener('input',event=>{
  if(event.target.closest('#case-form'))S.dirty=true;
 });
 main.addEventListener('change',event=>{
+  if(event.target.id==='speech-consent'){S.speechOptIn=event.target.checked;if(!S.speechOptIn)stopVoiceInput();}
   if(event.target.id==='speak-toggle'){S.speak=event.target.checked;if(!S.speak&&'speechSynthesis'in window)speechSynthesis.cancel();}
   if(event.target.id==='avatar-toggle'){
     S.avatarEnabled=event.target.checked;
@@ -943,4 +973,5 @@ window.addEventListener('hashchange',route);
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeAccountMenu();});
 window.addEventListener('beforeunload',event=>{if(S.dirty){event.preventDefault();event.returnValue='';}});
 async function boot(){try{applySession(await api('/session'));if(S.user)S.rubric=await api('/rubric');await route();}catch(err){main.innerHTML=notice(esc(err.message),'error')+button('Try again','auth-retry','','btn-primary');}}
+window.addEventListener('pagehide',()=>{stopVoiceInput();clearTimeout(speechTimer);});
 boot();

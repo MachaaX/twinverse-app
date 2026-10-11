@@ -22,6 +22,9 @@ if __name__=='__main__':
     storage=server.cloud_storage.status()
     print('Approval storage: '+('AWS (PostgreSQL + S3)' if storage['enabled'] else 'local SQLite'),flush=True)
     if storage['errors']:print('Cloud setup: '+' '.join(storage['errors']))
+    server.speech.start()
     try:server.serve_forever()
     except KeyboardInterrupt:print('\nStopped.')
-    finally:server.server_close();server.store.db.close()
+    finally:
+        server.server_close();server.speech.close()
+        if not server.speech.thread.is_alive():server.store.db.close()

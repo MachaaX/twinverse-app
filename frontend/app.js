@@ -3,6 +3,7 @@ import { Avatar3D } from './components/Avatar3D-TalkingHead.js';
 import { ttsService } from './components/TTSService.js';
 import { voiceInput } from './components/VoiceInput.js';
 import { emotionDetector } from './components/EmotionDetector.js';
+import { vitalsPanel } from './components/VitalsPanel.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -22,16 +23,30 @@ const paths = {
  sound:'M11 5L6 9H3v6h3l5 4z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14',
  mic:'M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8',
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
- flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'
+ flag:'M5 21V4 M5 4h11l-2 4 2 4H5',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 4l-4 16',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+ heart:'M20.8 5.6a5.5 5.5 0 0 0-7.8 0l-1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1 7.8 7.8 7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z',
+ activity:'M22 12h-4l-3 9L9 3l-3 9H2',
+ thermometer:'M14 15V5a2 2 0 1 0-4 0v10a4 4 0 1 0 4 0z',
+ wind:'M9.6 10H4 M14 18H4 M20 6H4 M17 10a3 3 0 1 1 0 6',
+ droplet:'M12 2.7c-1.8 2.3-5 6.5-5 9.3a5 5 0 1 0 10 0c0-2.8-3.2-7-5-9.3z',
+ scale:'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
+ lock:'M19 11h-1V7a6 6 0 0 0-12 0v4H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M8 11V7a4 4 0 0 1 8 0v4'
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.file}"/></svg>`;
-const S = {developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, epoch:0};
+const S = {user:null,csrf:'',googleAvailable:false,developer:false,stars:{},role:'student', patients:[], encounters:[], rubric:null, route:'', filter:'all', query:'', editor:null, attachments:[], validation:null, dirty:false, encounter:null, chartTab:'findings', sending:false, speak:false, avatarEnabled:true, avatar:null, voiceMode:false, isListening:false, measuredVitals:[], epoch:0};
 const main = $('#main');
 let toastTimer;
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className=error?'error':'';el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,5000);}
 async function api(path,method='GET',body){
- const res=await fetch('/api'+path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
- const data=await res.json();if(!res.ok)throw new Error(data.error || `Request failed (${res.status})`);return data;
+ const account=S.user?.id,session=S.csrf;
+ const headers={...(body?{'Content-Type':'application/json'}:{}),...(method!=='GET'?{'X-CSRF-Token':S.csrf}:{})};
+ const res=await fetch('/api'+path,{method,credentials:'same-origin',headers,body:body?JSON.stringify(body):undefined});
+ const data=await res.json();
+ if(!path.startsWith('/auth/')&&path!=='/session'&&(account!==S.user?.id||session!==S.csrf))throw new Error('Your account changed. Reload the page to continue.');
+ if(!res.ok){
+   if(res.status===401&&!path.startsWith('/auth/')){clearWorkspace();S.user=null;S.role=null;location.hash='login';}
+   throw new Error(data.error || `Request failed (${res.status})`);
+ }return data;
 }
 const badge=(text,type='')=>`<span class="badge ${type}">${esc(text)}</span>`;
 const button=(label,action,id='',type='btn-primary',ic='')=>`<button type="button" class="btn ${type}" data-action="${action}" data-id="${esc(id)}">${ic?icon(ic):''}${esc(label)}</button>`;
@@ -126,6 +141,45 @@ function createTearEffect(){
   return tearContainer;
 }
 
+// Vitals Panel UI
+function vitalsUI(){
+  const vitals = ['heartRate', 'bloodPressure', 'temperature', 'respiratoryRate', 'oxygenSaturation', 'weight'];
+
+  return `
+    <div class="vitals-panel">
+      <div class="vitals-header">
+        ${icon('activity')}
+        <span>Vitals</span>
+      </div>
+      <div class="vitals-list">
+        ${vitals.map(key => {
+          const status = vitalsPanel.getVitalStatus(key);
+          const vital = vitalsPanel.vitals[key];
+          const isLocked = !status.unlocked;
+          const isMeasured = status.measured;
+
+          return `
+            <button
+              type="button"
+              class="vital-item ${isLocked ? 'locked' : ''} ${isMeasured ? 'measured' : ''}"
+              data-action="measure-vital"
+              data-vital="${key}"
+              ${isLocked ? 'disabled' : ''}
+              title="${isLocked ? 'Ask about ' + vital.fullName.toLowerCase() + ' to unlock' : vital.fullName}"
+            >
+              <div class="vital-left">
+                ${icon(vital.icon)}
+                <span class="vital-label">${vital.name}</span>
+              </div>
+              ${isLocked ? `<span class="vital-lock">${icon('lock')}</span>` : ''}
+              ${isMeasured ? `<span class="vital-value">${status.value}<small>${status.unit}</small></span>` : `<span class="vital-measure">${icon('plus')}</span>`}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
 // Input mode UI (chat vs voice)
 function inputModeUI(){
   if(!voiceInput.isAvailable()){
@@ -154,7 +208,7 @@ function inputModeUI(){
     <div class="voice-input-section" style="display:${S.voiceMode?'flex':'none'};flex-direction:column;gap:12px;align-items:center;position:relative;z-index:10;">
       <button type="button" class="voice-btn ${S.isListening?'listening':''}" data-action="toggle-voice" style="padding:24px;border:3px solid ${S.isListening?'#e74c3c':'#1e584b'};border-radius:50%;background:${S.isListening?'#e74c3c':'#1e584b'};color:white;cursor:pointer;width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15);pointer-events:auto;">
         ${icon('mic')}
-        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Speak'}</span>
+        <span style="font-size:10px;margin-top:4px;">${S.isListening?'Listening':'Tap to Speak'}</span>
       </button>
       <div id="voice-transcript" style="width:100%;min-height:60px;padding:16px;background:#f9faf7;border-radius:8px;font-size:14px;color:#333;text-align:center;">
         ${S.isListening?'<span style="color:#666;">🎤 Speak now...</span>':'<span style="color:#999;">Tap the button and speak your question</span>'}
@@ -190,16 +244,57 @@ function initializeAvatar(){
   }
 }
 function navigation(){
- const r=S.route.split('/')[0];const links=[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio'],['generate','send','Generate patients']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['feedback','star','Feedback & reports'],['resources','file','Source materials']]:[]),['developer','code','Developer']];
+ document.body?.classList.toggle('auth-page',S.route==='login'||S.route==='signup');
+ const r=S.route.split('/')[0];const links=S.user?[['cases','library','Practice library'],...(S.role==='faculty'?[['studio','studio','Patient Studio'],['generate','send','Generate patients']]:[]),['reviews','history','Encounter history'],['rubric','file','Assessment rubric'],...(S.role==='faculty'?[['feedback','star','Feedback & reports'],['resources','file','Source materials'],['developer','code','Developer']]:[])]:[];
  $('#navigation').innerHTML=links.map(([key,ic,label])=>`<a class="nav-link ${r===key || key==='reviews'&&r==='report'?'active':''}" href="#${key}" aria-label="${label}">${icon(ic)}<span>${label}</span>${r===key?'<i class="nav-dot"></i>':''}</a>`).join('');
- $('#role-switch').innerHTML=['student','faculty'].map(role=>`<button class="${S.role===role?'active':''}" data-action="role" data-id="${role}" aria-pressed="${S.role===role}" title="${role==='faculty'?'Faculty view · password required':'Student view'}">${role==='student'?'Student':'Faculty'}</button>`).join('');
- const labels={cases:'Practice library',studio:'Patient Studio',generate:'Generate patients',feedback:'Feedback & reports',developer:'Developer',reviews:'Encounter history',report:'Encounter feedback',encounter:'Patient encounter',rubric:'Assessment rubric',resources:'Source materials'};
+ accountControls();
+ const labels={login:'Sign in',signup:'Create an account',cases:'Practice library',studio:'Patient Studio',generate:'Generate patients',feedback:'Feedback & reports',developer:'Developer',reviews:'Encounter history',report:'Encounter feedback',encounter:'Patient encounter',rubric:'Assessment rubric',resources:'Source materials'};
  $('#page-label').textContent=labels[r] || 'Workspace';
- $('#report-slot').innerHTML=reportButton();
+ $('#report-slot').innerHTML=S.user?reportButton():'';
+}
+function roleLabel(){return S.role==='faculty'?'Faculty':'Medical student';}
+function accountContent(){return `<strong>${esc(S.user.name)}</strong><span class="account-email">${esc(S.user.email)}</span><span class="account-role">${esc(roleLabel())}</span><div class="account-actions">${S.googleAvailable&&!S.user.has_google?button('Link Google','google-link','','btn btn-small'):''}${button('Log out','logout','','btn btn-small')}</div>`;}
+function accountControls(){
+ const slot=$('#account-slot'),side=$('#sidebar-account');
+ if(!S.user){if(slot)slot.innerHTML='<a class="btn btn-small" href="#login">Sign in</a>';if(side)side.innerHTML='<strong>Your workspace</strong><a class="btn btn-small" href="#login">Sign in</a>';return;}
+ if(slot)slot.innerHTML=`<button type="button" class="user-avatar" data-action="account-menu" aria-label="Account for ${esc(S.user.name)}" aria-expanded="false" aria-controls="account-menu">${esc(initials(S.user.name))}</button><div id="account-menu" class="account-menu" aria-label="Your account" hidden>${accountContent()}</div>`;
+ if(side)side.innerHTML=`<div class="account-person"><span class="account-initials">${esc(initials(S.user.name))}</span><div>${accountContent()}</div></div>`;
+}
+function closeAccountMenu(){const menu=$('#account-menu'),trigger=$('[data-action="account-menu"]');if(menu)menu.hidden=true;if(trigger)trigger.setAttribute('aria-expanded','false');}
+function clearWorkspace(){
+ ++S.epoch;S.dirty=false;S.developer=false;S.patients=[];S.encounters=[];S.encounter=null;S.editor=null;S.attachments=[];S.validation=null;S.stars={};S.genBrief=null;S.genRequest=null;S.genCheck=null;S.genStatus=null;S.storageStatus=null;S.sending=false;S.query='';S.filter='all';S.measuredVitals=[];vitalsPanel.reset();
+ stopVoiceInput();if(S.avatar){S.avatar.stop();S.avatar.destroy();S.avatar=null;}if('speechSynthesis' in window)window.speechSynthesis.cancel();
+ $('#transcript-dialog')?.close();$('#confirm-dialog')?.close();
+}
+function applySession(session){S.user=session.user||null;S.role=session.role||null;S.csrf=session.csrf_token||'';S.googleAvailable=!!session.google_available;S.developer=!!session.developer;}
+function authView(signup=false){
+ const params=new URLSearchParams(location.hash.split('?')[1]||'');const error=params.get('error');
+ return `<section class="auth-card panel"><div class="auth-intro"><h1>${signup?'Create your account':'Welcome back'}</h1><p>${signup?'Choose your role and start your clinical simulation workspace.':'Sign in to continue your clinical practice.'}</p></div>
+ <div class="auth-tabs"><a href="#login" ${!signup?'aria-current="page"':''}>Sign in</a><a href="#signup" ${signup?'aria-current="page"':''}>Sign up</a></div>
+ <form id="auth-form" data-intent="${signup?'signup':'login'}" class="auth-form">
+ ${signup?'<div class="field"><label for="auth-name">Name</label><input id="auth-name" name="name" autocomplete="name" maxlength="120" required></div><div class="field"><label for="auth-role">Your role</label><select id="auth-role" name="role"><option value="medical-student">Medical student</option><option value="faculty">Faculty</option></select></div>':''}
+ <div class="field"><label for="auth-email">Email</label><input type="email" id="auth-email" name="email" autocomplete="email" maxlength="254" required></div>
+ <div class="field"><label for="auth-password">Password</label><input type="password" id="auth-password" name="password" autocomplete="${signup?'new-password':'current-password'}" ${signup?'minlength="8"':''} maxlength="128" required>${signup?'<small class="muted">At least 8 characters.</small>':''}</div>
+ <p id="auth-error" class="login-error" role="alert" ${error?'':'hidden'}>${esc(error||'')}</p>
+ <button class="btn btn-primary" type="submit">${signup?'Create account':'Sign in'}</button>
+ </form><div class="auth-divider"><span>or</span></div><button class="btn google-login" type="button" data-action="google-login" data-intent="${signup?'signup':'login'}" ${S.googleAvailable?'':'disabled'}><img class="google-logo" src="/assets/google_logo.png" width="20" height="20" alt="">Continue with Google</button>${S.googleAvailable?'':'<p class="auth-provider-note muted">Google sign-in is being configured. You can use email and password.</p>'}</section>`;
+}
+async function logout(){
+ if(S.dirty&&!confirm('Log out and discard unsaved case edits?'))return;
+ const session=await api('/auth/logout','POST',{});clearWorkspace();applySession(session);history.replaceState(null,'','#login');await route();toast('You are logged out.');
+}
+async function googleLogin(intent){
+ const role=intent==='signup'?$('#auth-role').value:undefined;
+ const result=await api('/auth/google/start','POST',{intent,role});window.location.assign(result.url);
 }
 function heading(kicker,title,desc,action=''){return `<div class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(desc)}</p></div>${action}</div>`;}
 async function route(){
- const target=location.hash.slice(1) || 'cases';
+ let target=location.hash.slice(1) || 'cases';const requested=target.split('?')[0];
+ if(!S.user){S.route=requested==='signup'?'signup':'login';++S.epoch;navigation();main.innerHTML=authView(S.route==='signup');return;}
+ if(requested==='login'||requested==='signup'){location.hash='cases';target='cases';}
+ if(S.role!=='faculty'&&['studio','generate','feedback','resources','developer'].includes(target.split('/')[0])){
+   S.route=target;++S.epoch;navigation();main.innerHTML=notice('This page requires a faculty account.','error')+button('Back to library','navigate','cases','btn-primary','back');return;
+ }
  if(S.dirty && target!==S.route && !confirm('Leave without saving your case edits?')){location.hash=S.route;return;}
  S.dirty=false;S.route=target;const epoch=++S.epoch;navigation();
  main.innerHTML='<div class="loading-state"><span class="spinner"></span>Loading workspace…</div>';
@@ -208,7 +303,7 @@ async function route(){
    let view;
    if(page==='cases'||page==='studio'&&!id){S.patients=(await api('/patients')).patients;view=page==='cases'?casesView():studioView();}
    else if(page==='studio'&&id){
-     if(S.role!=='faculty')throw new Error('Switch to the Faculty workspace to edit a patient.');
+     if(S.role!=='faculty')throw new Error('A faculty account is required to edit a patient.');
      S.storageStatus=await api('/storage/status');
      if(id==='new'){S.editor=newProfile();S.attachments=[];S.validation=null;}
      else {const r=await api('/patients/'+encodeURIComponent(id));S.editor=r.profile;S.attachments=r.attachments;S.validation=r.validation;}
@@ -222,7 +317,11 @@ async function route(){
      if(S.role!=='faculty')throw new Error('Sign in to the Faculty view to see ratings and reports.');
      const [rep,sum]=await Promise.all([api('/reports'),api('/ratings/summary')]);view=feedbackView(rep.reports,sum);
    }else if(page==='encounter'||page==='report'){
-     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));view=page==='report'?reportView():encounterView();
+     S.stars={};S.encounter=await api('/encounters/'+encodeURIComponent(id));
+     // Reset vitals panel for new encounter
+     vitalsPanel.reset();
+     S.measuredVitals = [];
+     view=page==='report'?reportView():encounterView();
    }else if(page==='reviews'){S.encounters=(await api('/encounters')).encounters;view=historyView();}
    else if(page==='rubric'){view=rubricView();}
    else if(page==='resources'){const r=await api('/resources');view=resourcesView(r.resources);}
@@ -234,7 +333,7 @@ async function route(){
 function casesView(){
  const available=S.patients.filter(p=>p.has_published_version).map(p=>p.published_card||p);const featured=available.find(p=>p.name.startsWith('Omar')) || available[0];
  return heading('LEARN THROUGH CONVERSATION','Every encounter is an opportunity.','Build confidence through thoughtful conversations, one patient at a time.')+
- `<section class="hero"><div class="hero-copy"><div class="eyebrow">YOUR NEXT CONVERSATION</div><h2>Listen closely.<br>Connect the whole story.</h2><p>Meet a virtual patient, explore their history, and reflect on your approach with evidence from the encounter.</p>${featured?button('Begin an encounter','start',featured.id,'btn-light','arrow'):button('Create a patient','navigate','studio/new','btn-light','plus')}</div><div class="hero-art"><div class="orbit"></div><div class="orbit second"></div>${featured?portrait(featured,'hero-portrait'):''}<span class="hero-star" aria-hidden="true">✳</span><div class="float-label"><span class="status-dot"></span> Sample-backed conversations · Your pace</div></div></section>
+ `<section class="hero"><div class="hero-copy"><div class="eyebrow">YOUR NEXT CONVERSATION</div><h2>Listen closely.<br>Connect the whole story.</h2><p>Meet a virtual patient, explore their history, and reflect on your approach with evidence from the encounter.</p>${featured?button('Begin an encounter','start',featured.id,'btn-light','arrow'):(S.role==='faculty'?button('Create a patient','navigate','studio/new','btn-light','plus'):'<p>Faculty will publish patients here for you to practice.</p>')}</div><div class="hero-art"><div class="orbit"></div><div class="orbit second"></div>${featured?portrait(featured,'hero-portrait'):''}<span class="hero-star" aria-hidden="true">✳</span><div class="float-label"><span class="status-dot"></span> Sample-backed conversations · Your pace</div></div></section>
  <div class="section-heading"><h2>Meet your patients <span class="count-pill">${available.length}</span></h2><label class="search">${icon('search')}<input type="search" id="patient-search" placeholder="Search patients or cases…" value="${esc(S.query)}" aria-label="Search patients"></label></div>
  <div class="filter-row">${[['all','All patients'],['cardio','Cardiometabolic'],['communication','Communication & context']].map(([key,label])=>`<button class="chip ${S.filter===key?'active':''}" data-action="filter" data-id="${key}" aria-pressed="${S.filter===key}">${label}</button>`).join('')}</div>
  <div class="patient-grid" id="patient-grid">${patientCards()}</div>
@@ -246,7 +345,7 @@ function patientCards(){
 }
 function studioView(){
  return heading('FACULTY WORKSPACE','Patient Studio','Shape the case. Set the learning goals. Publish when you’re ready.',`<div class="button-row">${button('Generate patient with AI','navigate','generate','btn','send')}${button('Create patient','navigate','studio/new','btn-primary','plus')}</div>`)+
- notice('The faculty view is protected by a shared demo password. Use synthetic content only; this is still not a production login system.')+
+ notice('Your faculty account can create, review, and publish synthetic patient cases.')+
  `<div class="panel"><div class="panel-header"><h2>Your case collection</h2>${badge(S.patients.length+' patients')}</div><div class="table-scroll"><table class="data-table"><thead><tr><th>PATIENT</th><th>CASE</th><th>STATUS</th><th>VERSION</th><th>GENERATED AT</th><th></th></tr></thead><tbody>${S.patients.map(p=>`<tr><td><div class="table-person">${portrait(p)}<div><strong>${esc(p.name)}</strong><div class="muted small">${p.age} years · ${esc(p.gender)}</div></div></div></td><td>${esc(p.summary)}</td><td>${badge(p.status==='published'?'Published':'Draft',p.status==='draft'?'warning':'')}</td><td class="muted">v${p.version}</td><td class="small generation-time">${generationTime(p.generated_at)}</td><td>${button('Edit case','navigate','studio/'+p.id,'btn-small','studio')}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 function newProfile(){return {name:'',age:30,gender:'Not specified',summary:'',background:'',persona:'Conversational and thoughtful',source_notes:'',version:0,status:'draft',facts:[{id:'f1',label:'Presenting case',record:'',patient_text:'',topic:'concern',keywords:['what brings','main concern','symptoms','medical history'],release:'initial',source:'Faculty-authored local sample'},{id:'f2',label:'Personal background',record:'',patient_text:'',topic:'background',keywords:['work','home','background','family','live'],release:'question',source:'Faculty-authored local sample'}],objectives:[{id:'o1',label:'Explore personal background',fact_ids:['f2'],suggestion:'Ask about the patient’s circumstances and clarify their response.'}],validation_notes:[]};}
@@ -301,14 +400,49 @@ async function saveCase(publish=false){
 function encounterView(){const e=S.encounter;const p=e.patient;
  return `<div class="encounter-top"><div class="encounter-heading"><a class="back-button" href="#cases" aria-label="Save and leave encounter">${icon('back')}</a><div><h1>Patient encounter</h1><p class="muted">Your conversation is saved automatically.</p></div></div><div class="button-row">${badge(e.status==='active'?'In progress':'Completed',e.status==='active'?'':'neutral')}${e.status==='active'?button('Finish encounter','finish',e.id,'btn-primary','check'):button('View feedback','navigate','report/'+e.id,'btn-primary','arrow')}<button class="btn btn-small" data-action="toggle-transcript" id="transcript-toggle">${icon('history')} View transcript</button></div></div>
  <div class="encounter-layout-3d"><section class="avatar-main-panel"><div class="avatar-display-area"><div id="avatar-container" style="width:100%;height:100%">${S.avatarEnabled?'<div class="avatar-loading-3d"><span class="spinner"></span><span>Initializing 3D avatar...</span></div>':portrait(p)}</div></div><div class="avatar-controls-bar"><div class="avatar-patient-info"><div><h3>${esc(p.name)}</h3><p>${p.age} years · ${esc(p.gender)} · Case v${p.version} · ${badge('Synthetic','neutral')}</p></div><span class="session-clock" id="session-clock" style="margin-left:auto;font-size:11px;color:var(--muted)"></span></div></div>${e.status==='active'?`<div style="padding:18px 24px;border-top:1px solid var(--line);background:#fff"><div class="starters" style="margin-bottom:12px"><button class="starter" data-action="starter" data-text="Hello, my name is Alex. I'm a student clinician. What brings you in today?">Open the conversation</button><button class="starter" data-action="starter" data-text="Could you tell me about your work and home life?">Explore context</button><button class="starter" data-action="starter" data-text="What questions or concerns do you have?">Ask about concerns</button></div>${inputModeUI()}<div style="margin-top:10px;font-size:9px;color:var(--muted);display:flex;gap:12px;justify-content:space-between"><span>Enter to send · Shift + Enter for new line</span>${ttsService.isAvailable()?`<label class="avatar-toggle"><input type="checkbox" id="avatar-toggle" ${S.avatarEnabled?'checked':''}> 3D Avatar with voice</label>`:''}</div></div>`:`<div class="completed-composer">This encounter is complete. Your transcript is preserved.<br>${button('Review your encounter','navigate','report/'+e.id,'btn-primary','arrow')}</div>`}</section>
+ ${vitalsUI()}
  <aside class="panel compact-chart-panel"><div class="panel-header"><div class="chart-title">${icon('file')}<div><h2>Medical record</h2><small>Updates as information becomes available</small></div></div>${icon('shield')}</div><div class="chart-tabs" role="tablist" aria-label="Medical record sections">${[['findings','Findings'],['documents','Documents'],['timeline','Timeline']].map(([k,label])=>`<button type="button" role="tab" aria-selected="${S.chartTab===k}" aria-controls="chart-body" class="${S.chartTab===k?'active':''}" data-action="chart-tab" data-id="${k}">${label}</button>`).join('')}</div><div class="compact-chart-body" id="chart-body" role="tabpanel">${chartView()}</div></aside></div>
  <dialog id="transcript-dialog"><div style="max-width:800px"><h2>Conversation transcript</h2><p style="color:var(--muted);margin-bottom:20px">${esc(p.name)} · Full conversation history</p><div class="transcript" id="transcript-view" style="max-height:60vh;overflow:auto;padding:20px;background:#fafcf6;border-radius:10px;margin-bottom:20px">${messagesView()}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div></div></dialog>`;
 }
 function messagesView(){if(!S.encounter.messages.length)return `<div class="transcript-start">${icon('send')}<div><strong>You start the conversation.</strong><p>Introduce yourself and your role, then ask what brings ${esc(S.encounter.patient.name.split(' ')[0])} in today. The timer starts with your first message.</p></div></div>`;return S.encounter.messages.map(m=>`<article class="message ${m.role}" id="message-${esc(m.id)}"><div class="message-meta"><strong>${m.role==='student'?'You':esc(S.encounter.patient.name.split(' ')[0])}</strong><span>${esc(m.id)} · ${new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div class="message-bubble">${esc(m.text).replace(/\n/g,'<br>')}</div>${m.role==='patient'?`<div class="message-label">${icon(m.kind==='not_provided'?'info':'shield')}${m.kind==='generative'?'AI reply · checked against approved facts'+(m.cached?' · consistent answer':''):m.kind==='scripted_fallback'?'Approved wording (AI reply not used)':m.kind==='profile'?'Approved sample wording':m.kind==='not_provided'?'Not provided in sample':'Scripted sample response'}</div>`:''}</article>`).join('');}
 function chartView(){const e=S.encounter;
+ if(S.chartTab==='findings'){
+   const list=e.findings||[];
+   const measured = vitalsPanel.getMeasuredVitals();
+   let html = '';
+
+   // Show measured vitals
+   if(measured.length > 0){
+     html += `<div class="vitals-measured-section"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
+   }
+
+   // Show clinical findings
+   if(list.length > 0){
+     html += `<div style="margin-top:${measured.length > 0 ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Clinical Findings</h4><ul class="findings-list">${list.map(f=>`<li class="finding">${icon('info')}<div><strong>${esc(f.text)}</strong><p>Added ${date(f.at)}${f.source?` · Source: ${esc(f.source)}`:''}</p></div></li>`).join('')}</ul></div>`;
+   }
+
+   // Show baseline patient records (always)
+   const hasContent = measured.length > 0 || list.length > 0;
+   html += `<div style="margin-top:${hasContent ? '20px' : '0'}"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Patient Information</h4>${e.records.map(f=>`<article class="record-card" style="padding:12px 0;border-bottom:1px solid var(--line)"><h3 style="font-size:12px;font-weight:600;margin-bottom:6px">${esc(f.label)}</h3><p style="font-size:11px;color:#637360;line-height:1.7;white-space:pre-line">${esc(f.record)}</p><div style="font-size:9px;color:#899681;margin-top:7px;display:flex;align-items:center;gap:5px">${icon('shield')} ${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}</div>`;
+
+   return html;
+ }
  if(S.chartTab==='documents')return e.artifacts.length?e.artifacts.map(a=>`<div class="attachment-row">${icon('file')}<div><strong>${esc(a.name)}</strong><small>Released clinical artifact · ${(a.size/1024).toFixed(0)} KB</small></div><button class="btn btn-small" data-action="open-artifact" data-id="${a.id}">${icon('down')}Open</button></div>`).join('')+`<p class="chart-note">Opening a document is logged separately from its release.</p>`:`<div class="empty-state">${icon('file')}<h3>No documents available yet</h3><p>Attached clinical artifacts appear when their release rules are met. The original sample includes narrative notes, not individual patient lab PDFs.</p></div>`;
  if(S.chartTab==='timeline')return e.events.map(v=>{const f=e.records.find(f=>f.id===v.fact_id);const labels={encounter_started:'Encounter started',fact_available:'Baseline information available',student_turn:'Question recorded',fact_disclosed:'Clinical information disclosed',artifact_released:'Document released',artifact_opened:'Document opened',encounter_finished:'Encounter completed',assessment_created:'Observations generated',faculty_review_saved:'Faculty review saved',guardrail_blocked:'Approved wording used instead of an AI reply',rating_saved:'Rating saved',feedback_released:'Score released to student'};return `<div class="timeline-item"><div><strong>${esc(labels[v.type]||v.type)}</strong>${f?`<div>${esc(f.label)}</div>`:''}<small>${date(v.timestamp)}${v.turn_id?' · '+esc(v.turn_id):''}</small></div></div>`;}).join('');
- return `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ // Default view - show baseline patient records AND measured vitals
+ const measured = vitalsPanel.getMeasuredVitals();
+ let html = `<div class="chart-basics"><div><span>PATIENT</span><strong>${esc(e.patient.name.split(' ')[0])}</strong></div><div><span>AGE</span><strong>${e.patient.age} years</strong></div><div><span>CASE VERSION</span><strong>v${e.patient.version}</strong></div></div>`;
+
+ // Show measured vitals in default view
+ if(measured.length > 0){
+   html += `<div class="vitals-measured-section" style="margin-bottom:20px"><h4 style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);margin:0 0 10px 0;letter-spacing:0.5px">Measured Vitals</h4><ul class="vitals-measured-list">${measured.map(v => `<li class="vital-measured-item">${icon(v.icon)}<div class="vital-info"><span class="vital-label">${v.fullName}</span><strong class="vital-measured-value">${v.value} ${v.unit}</strong></div></li>`).join('')}</ul></div>`;
+ }
+
+ // Show baseline medical records
+ html += `${e.records.map(f=>`<article class="record-card"><h3>${esc(f.label)}</h3><p>${esc(f.record)}</p><div class="record-meta">${icon('shield')}${f.release==='initial'?'Baseline case information':'Disclosed during this encounter'}</div></article>`).join('')}<p class="chart-note">Only released information is displayed. Missing values are not normal or negative findings. Source: supplied case data or faculty-authored facts.</p>`;
+
+ return html;
 }
 function scrollChat(){const el=$('#transcript-view')||$('#transcript');if(el)el.scrollTop=el.scrollHeight;}
 function updateClock(){const el=$('#session-clock');const e=S.encounter;if(!el||!e)return;if(!e.clock_started_at){el.textContent='00:00';el.title='The timer starts with your first message';return;}const seconds=Math.max(0,Math.floor(((e.ended_at?new Date(e.ended_at):new Date())-new Date(e.clock_started_at))/1000));el.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
@@ -382,7 +516,7 @@ function updateVoiceUI(){
     voiceBtn.className = `voice-btn ${S.isListening?'listening':''}`;
     voiceBtn.style.borderColor = S.isListening?'#e74c3c':'#1e584b';
     voiceBtn.style.background = S.isListening?'#e74c3c':'#1e584b';
-    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Speak'}`;
+    voiceBtn.innerHTML = `${icon('mic')} ${S.isListening?'Listening...':'Tap to Speak'}`;
   }
 
   if(transcriptEl && !S.isListening){
@@ -405,6 +539,20 @@ async function sendVoiceQuestion(text){
 async function sendQuestion(){
  if(S.sending)return;const input=$('#question');const text=input.value.trim();if(!text)return;S.sending=true;const submit=$('#chat-form button[type=submit]');submit.disabled=true;input.disabled=true;const activeId=S.encounter.id;
  try{
+   // Check if any vitals should be unlocked based on conversation
+   const conversationText = (S.encounter.messages || []).map(m => m.text).join(' ') + ' ' + text;
+   const unlocked = vitalsPanel.checkForUnlocks(conversationText);
+   if(unlocked.length > 0){
+     console.log('[Vitals] Unlocked:', unlocked.join(', '));
+     // Update vitals UI
+     setTimeout(() => {
+       const vitalsContainer = $('.vitals-panel');
+       if(vitalsContainer){
+         vitalsContainer.outerHTML = vitalsUI();
+       }
+     }, 500);
+   }
+
    // Detect emotion in student's question BEFORE sending
    const reaction = emotionDetector.getAvatarReaction(text);
    console.log('[Emotion] Detected:', reaction.emotion, 'Mood:', reaction.mood);
@@ -420,24 +568,14 @@ async function sendQuestion(){
        console.warn('[Emotion] Failed to set mood:', err);
      }
    }
-
    const r=await api('/encounters/'+activeId+'/turns','POST',{text,request_id:crypto.randomUUID()});
    if(S.route!=='encounter/'+activeId)return;
    S.encounter=r;
+   // The avatar layout keeps the transcript in a dialog; the classic layout has #transcript.
    const transcript=$('#transcript-view')||$('#transcript');
    if(transcript)transcript.innerHTML=messagesView();
    const chart=$('#chart-body');if(chart)chart.innerHTML=chartView();
    input.value='';scrollChat();
-
-   // Reset to neutral before speaking
-   if(S.avatarEnabled && S.avatar && S.avatar.head){
-     setTimeout(() => {
-       try {
-         S.avatar.head.setMood('neutral');
-       } catch(err) { }
-     }, 500);
-   }
-
    const last=r.messages.at(-1);
    if(last&&last.role==='patient'){
      if(S.avatar&&S.avatarEnabled){
@@ -483,17 +621,26 @@ function qualityView(q){if(!q||!q.turns)return '';const s=q.student,p=q.patient;
  <div class="tone-row">${q.turns.map(t=>`<button type="button" class="tone-chip tone-${t.tone}" data-action="evidence" data-id="${esc(t.turn_id)}" title="${esc(t.tone+(t.warm.length?' · '+t.warm.join(', '):'')+(t.cold.length?' · '+t.cold.join(', '):''))}">${esc(t.turn_id)}</button>`).join('')}<span class="small muted">warm · neutral · cold</span></div>
  <ul class="small">${q.summary.map(x=>`<li>${esc(x)}</li>`).join('')}${p.guarded_replies.length?`<li>Guarded patient replies: ${p.guarded_replies.map(id=>turnChip(id)).join('')}</li>`:''}</ul></div></section>`;}
 function checkpointsView(r){return `<div class="section-heading"><h2>Case learning checkpoints</h2><span class="small muted">Rule-based observations</span></div><div class="checkpoint-list">${r.checkpoints.map(c=>`<article class="checkpoint"><div class="checkpoint-top">${icon(c.status==='observed'?'check':'dot')}<h3>${esc(c.label)}</h3></div><p>${c.status==='observed'?'Relevant question and patient disclosure recorded.':c.status==='partial'?'Some relevant information was elicited.':esc(c.suggestion)}</p>${c.evidence_ids.length?button('Inspect evidence','evidence',c.evidence_ids.join(','),'btn-small btn-ghost','eye'):badge(c.status==='manual_review'?'Manual review':'Not observed','neutral')}</article>`).join('')}</div>`;}
+function scoreHistogram(r, faculty){
+ const scores=(r.domains||[]).map(d=>{
+  const value=d.score!==null&&d.score!==undefined?d.score:(faculty?d.suggested_score:null);
+  return {name:d.name,value:Number.isInteger(value)&&value>=0&&value<=4?value:null,na:value==='N/A'};
+ });
+ const hasScores=scores.some(d=>d.value!==null);
+ return `<section class="panel score-histogram" aria-labelledby="score-histogram-title"><div class="panel-header"><div><h2 id="score-histogram-title">Candidate rubric scores</h2><p class="small muted">${faculty?'Saved ratings, or suggested ratings while reviewing':'Released faculty ratings'} - one bar per rubric category</p></div><span class="badge neutral">Scale: 0 to 4</span></div>${hasScores?`<div class="histogram-wrap"><div class="histogram-axis" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div class="histogram-columns">${scores.map(d=>`<div class="histogram-column"><div class="histogram-plot" role="img" aria-label="${esc(d.name)}: ${d.value===null?(d.na?'N/A':'unreviewed'):d.value+' out of 4'}"><div class="histogram-bar ${d.value===null?'empty':''}" style="--score-height:${d.value===null?0:d.value*25}%"></div></div><div class="histogram-label" title="${esc(d.name)}">${esc(d.name)}</div><div class="histogram-value">${d.value===null?(d.na?'N/A':'Not rated'):d.value+'/4'}</div></div>`).join('')}</div></div>`:`<p class="histogram-empty">${faculty?'No category ratings are available yet.':'Category scores will appear here after faculty releases the review.'}</p>`}</section>`;
+}
 function reportView(){const e=S.encounter,r=e.feedback;if(!r)return notice('This encounter is still in progress. Finish it to generate observations.')+button('Continue encounter','navigate','encounter/'+e.id,'btn-primary','arrow');
  const faculty=S.role==='faculty';
  const top=heading('ENCOUNTER / REFLECTION','A closer look at your conversation',`${e.patient.name} · ${date(e.started_at)} · Case v${e.patient.version}`,`<div class="button-row"><a class="btn" href="/api/encounters/${e.id}/export">${icon('down')}Export JSON</a>${button('New attempt','start',e.patient.id,'btn-primary','plus')}</div>`);
- if(!faculty&&!r.released)return top+notice('<strong>Submitted for faculty review.</strong> Your score and feedback will appear here once your faculty reviewer releases them.')+studentRatingPanel(e)+`<div class="button-row pending-actions">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div>`+checkpointsView(r);
+  if(!faculty&&!r.released)return top+scoreHistogram(r,faculty)+notice('<strong>Submitted for faculty review.</strong> Your score and feedback will appear here once your faculty reviewer releases them.')+studentRatingPanel(e)+`<div class="button-row pending-actions">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div>`+checkpointsView(r);
  const observed=r.checkpoints.filter(c=>c.status==='observed').length;
- return top+(faculty?releaseNotice(r):notice(`<strong>Final feedback</strong> released by ${esc(r.released_by)} · ${date(r.released_at)}.${r.update_pending?' Your reviewer is updating this feedback.':''} Scores are a discussion aid, not a pass/fail grade.`))+
+  return top+(faculty?releaseNotice(r):notice(`<strong>Final feedback</strong> released by ${esc(r.released_by)} · ${date(r.released_at)}.${r.update_pending?' Your reviewer is updating this feedback.':''} Scores are a discussion aid, not a pass/fail grade.`))+
  (r.review_required?notice(`<strong>Review required:</strong> ${esc(r.review_trigger_domains.join('; '))} received a score of 1. This flag applies regardless of the total.`,'error'):'')+
  (faculty?autoScoreView(r):'')+
- `<div class="feedback-overview"><section class="score-panel"><div class="eyebrow">${faculty?'FACULTY RUBRIC TOTAL':'YOUR SCORE'}</div><div class="score-number">${r.total??'—'}${r.total!==null?`<span>/ ${r.available_points}</span>`:''}</div><p>${r.total===null?(r.unrated_domains?'Awaiting faculty ratings':'No applicable rated domains'):r.unrated_domains?'Partial assessment':'Discussion aid · not a pass/fail grade'}</p><small>${r.rated_domains} rated · ${r.na_domains} N/A · ${r.unrated_domains} unreviewed<br>Full rubric maximum: 28</small></section><section class="feedback-summary"><h2>${r.status==='reviewed'?'Faculty review saved':'Evidence first. Reflection next.'}</h2><p>${observed} of ${r.checkpoints.length} case checkpoints have matching question-and-response evidence. This measures recorded disclosure, not understanding or competence.</p><p>${r.reviewer?'Reviewed by '+esc(r.reviewer)+' · Review v'+r.review_version:'Scores below are auto-suggested drafts until a faculty reviewer saves them.'}</p><div class="button-row">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div></section></div>`+
+  `<div class="feedback-overview"><section class="score-panel"><div class="eyebrow">${faculty?'FACULTY RUBRIC TOTAL':'YOUR SCORE'}</div><div class="score-number">${r.total??'—'}${r.total!==null?`<span>/ ${r.available_points}</span>`:''}</div><p>${r.total===null?(r.unrated_domains?'Awaiting faculty ratings':'No applicable rated domains'):r.unrated_domains?'Partial assessment':'Discussion aid · not a pass/fail grade'}</p><small>${r.rated_domains} rated · ${r.na_domains} N/A · ${r.unrated_domains} unreviewed<br>Full rubric maximum: 28</small></section><section class="feedback-summary"><h2>${r.status==='reviewed'?'Faculty review saved':'Evidence first. Reflection next.'}</h2><p>${observed} of ${r.checkpoints.length} case checkpoints have matching question-and-response evidence. This measures recorded disclosure, not understanding or competence.</p><p>${r.reviewer?'Reviewed by '+esc(r.reviewer)+' · Review v'+r.review_version:'Scores below are auto-suggested drafts until a faculty reviewer saves them.'}</p><div class="button-row">${button('Read transcript','evidence','all','btn-small','eye')}${button('Open encounter','navigate','encounter/'+e.id,'btn-small','history')}</div></section></div>`+
+  scoreHistogram(r,faculty)+
  (faculty?'':summaryView(r.summary)+studentRatingPanel(e))+qualityView(r.sentiment)+checkpointsView(r)+
- `<form id="review-form" class="panel"><div class="panel-header"><div><h2>Patient Encounter Performance Rubric</h2><p class="small muted">Official organizer rubric · seven domains · scores 1–4 or N/A</p></div>${badge(r.status.replaceAll('_',' '),r.status==='reviewed'?'':'warning')}</div>${r.domains.map(d=>domainView(d)).join('')}${faculty?summaryEditor(r.summary||{})+`<div class="review-footer">${field('Reviewer name','reviewer-name',r.reviewer||'')}<div class="button-row"><button class="btn" type="submit" data-release="0">${icon('check')}Save review</button><button class="btn btn-primary" type="submit" data-release="1">${icon('send')}Save &amp; release to student</button></div></div>`:''}</form>`;
+ `<form id="review-form" class="panel"><div class="panel-header"><div><h2>Patient Encounter Performance Rubric</h2><p class="small muted">Official organizer rubric · seven domains · scores 1–4 or N/A</p></div>${badge(r.status.replaceAll('_',' '),r.status==='reviewed'?'':'warning')}</div>${r.domains.map(d=>domainView(d)).join('')}${faculty?summaryEditor(r.summary||{})+`<div class="review-footer">${S.user?`<div class="field"><label for="reviewer-name">Reviewing as</label><input id="reviewer-name" value="${esc(S.user.name)}" readonly></div>`:field('Reviewer name','reviewer-name',r.reviewer||'')}<div class="button-row"><button class="btn" type="submit" data-release="0">${icon('check')}Save review</button><button class="btn btn-primary" type="submit" data-release="1">${icon('send')}Save &amp; release to student</button></div></div>`:''}</form>`;
 }
 function domainView(d){const faculty=S.role==='faculty';const scoreLabel=d.score===null?'Unreviewed':d.score==='N/A'?'N/A':d.score+' / 4';
  const prefill=faculty&&d.score===null&&!d.review_note;const score=prefill?(d.suggested_score??''):(d.score??'');
@@ -558,8 +705,6 @@ function developerView(d){const s=d.summary;const stat=(n,l)=>`<div class="stat"
  <section class="panel spacer-top"><div class="panel-header"><h2>All problem reports</h2>${badge(d.reports.length+' rows','neutral')}</div><div class="panel-content"><div class="table-scroll"><table class="data-table"><thead><tr><th>WHEN</th><th>STATUS</th><th>ROLE</th><th>TYPE</th><th>MESSAGE</th><th>CONTEXT</th></tr></thead><tbody>${d.reports.map(r=>`<tr><td class="small">${date(r.created_at)}</td><td>${badge(r.status,r.status==='open'?'warning':'')}</td><td>${esc(r.role)}</td><td>${esc(r.category_label)}</td><td>${esc(r.message)}</td><td class="small">${esc([r.context.route,r.context.patient,r.context.turn_id].filter(Boolean).join(' · '))}${r.context.user_agent?`<div class="muted">${esc(r.context.user_agent.slice(0,60))}</div>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No reports yet.</td></tr>'}</tbody></table></div></div></section>`;}
 function rubricView(){return heading('ASSESSMENT REFERENCE','What a thoughtful encounter looks like','The official sample rubric supports discussion and reflection, not pass/fail decisions.')+notice(esc(S.rubric.instructions))+`<div class="panel">${S.rubric.domains.map(d=>`<section class="rubric-domain"><div class="rubric-top"><span class="domain-number">${d.id}</span><h3>${esc(d.name)}</h3>${d.triggers_review_if_score_1?badge('Review if rated 1','warning'):''}</div>${[4,3,2,1].map(n=>`<div class="descriptor-row"><strong>${n} · ${['','Unsafe / absent','Developing','Competent','Strong'][n]}</strong><span class="small muted">${esc(d.descriptors[n])}</span></div>`).join('')}</section>`).join('')}</div><div class="spacer-top">${notice('N/A is for domains not appropriate to the scenario. Unreviewed is a separate state. Totals show only rated domains, with N/A and unreviewed counts visible.')}</div>`;}
 function resourcesView(files){return heading('FACULTY / REFERENCES','The source behind the simulation','Original challenge materials are included with the code package and available here.')+notice('Patient dialogue and checkpoint rules were adapted for this prototype. Original source files are preserved. The pediatric rubric and course syllabus are references, not automatically applied to these adult cases.')+`<div class="resource-grid">${files.map(f=>`<article class="resource-card">${icon('file')}<div><h3>${esc(f.name)}</h3><p>Organizer-provided material · ${(f.size/1024).toFixed(0)} KB</p><a class="btn btn-small" href="/api/resources/${f.id}">${icon('down')}Download source</a></div></article>`).join('')}</div>`;}
-async function roleChanged(role){S.role=role;if(S.route.startsWith('report/')||S.route.startsWith('encounter/'))await route();else location.hash=role==='faculty'?'studio':'cases';navigation();}
-function facultyLogin(){dialog(`<form id="faculty-login"><h2>Faculty sign-in</h2><p>Enter the faculty password. It is also shown in the Terminal window where the app was started.</p><div class="field"><label for="faculty-token">Faculty password</label><input id="faculty-token" type="password" autocomplete="current-password" required></div><p class="login-error" id="login-error" role="alert" hidden></p><div class="dialog-actions">${button('Cancel','close-dialog','','btn')}<button type="submit" class="btn btn-primary">${icon('shield')}Sign in</button></div></form>`);$('#faculty-token').focus();}
 document.addEventListener('submit',async event=>{
  if(event.target.id!=='dev-login')return;event.preventDefault();const err=$('#dev-error');
  try{await api('/developer/login','POST',{password:$('#dev-password').value});S.developer=true;await route();toast('Developer data unlocked.');}
@@ -572,21 +717,19 @@ document.addEventListener('submit',async event=>{
   $('#confirm-dialog').close();toast('Thanks, your report was sent to faculty.');}
  catch(e){err.textContent=e.message;err.hidden=false;}finally{if(submit.isConnected)submit.disabled=false;}
 });
-document.addEventListener('submit',async event=>{
- if(event.target.id!=='faculty-login')return;
- event.preventDefault();const submit=$('#faculty-login button[type=submit]');const err=$('#login-error');submit.disabled=true;
- try{
-  await api('/session','POST',{role:'faculty',password:$('#faculty-token').value});
-  S.dirty=false;$('#confirm-dialog').close();await roleChanged('faculty');toast('Signed in to the faculty view.');
- }catch(e){err.textContent=e.message;err.hidden=false;$('#faculty-token').select();}
- finally{if(submit.isConnected)submit.disabled=false;}
-});
+
 function dialog(html){$('#confirm-content').innerHTML=html;$('#confirm-dialog').showModal();}
 function evidence(ids){const e=S.encounter;const selected=ids==='all'?new Set(e.messages.map(m=>m.id)):new Set(ids.split(','));const relevant=ids==='all'?e.messages:e.messages.filter((m,i)=>selected.has(m.id)||selected.has(e.messages[i-1]?.id)||selected.has(e.messages[i+1]?.id));dialog(`<h2>Encounter evidence</h2><p>${esc(e.patient.name)} · Original transcript, with surrounding context.</p><div class="evidence-view">${relevant.map(m=>`<div class="evidence-turn ${selected.has(m.id)?'selected':''}"><strong>${esc(m.id)} · ${m.role==='student'?'Student':esc(e.patient.name)}</strong>${esc(m.text)}</div>`).join('')}</div><div class="dialog-actions">${button('Close','close-dialog','','btn-primary')}</div>`);}
 
 document.addEventListener('click',async event=>{
+ if(!event.target.closest('#account-slot'))closeAccountMenu();
  const el=event.target.closest('[data-action]');if(!el||el.disabled)return;const action=el.dataset.action,id=el.dataset.id;event.preventDefault();
  try{
+  if(action==='account-menu'){const menu=$('#account-menu');menu.hidden=!menu.hidden;el.setAttribute('aria-expanded',String(!menu.hidden));return;}
+  if(action==='logout'){el.disabled=true;await logout();return;}
+  if(action==='google-login'){el.disabled=true;await googleLogin(el.dataset.intent);return;}
+  if(action==='google-link'){el.disabled=true;await googleLogin('link');return;}
+  if(action==='auth-retry'){await boot();return;}
   if(action==='navigate'){location.hash=id;return;}
   if(action==='close-dialog'){$('#confirm-dialog').close();$('#transcript-dialog')?.close();return;}
   if(action==='toggle-transcript'){$('#transcript-dialog')?.showModal();return;}
@@ -631,16 +774,61 @@ document.addEventListener('click',async event=>{
     toggleVoiceInput();
     return;
   }
-  if(action==='role'){
-   if(S.dirty&&!confirm('Switch workspaces and discard unsaved case edits?'))return;
-   if(id===S.role)return;
-   if(id==='faculty'){facultyLogin();return;}
-   S.dirty=false;await api('/session','POST',{role:id});await roleChanged(id);toast('Signed out of the faculty view.');return;
-  }
   if(action==='filter'){S.filter=id;$$('.chip').forEach(b=>{b.classList.toggle('active',b.dataset.id===id);b.setAttribute('aria-pressed',b.dataset.id===id);});$('#patient-grid').innerHTML=patientCards();return;}
   if(action==='start'){el.disabled=true;const e=await api('/encounters','POST',{patient_id:id});S.chartTab='findings';location.hash='encounter/'+e.id;return;}
   if(action==='starter'){$('#question').value=el.dataset.text;$('#question').focus();return;}
   if(action==='chart-tab'){S.chartTab=id;$$('.chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.id===id);b.setAttribute('aria-selected',b.dataset.id===id);});$('#chart-body').innerHTML=chartView();return;}
+  if(action==='measure-vital'){
+    const vitalKey = el.dataset.vital;
+    console.log('[Vitals] Measuring:', vitalKey);
+
+    // Build patient context from actual case data
+    const patient = S.encounter.patient;
+    const records = S.encounter.records || [];
+    const allText = records.map(r => (r.label + ' ' + r.record).toLowerCase()).join(' ');
+    const messages = S.encounter.messages || [];
+    const conversationText = messages.map(m => m.text.toLowerCase()).join(' ');
+    const fullText = allText + ' ' + conversationText;
+
+    // Parse patient conditions from case data and conversation
+    const patientContext = {
+      id: patient.id,
+      age: patient.age,
+      gender: patient.gender,
+      // Detect conditions from chief complaint and medical history
+      chestPain: /chest pain|chest discomfort|cardiac|angina/i.test(fullText),
+      cardiac: /heart|cardiac|coronary|myocardial/i.test(fullText),
+      anxious: /anxious|anxiety|panic|worried|nervous/i.test(fullText),
+      panic: /panic attack|panic disorder/i.test(fullText),
+      fever: /fever|febrile|temperature|hot|chills/i.test(fullText),
+      infection: /infection|infected|sepsis/i.test(fullText),
+      pain: /pain|ache|hurt|discomfort/i.test(fullText),
+      shortnessOfBreath: /shortness of breath|dyspnea|difficulty breathing|can't breathe|short of breath/i.test(fullText),
+      respiratory: /respiratory|lung|pulmonary|breathing/i.test(fullText),
+      asthma: /asthma|wheezing|wheeze/i.test(fullText),
+      copd: /copd|emphysema|chronic bronchitis/i.test(fullText),
+      hypertension: /hypertension|high blood pressure|htn/i.test(fullText),
+      headache: /headache|head pain|migraine/i.test(fullText)
+    };
+
+    console.log('[Vitals] Patient context:', patientContext);
+
+    const result = vitalsPanel.measureVital(vitalKey, patientContext);
+    if(result){
+      S.measuredVitals.push(result);
+      el.classList.add('measuring');
+      setTimeout(() => {
+        el.classList.remove('measuring');
+        el.classList.add('measured');
+        const vitalsContainer = $('.vitals-panel');
+        if(vitalsContainer) vitalsContainer.outerHTML = vitalsUI();
+        const chartBody = $('#chart-body');
+        if(chartBody) chartBody.innerHTML = chartView();
+        toast(`${result.fullName} measured: ${result.value} ${result.unit}`);
+      }, 1500);
+    }
+    return;
+  }
   if(action==='finish'){dialog(`<h2>Ready to reflect?</h2><p>Finishing saves this conversation and generates evidence-based observations. You can review the transcript or start a fresh attempt afterward.</p><div class="dialog-actions">${button('Keep practicing','close-dialog','','btn')}${button('Finish & review','confirm-finish',id,'btn-primary','check')}</div>`);return;}
   if(action==='confirm-finish'){el.disabled=true;S.encounter=await api('/encounters/'+id+'/finish','POST',{});$('#confirm-dialog').close();location.hash='report/'+id;return;}
   if(action==='evidence'){evidence(id);return;}
@@ -697,13 +885,23 @@ main.addEventListener('submit',async event=>{
  if(form.id==='case-form'){try{await saveCase();}catch(err){toast(err.message,true);}return;}
  try{
   if(submit)submit.disabled=true;
+  if(form.id==='auth-form'){
+   const intent=form.dataset.intent,error=$('#auth-error');error.hidden=true;
+   try{
+    const body={email:$('#auth-email').value,password:$('#auth-password').value};
+    if(intent==='signup'){body.name=$('#auth-name').value;body.role=$('#auth-role').value;}
+    const session=await api('/auth/'+intent,'POST',body);
+    clearWorkspace();applySession(session);S.rubric=await api('/rubric');history.replaceState(null,'','#cases');await route();
+   }catch(err){error.textContent=err.message;error.hidden=false;}
+   return;
+  }
   if(form.id==='gen-form'){
    const req=await collectRequest();S.genRequest={...req,files:[]};
    S.genCheck=await api('/generator/check','POST',{request:req});$('#gen-check').innerHTML=genCheckView();
    if(S.genCheck.errors.length)throw new Error('Fix the highlighted items before generating.');
    $('#gen-check').innerHTML='<div class="loading-state"><span class="spinner"></span>Generating the profile, rubric, reports and portrait on Amazon Bedrock. This usually takes 1–2 minutes…</div>';
    try{const r=await api('/generator/generate','POST',{request:req});S.genCheck=null;await openGeneratedDraft(r,'Draft generated. Review it, then approve and publish.');}
-   catch(err){$('#gen-check').innerHTML=genCheckView();throw err;}
+   catch(err){const check=$('#gen-check');if(check)check.innerHTML=genCheckView();throw err;}
    return;
   }
   if(form.id==='upload-form'){
@@ -724,6 +922,7 @@ main.addEventListener('submit',async event=>{
  }catch(err){toast(err.message,true);}finally{if(submit?.isConnected)submit.disabled=false;}
 });
 window.addEventListener('hashchange',route);
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeAccountMenu();});
 window.addEventListener('beforeunload',event=>{if(S.dirty){event.preventDefault();event.returnValue='';}});
-async function boot(){try{const session=await api('/session');S.role=session.role;S.developer=!!session.developer;S.rubric=await api('/rubric');await route();}catch(err){main.innerHTML=notice('Cannot reach the local backend. Start it with <code>python3 run.py</code> and open <code>http://127.0.0.1:8000</code>. '+esc(err.message),'error');}}
+async function boot(){try{applySession(await api('/session'));if(S.user)S.rubric=await api('/rubric');await route();}catch(err){main.innerHTML=notice(esc(err.message),'error')+button('Try again','auth-retry','','btn-primary');}}
 boot();

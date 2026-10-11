@@ -8,7 +8,9 @@ A working local frontend and sample-backed backend for the Rutgers virtual patie
 python3 run.py
 ```
 
-Open **http://127.0.0.1:8000** in your browser. Keep the terminal running. Stop with Ctrl+C.
+Open **http://127.0.0.1:8000** in your browser and choose **Sign up**. Enter your name, email, password (8+ characters), and **Medical student** or **Faculty**. Faculty access is granted immediately, as requested. Keep the terminal running. Stop with Ctrl+C.
+
+Google sign-in and PostgreSQL account storage are optional; see the [account and Google setup](docs/AUTH_SETUP.md).
 
 On Windows:
 
@@ -33,7 +35,7 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 - Inspect the chart, available documents, and timestamped event history.
 - Leave and resume an encounter from Encounter history; each accepted turn is saved.
 - Finish an encounter and see case checkpoints, candidate communication evidence, the original seven-domain rubric, and the transcript.
-- Switch to Faculty to create/edit cases, set fact-release rules, add learning checkpoints, attach files, validate structure, and publish.
+- Sign in with a Faculty account to create/edit cases, set fact-release rules, add learning checkpoints, attach files, validate structure, and publish.
 - Run a newly published case through the same engine without code changes.
 - Enter faculty ratings from 1–4 or N/A, explain each rating, link real turn IDs, and save a versioned review.
 - Download authorized clinical artifacts and export student-safe encounter JSON.
@@ -41,7 +43,7 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 
 ## Quick demonstration
 
-1. Start the app and select **Omar Sinclair** from the Practice library.
+1. Start the app, create a Medical student account, and select **Omar Sinclair** from the Practice library.
 2. Ask: `Hello, my name is Alex. I'm a student clinician. What brings you in today?`
 3. Ask: `Could you tell me about your work and home life?`
 4. Ask: `What are your cholesterol results?`
@@ -49,12 +51,12 @@ Open http://127.0.0.1:8001 instead. The included `start.command` and `start.bat`
 6. Ask: `How do you feel about taking medication?`
 7. Ask: `Do you have a penicillin allergy?` The adapter reports that the detail is not provided, rather than inventing a negative history.
 8. Finish the encounter. Inspect the checkpoint evidence and original transcript.
-9. Switch the top-right role to **Faculty** and enter the faculty password (`twinverse-faculty` by default). The feedback page stays open. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
+9. Log out, create or sign in with a Faculty account, and open the encounter from **Encounter history**. Select ratings, explain your reasoning, optionally enter supporting turn IDs such as `t1, t3`, and save the review.
 10. Give domain 6 or 7 a rating of 1 with an explanation to demonstrate the official review-trigger behavior.
 
 ## Create a patient through the UI
 
-1. Switch to Faculty and open **Patient Studio → Create patient**.
+1. Sign in with a Faculty account and open **Patient Studio → Create patient**.
 2. Enter the name, age, gender, case summary, background, and conversational style.
 3. The initial presenting-case and background facts can use those fields if their fact text is left empty. Review the resulting text after saving. For additional facts, enter explicit record text and approved patient wording.
 4. Choose each fact's release behavior:
@@ -161,7 +163,7 @@ AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key" python3 run.py
 - **Report a problem** (top bar, every screen, students and faculty): choose a category (wrong or made-up patient answer, scoring, something broke, clinical content, other) and describe it. The page, encounter, latest message, and role are attached automatically. Limited to 20 reports per browser per hour.
 - **Rate the conversation:** after finishing, students give the conversation 1–5 stars with an optional comment.
 - **Rate the automatic score:** on the review page, faculty rate how accurate the auto-suggested score was, 1–5 stars with an optional comment. Students never see this rating.
-- **Developer** (sidebar, both roles): password-protected view of all raw ratings and problem reports, star counts, report counts by type, status, and role, plus CSV and JSON exports. The default password is `twinverse-dev` (printed at startup); change it with `TWINVERSE_DEVELOPER_PASSWORD`. Access ends when you click Lock or the server restarts. Like the faculty password, the default is visible in this repository.
+- **Developer** (faculty sidebar): password-protected view of all raw ratings and problem reports, star counts, report counts by type, status, and role, plus CSV and JSON exports. The default password is `twinverse-dev` (printed at startup); change it with `TWINVERSE_DEVELOPER_PASSWORD`. Access ends when you click Lock or the server restarts. This extra developer password is separate from your personal account password.
 - **Feedback & reports** (faculty sidebar): average ratings overall and per patient, recent comments, and every problem report with a link to the encounter and message. Mark reports resolved or reopen them.
 
 ## Attachment behavior
@@ -255,16 +257,17 @@ If the frontend test's Python executable differs, set `PYTHON` to it. These test
 ## Local-only boundaries
 
 - The server binds to `127.0.0.1`, validates Host/Origin, serves only the frontend directory, and uses HttpOnly SameSite cookies.
-- **Faculty sign-in:** switching to Faculty requires the shared demo password, `twinverse-faculty` by default (also printed in the terminal at startup). Change `DEFAULT_FACULTY_PASSWORD` in `backend/server.py`, or start with `TWINVERSE_FACULTY_PASSWORD="..." python3 run.py`. Five wrong attempts lock that browser out for 60 seconds, and restarting the server signs every browser out of the faculty view. Switching back to Student signs out.
-- The default password is visible in this repository, so it only keeps casual users out of the faculty view during a demo. It is not per-user accounts. Add real authentication before any shared deployment.
-- Browser sessions have separate encounter ownership; Faculty can inspect local encounters for review.
-- Do not expose this server publicly or use real patient information. Add real authentication, authorization, TLS, secure deployment, upload scanning, retention policy, and proper operational controls before any real deployment.
+- **User accounts:** name/email/password signup and Google signup support Medical student and Faculty roles. Roles are stored in the database and checked on the server. Faculty signup grants access immediately; there is no approval process.
+- Account profiles and hashed session tokens use the existing PostgreSQL database in AWS mode. Explicit local-only development uses SQLite. Passwords are stored as salted PBKDF2 hashes, never plaintext.
+- Login persists for 30 days across browser and server restarts. Log out from the top-right account menu or bottom-left user tile; logout revokes that session in the database. Developer unlock still ends on server restart.
+- Encounters belong to the account, so students retain their own history when signing in from another browser. Faculty can inspect encounters for review. Older anonymous demo encounters remain available to faculty and are not automatically assigned to a new account.
+- Do not expose this server publicly or use real patient information. Use TLS, secure deployment, upload scanning, a retention policy, and operational controls before handling real clinical data.
 - Browser narration reads the same approved reply text; it does not evaluate speech, accents, facial expressions, or emotion.
 - The app does not certify HIPAA compliance, clinical validity, or student competence.
 
 ## Resetting local data
 
-Stop the application first. Back up any encounters you want to retain. To intentionally reset the local demo, remove `data/twinverse.sqlite3` and restart. The eight seed patients will be loaded again. This removes locally authored cases, uploads, encounters, and reviews.
+Stop the application first. Back up any encounters you want to retain. To intentionally reset the local demo, remove `data/twinverse.sqlite3` and restart. The eight seed patients will be loaded again. This removes locally authored cases, uploads, encounters, reviews, and any SQLite-mode accounts and sessions. PostgreSQL accounts are unaffected.
 
 ## Source rights
 

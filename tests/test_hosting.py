@@ -23,7 +23,7 @@ class HostedApiTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.environment = patch.dict(os.environ, {'TWINVERSE_DEVELOPER_PASSWORD': 'private-developer-test'})
         self.environment.start()
-        self.server = make_server(0, Path(self.temp.name)/'hosted.sqlite3', verbose=False,
+        self.server = make_server(0, Path(self.temp.name)/'hosted.sqlite3', verbose=False,auth_store=False,
                                   faculty_password='private-faculty-test', cloud_storage=CloudStorage({}),
                                   public_origin='https://203.0.113.10')
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -69,12 +69,25 @@ class HostedApiTests(unittest.TestCase):
     def test_database_can_live_outside_release_directory(self):
         path = Path(self.temp.name)/'persistent/workspace.sqlite3'
         with patch.dict(os.environ, {'TWINVERSE_DB_PATH':str(path)}):
-            server = make_server(0, verbose=False, cloud_storage=CloudStorage({}), public_origin='')
+            server = make_server(0, verbose=False,auth_store=False, cloud_storage=CloudStorage({}), public_origin='')
         server.server_close(); server.store.db.close()
         self.assertTrue(path.is_file())
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_google_requirements_installed_when_present_without_breaking_older_releases(self):
+        for has_auth in (False, True):
+            with tempfile.TemporaryDirectory() as temp:
+                base=Path(temp); state=base/'state'; state.mkdir()
+                def archive(*args, **kwargs):
+                    if args[0]=='tar' and has_auth:
+                        (base/'releases'/('b'*40)/'requirements-auth.txt').write_text('google-auth[requests]')
+                with patch.object(deployer,'BASE',base), patch.object(deployer,'STATE',state), \
+                     patch.object(deployer,'run',side_effect=archive) as run:
+                    deployer.build_release(base/'repo.git','b'*40)
+                pip = next(call.args for call in run.call_args_list if 'pip' in call.args)
+                self.assertEqual('requirements-auth.txt' in pip, has_auth)
+
     def test_build_runs_without_production_credentials(self):
         with tempfile.TemporaryDirectory() as temp:
             base=Path(temp); state=base/'state'; state.mkdir()

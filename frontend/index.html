@@ -6,25 +6,27 @@
   <meta name="description" content="TwinVerse — a faculty-controlled virtual patient encounter workspace.">
   <title>PatientZero · Zero Pressure, Patient Practice</title>  <link rel="icon" href="/assets/favicon.png" type="image/png">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles-vitals.css">
+  <link rel="stylesheet" href="/auth.css">
   <!-- TalkingHead.js for 3D animated avatars (local copy for CSP compliance) -->
   <script src="/lib/talkinghead.mjs" type="module"></script>
   <script type="module" src="/app.js"></script>
 </head>
-<body>
+<body class="auth-page">
   <a class="skip-link" href="#main">Skip to content</a>
   <aside class="sidebar">
-    <a class="brand" href="#cases" aria-label="PatientZero home"><img class="brand-mark" src="/assets/logo.png" alt="" style="object-fit:contain;padding:0;background:none"><span>PatientZero<small>ZERO PRESSURE, PATIENT PRACTICE</small></span></a>    <div class="workspace-label">YOUR WORKSPACE</div>
-        <div class="workspace-label">YOUR WORKSPACE</div>
+    <a class="brand" href="#cases" aria-label="PatientZero home"><img class="brand-mark" src="/assets/logo.png" alt="" style="object-fit:contain;padding:0;background:none;width:56px;height:56px""><span>PatientZero<small>ZERO PRESSURE, PATIENT PRACTICE</small></span></a>    <div class="workspace-label">YOUR WORKSPACE</div>
     <nav id="navigation" aria-label="Main navigation"></nav>
     <div class="sidebar-bottom">
-      <div class="sample-note"><span class="small-orbit">◉</span><strong>A safe place to practice</strong><p>Real learning. Synthetic patients.<br>Zero Pressure, Patient Practice.</p></div>
+      <div id="sidebar-account" class="sidebar-account"></div>
       <div class="local-status"><span class="status-dot"></span> Local sample workspace <span>v1.0</span></div>
     </div>
   </aside>
   <div class="app-shell">
     <header class="topbar">
+      <a class="brand auth-header-brand" href="#login" aria-label="TwinVerse home"><span class="brand-mark" aria-hidden="true">✳</span><span>TwinVerse<small>CLINICAL SIMULATION</small></span></a>
       <div class="breadcrumb"><span>Workspace</span><span class="slash">/</span><strong id="page-label">Practice library</strong></div>
-      <div class="topbar-actions"><span class="demo-tag">SYNTHETIC DATA</span><span id="report-slot"></span><div id="role-switch" class="role-switch" aria-label="Demo workspace role"></div><span class="user-avatar" aria-hidden="true">TV</span></div>
+      <div class="topbar-actions"><span class="demo-tag">SYNTHETIC DATA</span><span id="report-slot"></span><div id="account-slot" class="account-slot"></div></div>
     </header>
     <main id="main" tabindex="-1"><div class="loading-state"><span class="spinner"></span> Opening your workspace…</div></main>
     <footer class="app-footer"><span>TwinVerse / Rutgers Health Hackathon prototype</span><span>Synthetic data only · AI replies grounded in approved facts</span></footer>

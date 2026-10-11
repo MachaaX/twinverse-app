@@ -1,0 +1,2 @@
+# Google login only. Email/password accounts use Python's password hashing.
+google-auth[requests]>=2.0,<3

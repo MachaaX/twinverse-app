@@ -1,0 +1,337 @@
+/* Vitals Panel - Compact Minimalistic Design */
+.vitals-panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.vitals-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fafbf7;
+}
+
+.vitals-header .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--green);
+}
+
+.vitals-header span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.vitals-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vital-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 11px;
+  transition: all .2s ease;
+  cursor: pointer;
+  min-height: 42px;
+}
+
+.vital-item:hover:not(:disabled) {
+  background: #f7f9f3;
+  border-color: var(--green);
+  transform: translateX(2px);
+}
+
+.vital-item.locked {
+  background: #fafbf8;
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.vital-item.locked:hover {
+  transform: none;
+  border-color: var(--line);
+}
+
+.vital-item.measured {
+  background: #f0f4e9;
+  border-color: #d4ddc7;
+}
+
+.vital-item.measuring {
+  animation: measuring-pulse 1.5s ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes measuring-pulse {
+  0%, 100% {
+    transform: scale(1);
+    background: #fff;
+  }
+  50% {
+    transform: scale(1.02);
+    background: #eef2e6;
+  }
+}
+
+.vital-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vital-item .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--green);
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.vital-item.locked .icon {
+  color: var(--muted);
+}
+
+.vital-label {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.vital-item.locked .vital-label {
+  color: var(--muted);
+}
+
+.vital-lock {
+  display: flex;
+  align-items: center;
+  opacity: 0.4;
+}
+
+.vital-lock .icon {
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+}
+
+.vital-measure {
+  display: flex;
+  align-items: center;
+}
+
+.vital-measure .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--green);
+}
+
+.vital-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.vital-value small {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Measured Vitals in Chart */
+.vitals-measured-section {
+  margin-bottom: 20px;
+}
+
+.vitals-measured-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vital-measured-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f7f9f3;
+  border: 1px solid #e6ebe0;
+  border-radius: 8px;
+}
+
+.vital-measured-item .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--green);
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.vital-measured-item .vital-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vital-measured-item .vital-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.vital-measured-item .vital-measured-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* 3D Layout with vitals */
+.encounter-layout-3d {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px minmax(300px, 0.85fr);
+  gap: 21px;
+  align-items: start;
+}
+
+/* Avatar panel in 3D layout */
+.avatar-main-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 590px;
+}
+
+.avatar-display-area {
+  flex: 1;
+  min-height: 450px;
+  position: relative;
+  background: #f9fbf4;
+}
+
+.avatar-controls-bar {
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.avatar-patient-info {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-patient-info h3 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.avatar-patient-info p {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+/* Compact chart panel in 3D layout */
+.compact-chart-panel {
+  min-height: 590px;
+}
+
+.compact-chart-body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 24px;
+  max-height: 650px;
+}
+
+/* Responsive adjustments */
+@media(max-width: 1300px) {
+  .encounter-layout-3d {
+    grid-template-columns: minmax(0, 1fr) 180px minmax(280px, 0.8fr);
+    gap: 16px;
+  }
+
+  .vitals-panel {
+    width: 180px;
+  }
+
+  .vital-item {
+    padding: 9px 10px;
+    min-height: 38px;
+  }
+
+  .vital-left {
+    gap: 8px;
+  }
+
+  .vital-item .icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+@media(max-width: 1100px) {
+  .encounter-layout-3d {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .vitals-panel {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .vitals-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .avatar-display-area {
+    min-height: 400px;
+  }
+}
+
+@media(max-width: 600px) {
+  .vitals-list {
+    grid-template-columns: 1fr;
+  }
+
+  .vital-item {
+    padding: 10px 12px;
+  }
+
+  .vitals-header {
+    padding: 10px 12px;
+  }
+
+  .avatar-display-area {
+    min-height: 350px;
+  }
+}
